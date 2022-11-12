@@ -54,7 +54,7 @@ class RecSysMDP():
 
         """
         no_op_framestack = np.zeros((self.framestack, self.emb_size))
-        chooses = np.asarray([self.item_mapping[item_idx] for item_idx in episode_logs[self.user_col_name]])
+        chooses = np.asarray([self.item_mapping[item_idx] for item_idx in episode_logs[self.item_col_name]])
         chooses = np.append(no_op_framestack, chooses, axis=0)
         states = []
         for i in range(len(episode_logs)):
@@ -75,19 +75,34 @@ class RecSysMDP():
         rewars = []
         actions = []
         termations = []
+
+        mult = 1/(self.rolling_size - self.framestack)
+        M = [mult*i for i in range(self.rolling_size - self.framestack)][::-1]
+        M = np.asarray(M)
+       # print(M)
         for i in range(len(user_df) - self.rolling_size):
             logs = user_df[i:i + self.rolling_size]
             states_one_episode = self._sates4episode(logs)
-            rewards_one_episode = logs[self.reward_col_name]
+            rewards_one_episode = logs[self.reward_col_name].copy()
+          #  print("Inp: ")
+          #  print(rewards_one_episode)
             actions_one_episode = logs[self.item_col_name]
             states_one_episode = np.asarray(states_one_episode[self.framestack:])
-            rewards_one_episode = rewards_one_episode[self.framestack:]
+
+            new_rewards_one_episode = rewards_one_episode[self.framestack:]
+           # print("---------------------")
+            new_rewards_one_episode[new_rewards_one_episode<=3] = -(new_rewards_one_episode[new_rewards_one_episode<=3])
+           # print("Out-1: ")
+           # print(new_rewards_one_episode)
+            new_rewards_one_episode*=M
+           # print("Out-2: ")
+          #  print(new_rewards_one_episode)
             actions_one_episode = actions_one_episode[self.framestack:]
             ###
             termations_one_episode = np.zeros_like(actions_one_episode)
             termations_one_episode[-1] = 1
 
-            rewars.append(rewards_one_episode)
+            rewars.append(new_rewards_one_episode)
             states.append(states_one_episode)
             actions.append(actions_one_episode)
             termations.append(termations_one_episode)

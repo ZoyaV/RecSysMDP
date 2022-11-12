@@ -25,8 +25,8 @@ def to_d3rlpy_form(full_states, full_rewards, full_actions, full_termates):
 def make_datasets(dataframe, col_mapping, test_part,
                   data_directory = "./data", data_name = "ml_100k_first100"):
 
-    user_mapping, inv_user_mapping = random_embeddings(dataframe[col_mapping['user_col_name']])
-    items_mapping, _ = random_embeddings(dataframe[col_mapping['item_col_name']])
+    user_mapping, inv_user_mapping = random_embeddings(dataframe[col_mapping['user_col_name']],emb_size = 64)
+    items_mapping, _ = random_embeddings(dataframe[col_mapping['item_col_name']],emb_size = 64)
 
     ts = sorted(list(set(dataframe[col_mapping['timestamp_col_name']])))
     test_count = int (len(ts)*test_part)
