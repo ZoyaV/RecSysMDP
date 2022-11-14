@@ -34,11 +34,11 @@ if __name__ == "__main__":
     user_mapping = dict(zip(keys, list(range(1, len(keys)+1))))
     raitings['user_idx'] = raitings['user_id'].apply(lambda x: user_mapping[x])
 
-    #print(raitings)
-    make_datasets(raitings, col_mapping, 0.2, data_name = "ml_100k_first_full")
+    print(raitings)
+    make_datasets(raitings[raitings['user_idx']], col_mapping, 0.2, data_name = "ml_100k_first_1000")
 
-    # mdp_train = RecSysMDP(load_from_file=True, path='./data/ml_100k_first50_train_4')
-    # mdp_test = RecSysMDP(load_from_file=True, path='./data/ml_100k_first50_test_47')
+    # mdp_train = RecSysMDP(load_from_file=True, path='./data/ml_100k_first_1000_train_90')
+    # mdp_test = RecSysMDP(load_from_file=True, path='./data/ml_100k_first_1000_test_74')
     # #
     # dataset_train = to_d3rlpy_form(mdp_train.states, mdp_train.rewards,
     #                                mdp_train.actions, mdp_train.termations)
@@ -59,7 +59,8 @@ if __name__ == "__main__":
     #                                         framestack=5, use_user_emb=1, logger=wandb,
     #                                         user_id='user_id', rating='rating', item_id='item_id')
     #
-    # algo.fit(dataset_train, eval_episodes=dataset_test, n_epochs=15, scorers={
+    # #print(help(algo.fit))
+    # algo.fit(dataset_train, eval_episodes=dataset_test, n_steps_per_epoch=2000, n_epochs=20, scorers={
     #     'NegativeScore': part_of_negative,
     #     'PositiveScore': part_of_positive})
     #
