@@ -80,7 +80,7 @@ class RecSysMDP():
         M = [mult*i for i in range(self.rolling_size - self.framestack)][::-1]
         M = np.asarray(M)
        # print(M)
-        for i in range(0,len(user_df) - self.rolling_size, self.rolling_size):
+        for i in range(0,len(user_df) - self.rolling_size,1):
             logs = user_df[i:i + self.rolling_size]
             states_one_episode = self._sates4episode(logs)
             rewards_one_episode = logs[self.reward_col_name].copy()
