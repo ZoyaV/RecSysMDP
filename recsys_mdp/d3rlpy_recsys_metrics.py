@@ -29,7 +29,8 @@ def collect_top_actions(algo, episode, item_mapping, top_k,
             full_predicted_actions.append(actions[0])
             actions = algo.predict([new_observation])
           #  print(actions)
-            action_embedding = item_mapping[actions[0]]
+            action_embedding = item_mapping[actions[0]]*255
+            action_embedding = action_embedding.astype(np.uint8)
             # full_predicted_actions.append(actions[0])
             if use_user_emb:
                 new_observation = np.append(new_observation[emb_size:-emb_size], action_embedding, axis=0)
@@ -55,7 +56,7 @@ def part_of_positive_negative(prediction, user_log, rating, item_id, tresh):
             in_negative += 1
     return in_positive / len(prediction), in_negative/len(prediction)
 
-def hit_rate(positive = True, key_scrapper = lambda obs: obs[-1][-1][-1]/255, top_k=10,
+def hit_rate(positive = True, key_scrapper = lambda obs: obs[-1][-1][0]/255, top_k=10,
                          inv_user_mapping = None, item_mapping=None,
                          original_test_logs=None, reward_tresh=3, emb_size = 64,
                          use_user_emb = False, user_id = 'user_id', rating = 'rating',
@@ -90,6 +91,31 @@ def hit_rate(positive = True, key_scrapper = lambda obs: obs[-1][-1][-1]/255, to
                 logger.log({"evaluate_in_positive": np.mean(total_values)})
             else:
                 logger.log({"evaluate_in_negative": np.mean(total_values)})
+        return np.mean(total_values)
+    return scorer
+
+def episode_hit_rate(top_k=10, item_mapping=None,emb_size = 64,
+                         use_user_emb = False, logger = None):
+    def scorer(
+            algo: AlgoProtocol, episodes: List[Episode]
+    ) -> float:
+        total_values = []
+        action_set = []
+        for episode in episodes:
+            top_k_preds_by_steps = collect_top_actions(algo, episode, item_mapping, top_k,
+                                emb_size = emb_size, use_user_emb=use_user_emb, count_of_actions=1)
+            top_k_preds_by_steps = np.asarray(top_k_preds_by_steps).ravel()
+
+            # Get user embedding and translate to user index
+            episode_actions = episode.actions
+            count = 0
+            for pred in top_k_preds_by_steps:
+                if pred in episode_actions:
+                    count+=1
+            value = count/len(episode_actions)
+            total_values.append(value)
+        if logger:
+                logger.log({"pred_in_episode_action": np.mean(total_values)})
         return np.mean(total_values)
     return scorer
 

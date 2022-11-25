@@ -245,21 +245,28 @@ class SplitByFailureRecSysMDP(RecSysMDP):
           #      state = np.append(state, bad_hist, axis=0)
 
             if self.use_user_embedding:
-                user_ebd = np.ones((1,self.emb_size,self.framestack))
-                user_ebd[0,:self.emb_size] = self.user_mapping[episode_logs[self.user_col_name].values[0]].reshape(1, -1)
+                user_ebd = np.ones((1,self.framestack, self.emb_size))
+                user_map =  self.user_mapping[episode_logs[self.user_col_name].values[0]].reshape(1, -1)
+                # print(user_map[0].shape)
+                # print(user_ebd.shape)
+                # print( user_ebd[0,:,0].shape)
+                user_ebd[0,0,:] = user_map[0]
+                # print(user_ebd.shape)
+                # print(state.shape)
                 state = np.append(state, user_ebd, axis=0)
 
            # print(state.shape)
         #    exit()
           #  print(episode_logs[self.item_col_name])
             actions.append(episode_logs[self.item_col_name].values[i])
-            rewards.append(episode_logs[self.reward_col_name].values[i])
+            rewards.append(0.1)#episode_logs[self.reward_col_name].values[i])
             termations.append(0)
           #  print(termations)
 
            # print(termations)
             states.append(state)
         termations[-1] = 1
+        rewards[-1] = -1
         return states, actions, rewards, termations
 
     def __detect_failuer(self, ts, condition):
