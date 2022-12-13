@@ -17,16 +17,19 @@ if __name__ == "__main__":
                    'timestamp_col_name': 'ts'}
     emb_size = 10
     framestask = 20
-    data = pd.read_csv("clickstream_1ku.csv")
-    data['ts'] = data['timestamp'].apply(pd.to_datetime)
+    data = pd.read_csv("ratings_rev_top10000_users.csv")
+    #data['ts'] = data['timestamp'].apply(pd.to_datetime)
+   # data['datatime'] = data['event_dt'].apply(pd.to_datetime)
+   # data['ts'] = data.datatimкe.values.astype(np.int64) // 10 ** 9
+
     data['rating'] = data['rating'].astype(float)
     data[data['rating']<3]['rating'] = -data[data['rating']<3]['rating']
-    data = data.sort_values(['ts'])
-    best_users_idx = data['user_id'].value_counts()[1:81].index
+    data = data.sort_values(['event_dt'])
+    best_users_idx = data['user_id'].value_counts()[:5000].index
    # print(len(best_users_idx))
    # exit()
-    user_train_idx = [idx for i, idx in enumerate(best_users_idx) if i%5!=0]
-    user_test_idx = [idx for i, idx in enumerate(best_users_idx) if i%5 == 0]
+    user_train_idx = [idx for i, idx in enumerate(best_users_idx) if i%50!=0]
+    user_test_idx = [idx for i, idx in enumerate(best_users_idx) if i%50 == 0]
 
     data['user_idx'] = data['user_id']
     data['old_idx'] = data['user_id']
@@ -34,9 +37,9 @@ if __name__ == "__main__":
     filtered_raitings = filtered_raitings.loc[best_users_idx]
     filtered_raitings = filtered_raitings.reset_index(drop=False)
 
-    keys = list(set(filtered_raitings['item_id']))
+    keys = list(set(filtered_raitings['track_id']))
     item_mapping = dict(zip(keys, list(range(1, len(keys) + 1))))
-    filtered_raitings['item_idx'] = filtered_raitings['item_id'].apply(lambda x: item_mapping[x])
+    filtered_raitings['item_idx'] = filtered_raitings['track_id'].apply(lambda x: item_mapping[x])
 
     keys = list(set(filtered_raitings['user_idx']))
     user_mapping = dict(zip(keys, list(range(1, len(keys) + 1))))
@@ -117,7 +120,7 @@ if __name__ == "__main__":
 
     wandb.init(project="Right MDP", group="SberZvuk_CQL_with_negative")
     algo.fit(dataset_train, eval_episodes=dataset_test, n_steps_per_epoch=2000,
-             n_epochs=100, scorers={
+              n_steps = 166550, scorers={
                                      'Test_PositiveHitRate': part_of_positive_test,
                                     'Test_EpisodeHitRate': episode_hit_rate_test})
     algo.save_model('CQL_muse.pt')
