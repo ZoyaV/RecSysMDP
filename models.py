@@ -45,6 +45,8 @@ class HistoryEncoder(EncoderBase):
         self.out = nn.Linear(2*self.feature_size, self.feature_size)
 
     def forward(self, obs_dict):
+        print("Aboba!")
+        exit()
         hist_emb = self.hist_encoder(obs_dict[:,0,:,:].view(-1,self.input_size))
         good_emb = self.good_encoder(obs_dict[:,1,:,:].view(-1,self.input_size))
         x = torch.cat([good_emb, hist_emb], axis =  -1)

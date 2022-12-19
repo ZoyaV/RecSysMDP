@@ -2,12 +2,13 @@ import os
 from recsys_mdp.embedddings import random_embeddings
 import pandas as pd
 import numpy as np
-from d3rlpy.algos import DiscreteCQL, DiscreteSAC
+from d3rlpy.algos import DiscreteCQL, DiscreteSAC, SDAC
 
 from recsys_mdp.recsys_mdp import SplitByFailureRecSysMDP
 from recsys_mdp.utils import to_d3rlpy_form, to_d3rlpy_form_ND
 from recsys_mdp.d3rlpy_recsys_metrics import hit_rate, episode_hit_rate
 from models import CustomEncoderFactory
+from sdac_models import CustomEncoderFactorySDAC
 import wandb
 
 if __name__ == "__main__":
@@ -15,7 +16,7 @@ if __name__ == "__main__":
                    'item_col_name': 'item_idx',
                    'reward_col_name': 'rating',
                    'timestamp_col_name': 'ts'}
-    emb_size = 10
+    emb_size = 8
     framestask = 20
     data = pd.read_csv("ratings_rev_top10000_users.csv")
     #data['ts'] = data['timestamp'].apply(pd.to_datetime)
@@ -25,11 +26,11 @@ if __name__ == "__main__":
     data['rating'] = data['rating'].astype(float)
     data[data['rating']<3]['rating'] = -data[data['rating']<3]['rating']
     data = data.sort_values(['event_dt'])
-    best_users_idx = data['user_id'].value_counts()[:5000].index
+    best_users_idx = data['user_id'].value_counts()[:20].index
    # print(len(best_users_idx))
    # exit()
-    user_train_idx = [idx for i, idx in enumerate(best_users_idx) if i%50!=0]
-    user_test_idx = [idx for i, idx in enumerate(best_users_idx) if i%50 == 0]
+    user_train_idx = [idx for i, idx in enumerate(best_users_idx) if i%4!=0]
+    user_test_idx = [idx for i, idx in enumerate(best_users_idx) if i%4 == 0]
 
     data['user_idx'] = data['user_id']
     data['old_idx'] = data['user_id']
@@ -98,8 +99,9 @@ if __name__ == "__main__":
     print(dataset_train.rewards[:30])
 
 
-
-    algo = DiscreteCQL(use_gpu=True, encoder_factory = CustomEncoderFactory(512),batch_size = 32)
+    encoder_factory = CustomEncoderFactorySDAC(512, mdp_train.item_mapping)
+    algo = SDAC(use_gpu=True, initial_temperature = 0.0001, encoder_factory = encoder_factory, actor_encoder_factory = encoder_factory, critic_encoder_factory =  encoder_factory,
+                batch_size = 64)
     part_of_positive_train = hit_rate(top_k=10, inv_user_mapping=mdp_train.inv_user_mapping,
                                             item_mapping=mdp_train.item_mapping,
                                             original_test_logs=mdp_train.dataframe, reward_tresh=2,
@@ -118,9 +120,9 @@ if __name__ == "__main__":
     episode_hit_rate_test = episode_hit_rate(top_k=10, item_mapping=mdp_test.item_mapping, emb_size=64,
                                               use_user_emb=False, logger=wandb)
 
-    wandb.init(project="Right MDP", group="SberZvuk_CQL_with_negative")
-    algo.fit(dataset_train, eval_episodes=dataset_test, n_steps_per_epoch=2000,
-              n_steps = 166550, scorers={
-                                     'Test_PositiveHitRate': part_of_positive_test,
-                                    'Test_EpisodeHitRate': episode_hit_rate_test})
+    wandb.init(project="Right MDP", group="SberZvuk_SDAC_with_negative")
+    algo.fit(dataset_train, eval_episodes=dataset_train, 
+              n_steps=10000000, scorers={
+                                     'Test_PositiveHitRate': part_of_positive_train,
+                                    'Test_EpisodeHitRate': episode_hit_rate_train})
     algo.save_model('CQL_muse.pt')
