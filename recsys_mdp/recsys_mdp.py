@@ -3,10 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 from abc import ABC, abstractmethod
+import sys
+sys.path.append("../recsys_mdp")
 
-from recsys_mdp.utils import to_d3rlpy_form_ND
-from recsys_mdp.reward_functions import monotony_reward, relevance_based_reward, condition_reward
-from recsys_mdp.action_function import discrete_relevance_action, continuous_relevance_action, next_item_action
+from utils import to_d3rlpy_form_ND
+from reward_functions import monotony_reward, relevance_based_reward, condition_reward
+from action_function import discrete_relevance_action, continuous_relevance_action, next_item_action
 
 
 class RecSysMDP(ABC):
@@ -14,9 +16,11 @@ class RecSysMDP(ABC):
                  dataframe=None, data_mapping=None,
                  framestack=5, reward_function=monotony_reward,
                  action_function=continuous_relevance_action,
-                 history_keys=['framestack', 'user_id']):
+                 history_keys=None):
         super().__init__()
 
+        if history_keys is None:
+            history_keys = ['framestack', 'user_id']
         self.framestack = framestack
         self.reward_function = reward_function
         self.action_function = action_function
@@ -84,19 +88,15 @@ class RecSysMDP(ABC):
             t += 1
             if t < self.framestack: continue
             history = []
-
             if 'framestack' in self.history_keys:
                 history += framestask_queue.copy()
-
             if 'user_id' in self.history_keys:
                 history += [row[self.user_col_name]]
-
             interaction = {self.user_col_name: row[self.user_col_name],
                            'history': history,
                            self.reward_col_name: row[self.reward_col_name],
                            self.item_col_name: row[self.item_col_name],
                            self.timestamp_col_name: row[self.timestamp_col_name]}
-            #  print(framestask_queue)
             framestask_queue.append(row[self.item_col_name])
             framestask_queue.pop(0)
             intarections_list.append(interaction)
@@ -122,7 +122,7 @@ class RecSysMDP(ABC):
         self.rewards = full_rewards
         self.actions = full_actions
         self.termations = full_terminates
-        return (full_states, full_rewards, full_actions, full_terminates)
+        return full_states, full_rewards, full_actions, full_terminates
 
     def save(self, path):
         data = (self.states, self.rewards, self.actions, self.termations)
@@ -157,7 +157,6 @@ class WindowBasedRecSysMDP(RecSysMDP):
         calc mdp trajectories by user
         :return:
         """
-        no_op_framestack = np.ones((self.framestack, self.emb_size))
         states = []
         rewars = []
         actions = []
@@ -174,13 +173,12 @@ class WindowBasedRecSysMDP(RecSysMDP):
 
 class ConditionBasedRecSysMDP(RecSysMDP):
     def __init__(self, condition, **args):
-        self.condition = condition  # finction that return terminates
+        self.condition = condition  # function that return terminates
         super(ConditionBasedRecSysMDP, self).__init__(**args)
 
     def __detect_failuer(self, ts, condition):
         result = (ts[1:].values - ts[:-1].values).astype(int)
         indx = np.where(condition(result))
-        # print(indx)
         return indx[0]
 
     def _mdp4user(self, user_df):
@@ -188,22 +186,18 @@ class ConditionBasedRecSysMDP(RecSysMDP):
         calc mdp trajectories by user
         :return:
         """
-        states = []
-        rewars = []
-        actions = []
-        termations = []
-        # condition_music = lambda A: A > 0  # в эпизоды попадает только неразрывный по дню сеанс
+        states, rewards, actions, terminations = [], [], [], []
         indx_to_episode_split = self.condition(user_df)
         for i, idx in enumerate(indx_to_episode_split):
             start = 0 if i == 0 else indx_to_episode_split[i - 1]
             end = idx
             one_episode = user_df.loc[start:end]
             if len(one_episode) < self.framestack: continue
-            rewars.append(self.get_episode_reward(one_episode))
+            rewards.append(self.get_episode_reward(one_episode))
             states.append(one_episode['history'].values.tolist())
             actions.append(self.get_episode_action(one_episode))
-            termations.append(self.get_episode_terminates(one_episode))
-        return states, rewars, actions, termations
+            terminations.append(self.get_episode_terminates(one_episode))
+        return states, rewards, actions, terminations
 
 
 class FullUserHistoryBasedRecSysMDP(RecSysMDP):
@@ -215,37 +209,43 @@ class FullUserHistoryBasedRecSysMDP(RecSysMDP):
         calc mdp trajectories by user
         :return:
         """
-        states = []
-        rewars = []
-        actions = []
-        termations = []
-
+        states, rewards, actions, terminations = [], [], [], []
         one_episode = user_df
-        rewars.append(self.get_episode_reward(one_episode))
+        rewards.append(self.get_episode_reward(one_episode))
         states.append(one_episode['history'].values.tolist())
         actions.append(self.get_episode_action(one_episode))
-        termations.append(self.get_episode_terminates(one_episode))
-        return states, rewars, actions, termations
+        terminations.append(self.get_episode_terminates(one_episode))
+        return states, rewards, actions, terminations
 
-
+# Test classes
 if __name__ == "__main__":
-    from embedddings import random_embeddings
     import pandas as pd
 
     col_mapping = {'user_col_name': 'user_idx',
-                   'item_col_name': 'item_id',
+                   'item_col_name': 'item_idx',
                    'reward_col_name': 'rating',
                    'timestamp_col_name': 'ts'}
     emb_size = 8
     framestask = 5
-    data = pd.read_csv("clickstream_1ku.csv")
-    data['ts'] = data['timestamp'].apply(pd.to_datetime)
-    data = data.sort_values(['ts'])
-    best_users_idx = data['user_id'].value_counts().index
+    data = pd.read_csv("./row_data/ratings_rev_top10000_users.csv")[:10000]
+    data['rating'] = data['rating'].astype(float)
+    data[data['rating'] < 3]['rating'] = -data[data['rating'] < 3]['rating']
+    data = data.sort_values(['event_dt'])
+    best_users_idx = data['user_id'].value_counts()[:800].index
+
     data['user_idx'] = data['user_id']
+    data['old_idx'] = data['user_id']
     filtered_raitings = data.set_index('user_id')
     filtered_raitings = filtered_raitings.loc[best_users_idx]
     filtered_raitings = filtered_raitings.reset_index(drop=False)
+
+    keys = list(set(filtered_raitings['track_id']))
+    item_mapping = dict(zip(keys, list(range(1, len(keys) + 1))))
+    filtered_raitings['item_idx'] = filtered_raitings['track_id'].apply(lambda x: item_mapping[x])
+
+    keys = list(set(filtered_raitings['user_idx']))
+    user_mapping = dict(zip(keys, list(range(1, len(keys) + 1))))
+    filtered_raitings['user_idx'] = filtered_raitings['user_idx'].apply(lambda x: user_mapping[x])
 
     mdp_train = FullUserHistoryBasedRecSysMDP(load_from_file=False, dataframe=filtered_raitings,
                                               data_mapping=col_mapping, framestack=framestask,
@@ -304,12 +304,9 @@ if __name__ == "__main__":
                                         reward_function=monotony_reward,
                                         action_function=continuous_relevance_action, condition=split_by_time)
     states, rewards, actions, termations = mdp_train.create_mdp()
-    # states, rewards, actions, termations = [np.asarray(component) for component in mdp]
 
     print("ConditionBasedRecSysMDP, monotony_reward, continuous_relevance_action")
-    print("States representation: ", states[0][:3])
-    #  print("States shape: ", states.shape)
-    # print("Termations count: ", np.sum(termations.sum()))
+    print("States representation: ", states[0][:5])
     print("Action example: ", actions[0][:5])
     print("Reward example: ", rewards[0][:5])
 
