@@ -1,15 +1,26 @@
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 from abc import ABC, abstractmethod
+
+from recsys_mdp.utils import to_d3rlpy_form_ND
+from recsys_mdp.reward_functions import monotony_reward, relevance_based_reward, condition_reward
+from recsys_mdp.action_function import discrete_relevance_action, continuous_relevance_action, next_item_action
+
+
 class RecSysMDP(ABC):
-    def __init__(self, load_from_file = False, path = None, dataframe = None, data_mapping = None,
-                 framestack = 5, emb_size = 64,
-                 user_mapping = None, item_mapping = None,
-                 use_user_embedding = False, inv_user_mapping = None ):
+    def __init__(self, load_from_file=False, path=None,
+                 dataframe=None, data_mapping=None,
+                 framestack=5, reward_function=monotony_reward,
+                 action_function=continuous_relevance_action,
+                 history_keys=['framestack', 'user_id']):
         super().__init__()
+
+        self.framestack = framestack
+        self.reward_function = reward_function
+        self.action_function = action_function
+        self.history_keys = history_keys
         self.state_size = None
         self.rewards_size = None
         self.action_size = None
@@ -20,21 +31,14 @@ class RecSysMDP(ABC):
         self.actions = None
         self.termations = None
 
-        self.framestack = framestack
-        self.user_mapping = user_mapping
-        self.item_mapping = item_mapping
-        self.use_user_embedding = use_user_embedding
-        self.inv_user_mapping = inv_user_mapping
-
         if not load_from_file:
-            self.dataframe = dataframe #Pandas-DataFram object
-            self.data_mapping = data_mapping #Dict of keys for mdp {'reward':'score', 'user_col_name':...}
-            self.emb_size = emb_size
+            self.dataframe = dataframe  # Pandas-DataFram object
+            self.data_mapping = data_mapping  # Dict of keys for mdp {'reward':'score', 'user_col_name':...}
+
             self.user_col_name = self.data_mapping['user_col_name']
             self.item_col_name = self.data_mapping['item_col_name']
             self.reward_col_name = self.data_mapping['reward_col_name']
             self.timestamp_col_name = self.data_mapping['timestamp_col_name']
-
         else:
             self.__load(path)
             self.state_size = np.asarray(self.states).shape
@@ -42,10 +46,16 @@ class RecSysMDP(ABC):
             self.action_size = np.asarray(self.actions).shape
             self.term_size = np.asarray(self.termations).shape
 
+    def get_episode_action(self, df):
+        return self.action_function(df, self.data_mapping)
 
-    @abstractmethod
-    def _sates4episode(self, episode_logs):
-        pass
+    def get_episode_reward(self, df):
+        return self.reward_function(df, self.data_mapping)
+
+    def get_episode_terminates(self, df):
+        terminates = np.zeros(df.shape[0])
+        terminates[-1] = 1
+        return terminates
 
     @abstractmethod
     def _mdp4user(self, user_df):
@@ -55,36 +65,44 @@ class RecSysMDP(ABC):
         """
         pass
 
-    def save(self, path):
-        data =  (self.states, self.rewards,  self.actions, self.termations)
-        random_part = np.random.randint(0,100)
-        with open(path + "_%d.pkl"%random_part, 'wb') as f:
-            pickle.dump(data, f)
-            print("Saved to %s"%path)
-        with open(path + "_%d_user_embeddings.pkl"%random_part, 'wb') as f:
-            pickle.dump(self.user_mapping, f)
-        with open(path + "_%d_item_embeddings.pkl"%random_part, 'wb') as f:
-            pickle.dump(self.item_mapping, f)
-        with open(path + "_%d_df.pkl"%random_part, 'wb') as f:
-            pickle.dump(self.dataframe, f)
-        with open(path + "_%d_inv_user_mapping.pkl"%random_part, 'wb') as f:
-            pickle.dump(self.inv_user_mapping, f)
+    def __intaraction_history(self, user_df):
+        """
 
-        print("Saved at %s"%(path + "_%d.pkl"%random_part))
+        :param user_df:
+        :return: return history with self.framestack size for each (user-item) interaction
+        """
+        intarections_list = []
+        framestask_queue = []
 
-    def __load(self, path):
-        with open(path + ".pkl", 'rb') as f:
-            self.states, self.rewards,  self.actions, self.termations = pickle.load(f)
-        with open(path + "_user_embeddings.pkl", 'rb') as f:
-            self.user_mapping = pickle.load(f)
-        with open(path + "_item_embeddings.pkl", 'rb') as f:
-            self.item_mapping = pickle.load(f)
-        with open(path + "_df.pkl", 'rb') as f:
-            self.dataframe = pickle.load(f)
-        with open(path + "_inv_user_mapping.pkl", 'rb') as f:
-            self.inv_user_mapping = pickle.load(f)
+        # Fill first framestack_size items to history
+        for index, row in user_df.iterrows():
+            framestask_queue.append(row[self.item_col_name])
+            if len(framestask_queue) >= self.framestack:
+                break
+        # print(framestask_queue)
+        # Make interaction history for each user-item interaction
+        t = 0
+        for index, row in user_df.iterrows():
+            t += 1
+            if t < self.framestack: continue
+            history = []
 
-        print("Data loaded!")
+            if 'framestack' in self.history_keys:
+                history += framestask_queue.copy()
+
+            if 'user_id' in self.history_keys:
+                history += [row[self.user_col_name]]
+
+            interaction = {self.user_col_name: row[self.user_col_name],
+                           'history': history,
+                           self.reward_col_name: row[self.reward_col_name],
+                           self.item_col_name: row[self.item_col_name],
+                           self.timestamp_col_name: row[self.timestamp_col_name]}
+            #  print(framestask_queue)
+            framestask_queue.append(row[self.item_col_name])
+            framestask_queue.pop(0)
+            intarections_list.append(interaction)
+        return pd.DataFrame(intarections_list)
 
     def create_mdp(self):
         """
@@ -97,18 +115,23 @@ class RecSysMDP(ABC):
         full_actions = []
         full_termates = []
         for user in users:
+            # view data for only one user
             user_df = self.dataframe[self.dataframe[self.user_col_name] == user].sort_values(self.timestamp_col_name)
-            states, rewards, actions, termates = self._mdp4user(user_df)
+            # get history for each interaction
+            if user_df.shape[0] < self.framestack: continue
+            interaction_history = self.__intaraction_history(user_df)
+            # print(interaction_history['history'][0])
+            states, rewards, actions, terminates = self._mdp4user(interaction_history)
+            # print(states[0])
+            full_states += states
+            full_rewards += rewards
+            full_actions += actions
+            full_termates += terminates
 
-            full_states += states.tolist()
-            full_rewards += rewards.tolist()
-            full_actions += actions.tolist()
-            full_termates += termates.tolist()
-
-        self.state_size = np.asarray(full_states).shape
-        self.rewards_size = np.asarray(full_rewards).shape
-        self.action_size = np.asarray(full_actions).shape
-        self.term_size = np.asarray(full_termates).size
+        # self.state_size = np.asarray(full_states).shape
+        #  self.rewards_size = np.asarray(full_rewards).shape
+        # self.action_size = np.asarray(full_actions).shape
+        # self.term_size = np.asarray(full_termates).size
 
         self.states = full_states
         self.rewards = full_rewards
@@ -117,36 +140,47 @@ class RecSysMDP(ABC):
 
         return (full_states, full_rewards, full_actions, full_termates)
 
+    def save(self, path):
+        data = (self.states, self.rewards, self.actions, self.termations)
+        random_part = np.random.randint(0, 100)
+        with open(path + "_%d.pkl" % random_part, 'wb') as f:
+            pickle.dump(data, f)
+            print("Saved to %s" % path)
+        with open(path + "_%d_user_embeddings.pkl" % random_part, 'wb') as f:
+            pickle.dump(self.user_mapping, f)
+        with open(path + "_%d_item_embeddings.pkl" % random_part, 'wb') as f:
+            pickle.dump(self.item_mapping, f)
+        with open(path + "_%d_df.pkl" % random_part, 'wb') as f:
+            pickle.dump(self.dataframe, f)
+        with open(path + "_%d_inv_user_mapping.pkl" % random_part, 'wb') as f:
+            pickle.dump(self.inv_user_mapping, f)
+
+        print("Saved at %s" % (path + "_%d.pkl" % random_part))
+
+    def __load(self, path):
+        with open(path + ".pkl", 'rb') as f:
+            self.states, self.rewards, self.actions, self.termations = pickle.load(f)
+        with open(path + "_user_embeddings.pkl", 'rb') as f:
+            self.user_mapping = pickle.load(f)
+        with open(path + "_item_embeddings.pkl", 'rb') as f:
+            self.item_mapping = pickle.load(f)
+        with open(path + "_df.pkl", 'rb') as f:
+            self.dataframe = pickle.load(f)
+        with open(path + "_inv_user_mapping.pkl", 'rb') as f:
+            self.inv_user_mapping = pickle.load(f)
+
+        print("Data loaded!")
 
 
+class WindowBasedRecSysMDP(RecSysMDP):
+    """
+    Use for each episode interctions relevant to window_size
+    """
 
-class SplitNRecSysMDP(RecSysMDP):
-    def __init__(self,rolling_size, **args):
-        self.rolling_size = rolling_size
-        super.__init__(**args)
-
-    def _sates4episode(self, episode_logs):
-        """
-        inp:
-         - logs for one episode
-        :return:
-         - stacked states for one episode with size
-         (N - count of states,
-         framestack + 1(if use_user_embedding) - size of framestack,
-         EMB_S - size of embedding
-
-        """
-        no_op_framestack = np.zeros((self.framestack, self.emb_size))
-        chooses = np.asarray([self.item_mapping[item_idx] for item_idx in episode_logs[self.item_col_name]])
-        chooses = np.append(no_op_framestack, chooses, axis=0)
-        states = []
-        for i in range(len(episode_logs)):
-            state = chooses[i: i + self.framestack]
-            if self.use_user_embedding:
-                user_ebd = self.user_mapping[episode_logs[self.user_col_name].values[0]].reshape(1, -1)
-                state = np.append(state, user_ebd, axis=0)
-            states.append(state)
-        return states
+    def __init__(self, window_size, step_size, **args):
+        self.window_size = window_size
+        self.step_size = step_size
+        super(WindowBasedRecSysMDP, self).__init__(**args)
 
     def _mdp4user(self, user_df):
         """
@@ -159,155 +193,77 @@ class SplitNRecSysMDP(RecSysMDP):
         actions = []
         termations = []
 
-        mult = 1 / (self.rolling_size - self.framestack)
-        M = [mult * i for i in range(self.rolling_size - self.framestack)][::-1]
-        M = np.asarray(M)
-        # print(M)
-        for i in range(0, len(user_df) - self.rolling_size, 1):
-            logs = user_df[i:i + self.rolling_size]
-            states_one_episode = self._sates4episode(logs)
-            rewards_one_episode = logs[self.reward_col_name].copy()
-
-            actions_one_episode = logs[self.item_col_name]
-            states_one_episode = np.asarray(states_one_episode[self.framestack:])
-
-            new_rewards_one_episode = rewards_one_episode[self.framestack:]
-            new_rewards_one_episode[new_rewards_one_episode <= 3] = -(
-            new_rewards_one_episode[new_rewards_one_episode <= 3])
-            new_rewards_one_episode *= M
-            actions_one_episode = actions_one_episode[self.framestack:]
-            ###
-            termations_one_episode = np.zeros_like(actions_one_episode)
-            termations_one_episode[-1] = 1
-
-            rewars.append(new_rewards_one_episode)
-            states.append(states_one_episode)
-            actions.append(actions_one_episode)
-            termations.append(termations_one_episode)
-        return np.asarray(states), np.asarray(rewars), np.asarray(actions), np.asarray(termations)
+        for i in range(0, len(user_df) - self.window_size, self.step_size):
+            one_episode = user_df.loc[i:i + self.window_size]
+            rewars.append(self.get_episode_reward(one_episode))
+            states.append(one_episode['history'].values.tolist())
+            actions.append(self.get_episode_action(one_episode))
+            termations.append(self.get_episode_terminates(one_episode))
+        return states, rewars, actions, termations
 
 
-class SplitByFailureRecSysMDP(RecSysMDP):
-    def __init__(self, **args):
-     #   self.rolling_size = rolling_size
-        super().__init__(**args)
-    def _sates4episode(self, episode_logs):
-        """
-        inp:
-         - logs for one episode
-        :return:
-         - stacked states for one episode with size
-         (N - count of states,
-         framestack + 1(if use_user_embedding) - size of framestack,
-         EMB_S - size of embedding
-
-        """
-        no_op_framestack = np.ones((self.framestack, self.emb_size))
-        chooses = np.asarray([self.item_mapping[item_idx] for item_idx in episode_logs[self.item_col_name]])
-        good_examples = np.where(episode_logs[self.reward_col_name] > 3)
-       # print(np.where(good_examples))
-      #  print(good_examples)
-        bad_examples = np.where(episode_logs[self.reward_col_name] < 3)
-      #  print(bad_examples)
-     #   exit()
-        chooses = np.append(no_op_framestack, chooses, axis=0)
-        states = []
-        actions = []
-        rewards = []
-        termations = []
-        for i in range( self.framestack, len(episode_logs)):
-            state = chooses[i: i + self.framestack].reshape(1, self.framestack, self.emb_size)
-
-            filter_good = list(good_examples[self.framestack:i+self.framestack])
-            filter_bad = list(bad_examples[self.framestack:i + self.framestack])
-            good_hist = chooses[filter_good][-self.framestack:].reshape(1, -1)
-            bad_hist = chooses[filter_bad][-self.framestack:].reshape(1, -1)
-           # print(good_examples[self.framestack:i+self.framestack])
-           # print(chooses[[]])
-           # print(chooses[good_examples[self.framestack:i+self.framestack]])
-         #   print(good_hist)
-        #    print(bad_hist.shape)
-          #  exit()
-           # print(state.shape)
-            try:
-               state = np.append(state, good_hist.reshape(1, self.framestack, self.emb_size), axis=0)
-               print("Good success!")
-            except:
-               good_hist = np.ones_like(state).reshape(1, self.framestack, self.emb_size)
-               state = np.append(state, good_hist, axis=0)
-
-          #  print(state.shape)
-          #   try:
-          #       state = np.append(state, bad_hist.reshape(1, self.framestack, self.emb_size), axis=0)
-          #       print("Bad success!")
-          #   except:
-          #      bad_hist = np.ones_like(state[:1]).reshape(1, self.framestack, self.emb_size)
-          #      state = np.append(state, bad_hist, axis=0)
-
-            if self.use_user_embedding:
-                user_ebd = np.ones((1,self.framestack, self.emb_size))
-                user_map =  self.user_mapping[episode_logs[self.user_col_name].values[0]].reshape(1, -1)
-                # print(user_map[0].shape)
-                # print(user_ebd.shape)
-                # print( user_ebd[0,:,0].shape)
-                user_ebd[0,0,:] = user_map[0]
-                # print(user_ebd.shape)
-                # print(state.shape)
-                state = np.append(state, user_ebd, axis=0)
-
-           # print(state.shape)
-        #    exit()
-          #  print(episode_logs[self.item_col_name])
-            actions.append(episode_logs[self.item_col_name].values[i])
-            rewards.append(0.1)#episode_logs[self.reward_col_name].values[i])
-            termations.append(0)
-          #  print(termations)
-
-           # print(termations)
-            states.append(state)
-        termations[-1] = 1
-        rewards[-1] = -1
-        return states, actions, rewards, termations
+class ConditionBasedRecSysMDP(RecSysMDP):
+    def __init__(self, condition, **args):
+        self.condition = condition  # finction that return terminates
+        super(ConditionBasedRecSysMDP, self).__init__(**args)
 
     def __detect_failuer(self, ts, condition):
-        result = (ts[1:].values-ts[:-1].values).astype(int)
+        result = (ts[1:].values - ts[:-1].values).astype(int)
         indx = np.where(condition(result))
-        #print(indx)
+        # print(indx)
         return indx[0]
+
     def _mdp4user(self, user_df):
         """
         calc mdp trajectories by user
         :return:
         """
-
-
         states = []
         rewars = []
         actions = []
         termations = []
-        condition_music = lambda A: A > 0  # в эпизоды попадает только неразрывный по дню сеанс
-        indx_to_episode_split = self.__detect_failuer(user_df[self.timestamp_col_name],condition_music)
-
-        for i,idx in enumerate(indx_to_episode_split):
-            start = 0 if i==0 else indx_to_episode_split[i-1]
+        # condition_music = lambda A: A > 0  # в эпизоды попадает только неразрывный по дню сеанс
+        indx_to_episode_split = self.condition(user_df)
+        for i, idx in enumerate(indx_to_episode_split):
+            start = 0 if i == 0 else indx_to_episode_split[i - 1]
             end = idx
-            logs = user_df[start:end]
-           # print(len(logs))
-            if len(logs)<=self.framestack: break
-            states_one_episode, actions_one_episode,rewards_one_episode, termations_one_episode = self._sates4episode(logs)
+            one_episode = user_df.loc[start:end]
+            if len(one_episode) < self.framestack: continue
+            rewars.append(self.get_episode_reward(one_episode))
+            states.append(one_episode['history'].values.tolist())
+            actions.append(self.get_episode_action(one_episode))
+            termations.append(self.get_episode_terminates(one_episode))
+        return states, rewars, actions, termations
 
-            rewars.append(rewards_one_episode)
-            states.append(states_one_episode)
-            actions.append(actions_one_episode)
-            termations.append(termations_one_episode)
-        return np.asarray(states), np.asarray(rewars), np.asarray(actions), np.asarray(termations)
+
+class FullUserHistoryBasedRecSysMDP(RecSysMDP):
+    def __init__(self, **args):
+        super(FullUserHistoryBasedRecSysMDP, self).__init__(**args)
+
+    def _mdp4user(self, user_df):
+        """
+        calc mdp trajectories by user
+        :return:
+        """
+        states = []
+        rewars = []
+        actions = []
+        termations = []
+
+        one_episode = user_df
+        rewars.append(self.get_episode_reward(one_episode))
+        states.append(one_episode['history'].values.tolist())
+        actions.append(self.get_episode_action(one_episode))
+        termations.append(self.get_episode_terminates(one_episode))
+        return states, rewars, actions, termations
+
 
 if __name__ == "__main__":
     from embedddings import random_embeddings
     import pandas as pd
 
     col_mapping = {'user_col_name': 'user_idx',
-                   'item_col_name': 'item_idx',
+                   'item_col_name': 'item_id',
                    'reward_col_name': 'rating',
                    'timestamp_col_name': 'ts'}
     emb_size = 8
@@ -321,24 +277,80 @@ if __name__ == "__main__":
     filtered_raitings = filtered_raitings.loc[best_users_idx]
     filtered_raitings = filtered_raitings.reset_index(drop=False)
 
-    keys = list(set(filtered_raitings['item_id']))
-    item_mapping = dict(zip(keys, list(range(1, len(keys) + 1))))
-    filtered_raitings['item_idx'] = filtered_raitings['item_id'].apply(lambda x: item_mapping[x])
+    mdp_train = FullUserHistoryBasedRecSysMDP(load_from_file=False, dataframe=filtered_raitings,
+                                              data_mapping=col_mapping, framestack=framestask,
+                                              reward_function=monotony_reward,
+                                              action_function=continuous_relevance_action)
+    states, rewards, actions, termations = mdp_train.create_mdp()
+    # states, rewards, actions, termations = [np.asarray(component) for component in mdp]
 
-    keys = list(set(filtered_raitings['user_idx']))
-    user_mapping = dict(zip(keys, list(range(1, len(keys) + 1))))
-    filtered_raitings['user_idx'] = filtered_raitings['user_idx'].apply(lambda x: user_mapping[x])
+    print("FullUserHistoryBasedRecSysMDP, monotony_reward, continuous_relevance_action")
+    print("States representation: ", states[0][:3])
+    # print("States shape: ", states.shape)
+    # print("Termations count: ", np.sum(termations.sum()))
+    print("Action example: ", actions[0][:5])
+    print("Reward example: ", rewards[0][:5])
+    print()
+    # try:
+    to_d3rlpy_form_ND(states, rewards, actions, termations)
+    print("Success transform to d3rlpy")
+    #  except Exception as e:
+    #  print(e)
 
-   # print(filtered_raitings[:5])
-    user_mapping, inv_user_mapping = random_embeddings(filtered_raitings[col_mapping['user_col_name']], emb_size=emb_size)
-    items_mapping, _ = random_embeddings(filtered_raitings[col_mapping['item_col_name']], emb_size=emb_size)
+    print("------------------------------------------------------------------")
 
-    mdp_train = SplitByFailureRecSysMDP(load_from_file=False, dataframe=filtered_raitings, data_mapping=col_mapping,
-                          framestack=framestask, emb_size=emb_size, user_mapping=user_mapping,
-                          item_mapping=items_mapping, use_user_embedding=True, inv_user_mapping=inv_user_mapping)
-    mdp_train.create_mdp()
-    from utils import to_d3rlpy_form_ND
+    mdp_train = WindowBasedRecSysMDP(load_from_file=False, dataframe=filtered_raitings,
+                                     data_mapping=col_mapping, framestack=framestask,
+                                     reward_function=monotony_reward,
+                                     action_function=continuous_relevance_action,
+                                     window_size=10, step_size=1)
+    states, rewards, actions, termations = mdp_train.create_mdp()
+    #  states, rewards, actions, termations = [np.asarray(component) for component in mdp]
 
-    dataset_train = to_d3rlpy_form_ND(mdp_train.states, mdp_train.rewards,
-                                   mdp_train.actions, mdp_train.termations, 4)
-    #print(mdp_train.states.shape)
+    print("WindowBasedRecSysMDP, monotony_reward, continuous_relevance_action")
+    print("States representation: ", states[0][:3])
+    # print("Termations count: ", np. sum(termations.sum()))
+    print("Action example: ", actions[0][:5])
+    print("Reward example: ", rewards[0][:5])
+    print()
+    try:
+        to_d3rlpy_form_ND(states, rewards, actions, termations)
+        print("Success transform to d3rlpy")
+    except Exception as e:
+        print(e)
+    print("------------------------------------------------------------------")
+
+
+    def split_by_time(df):
+        ts = df['ts']
+        condition_music = lambda A: A > 0
+        result = (ts[1:].values - ts[:-1].values).astype(int)
+        indx = np.where(condition_music(result))
+        return indx[0]
+
+
+    mdp_train = ConditionBasedRecSysMDP(load_from_file=False, dataframe=filtered_raitings,
+                                        data_mapping=col_mapping, framestack=framestask,
+                                        reward_function=monotony_reward,
+                                        action_function=continuous_relevance_action, condition=split_by_time)
+    states, rewards, actions, termations = mdp_train.create_mdp()
+    # states, rewards, actions, termations = [np.asarray(component) for component in mdp]
+
+    print("ConditionBasedRecSysMDP, monotony_reward, continuous_relevance_action")
+    print("States representation: ", states[0][:3])
+    #  print("States shape: ", states.shape)
+    # print("Termations count: ", np.sum(termations.sum()))
+    print("Action example: ", actions[0][:5])
+    print("Reward example: ", rewards[0][:5])
+
+    try:
+        to_d3rlpy_form_ND(states, rewards, actions, termations)
+        print("Success transform to d3rlpy")
+    except Exception as e:
+        print(e)
+
+    # from utils import to_d3rlpy_form_ND
+    #
+    # dataset_train = to_d3rlpy_form_ND(mdp_train.states, mdp_train.rewards,
+    #                                mdp_train.actions, mdp_train.termations, 4)
+    # print(mdp_train.states.shape)
