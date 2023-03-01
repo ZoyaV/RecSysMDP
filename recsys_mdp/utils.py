@@ -1,58 +1,32 @@
 import os
 import numpy as np
 from d3rlpy.dataset import MDPDataset
-from recsys_mdp.recsys_mdp import RecSysMDP
-from recsys_mdp.embedddings import random_embeddings
 
-def to_d3rlpy_form(full_states, full_rewards, full_actions, full_termates):
-    users_pesodes, steps_in_episode, framestack, emb_size = np.asarray(full_states).shape
-    states = np.asarray(full_states)
-    states = states.reshape(-1, framestack * emb_size)
-    rewards = np.asarray(full_rewards).reshape(-1, 1)
-    rewards[rewards < 3] = -(3 - rewards[rewards < 3]) * 10
-    actions = np.asarray(full_actions).reshape(-1, 1)
-    termates = np.asarray(full_termates).reshape(-1, 1)
-
-    dataset = MDPDataset(
-        observations=states,
-        actions=actions,
-        rewards=rewards,
-        terminals=termates
-    )
-    np.random.shuffle(dataset.episodes)
-    return dataset
-
-def to_d3rlpy_form_ND(original_states, original_rewards, original_actions, original_termates, N=4, framestack = 5, emb_size = 8):
+def to_d3rlpy_form_ND(original_states, original_rewards, original_actions, original_termates):
     full_states = []
     full_rewards = []
     full_actions = []
     full_termates = []
-
-
     for i,episode in enumerate(original_states):
         if isinstance(episode, np.ndarray):
             episode = episode.tolist()
         full_states += episode
-        full_rewards += original_rewards[i]
-        full_actions += original_actions[i]#[1 for _ in range(len(original_actions[i]))]#original_actions[i]
-        full_termates += original_termates[i]
+        full_rewards += original_rewards[i].tolist()
+        full_actions += original_actions[i].tolist()
+        full_termates += original_termates[i].tolist()
+
     states = np.asarray(full_states)
-    print(states.shape)
-    states = (states*255).astype(np.uint8)
+    states = (states).astype(np.uint8)
     rewards = np.asarray(full_rewards).reshape(-1, 1)
-   # rewards[rewards < 3] = -(3 - rewards[rewards < 3]) * 10
     actions = np.asarray(full_actions).reshape(-1, 1)
     termates = np.asarray(full_termates).reshape(-1, 1)
 
-    print(states.shape)
-    print(actions.shape)
-    print(rewards.shape)
-    print(termates.shape)
     dataset = MDPDataset(
         observations=states,
-        actions=actions,
+        actions=actions.astype(np.float32),
         rewards=rewards,
-        terminals=termates
+        terminals=termates,
+        discrete_action = False
     )
     np.random.shuffle(dataset.episodes)
     return dataset
