@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pickle
 from abc import ABC, abstractmethod
 import sys
-sys.path.append("../recsys_mdp")
+sys.path.append("./recsys_mdp")
 
 from utils import to_d3rlpy_form_ND
 from reward_functions import monotony_reward, relevance_based_reward, condition_reward
@@ -140,7 +140,6 @@ class RecSysMDP(ABC):
         with open(path + "_df.pkl", 'rb') as f:
             self.dataframe = pickle.load(f)
         print("Data loaded!")
-
 
 class WindowBasedRecSysMDP(RecSysMDP):
     """

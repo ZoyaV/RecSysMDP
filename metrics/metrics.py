@@ -40,11 +40,11 @@ def true_ndcg(users,observations, top_k=10):
             only_positive_prediction = [item for item, rat in item_ratings if rat > 0.5]
             user_positiove_count.append(len(only_positive_prediction))
 
-            print("-----------------------")
-            print(predicted_top_items[:5])
-            print(original_top_items[:5])
-            print("-----------------------")
-
+           # print("-----------------------")
+           # print(predicted_top_items[:5])
+           # print(original_top_items[:5])
+           # print("-----------------------")
+#
             if len(predicted_top_items) > 0 and len(original_top_items) > 0:
                 ndcg_user = ndcg(top_k, predicted_top_items, original_top_items)
             else:
