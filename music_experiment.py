@@ -1,31 +1,22 @@
 from d3rlpy.algos import CQL
 import pandas as pd
 
-from encoders import ActorEncoderFactory
+from models.models import ActorEncoderFactory
 from recsys_mdp.recsys_mdp import FullUserHistoryBasedRecSysMDP
 from recsys_mdp.utils import to_d3rlpy_form_ND
 from recsys_mdp.reward_functions import monotony_reward, relevance_based_reward, condition_reward
 from recsys_mdp.action_function import discrete_relevance_action, continuous_relevance_action, next_item_action
 
-from metrics import true_ndcg
+from metrics.metrics import true_ndcg
 import wandb
-
 wandb.init(project="test_refactored", group="sber_zvuk")
 
-if __name__ == "__main__":
-    col_mapping = {'user_col_name': 'user_idx',
-                   'item_col_name': 'item_idx',
-                   'reward_col_name': 'rating',
-                   'timestamp_col_name': 'ts'}
-    emb_size = 8
-    framestask = 5
-    data = pd.read_csv("ratings_rev_top10000_users.csv")
+def prepare_data(data, col_mapping):
+    data = pd.read_csv(data_path)
     data['rating'] = data['rating'].astype(float)
     data[data['rating'] < 3]['rating'] = -data[data['rating'] < 3]['rating']
     data = data.sort_values(['event_dt'])
     best_users_idx = data['user_id'].value_counts()[:800].index
-    user_train_idx = [idx for i, idx in enumerate(best_users_idx) if i % 100 != 0]
-    user_test_idx = [idx for i, idx in enumerate(best_users_idx) if i % 100 == 0]
 
     data['user_idx'] = data['user_id']
     data['old_idx'] = data['user_id']
@@ -44,15 +35,23 @@ if __name__ == "__main__":
     print("Data filterd")
     print(filtered_raitings[:3])
     mdp_train = FullUserHistoryBasedRecSysMDP(load_from_file=False, dataframe=filtered_raitings,
-                                                  data_mapping=col_mapping, framestack=framestask,
-                                                  reward_function=monotony_reward,
-                                                  action_function=continuous_relevance_action)
+                                              data_mapping=col_mapping, framestack=framestask_size,
+                                              reward_function=monotony_reward,
+                                              action_function=continuous_relevance_action)
 
     states, rewards, actions, termations = mdp_train.create_mdp()
     dataset_train = to_d3rlpy_form_ND(states, rewards, actions, termations)
-    print("Dataset actions: ")
-    print(dataset_train.actions[:5])
-    print("Data generated.")
+    return dataset_train
+
+if __name__ == "__main__":
+    framestask_size = 5
+    col_mapping = {'user_col_name': 'user_idx',
+                   'item_col_name': 'item_idx',
+                   'reward_col_name': 'rating',
+                   'timestamp_col_name': 'ts'}
+    data_path = "row_data/ratings_rev_top10000_users.csv"
+    dataset_train = prepare_data(data_path, col_mapping)
+
     model_params=[943, 1682, 8, 16, 5, 256]
     actor_encoder_factory = ActorEncoderFactory(
         *model_params
