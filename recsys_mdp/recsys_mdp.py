@@ -67,7 +67,6 @@ class RecSysMDP(ABC):
 
     def __intaraction_history(self, user_df):
         """
-
         :param user_df:
         :return: return history with self.framestack size for each (user-item) interaction
         """
@@ -79,7 +78,6 @@ class RecSysMDP(ABC):
             framestask_queue.append(row[self.item_col_name])
             if len(framestask_queue) >= self.framestack:
                 break
-        # print(framestask_queue)
         # Make interaction history for each user-item interaction
         t = 0
         for index, row in user_df.iterrows():
@@ -110,35 +108,21 @@ class RecSysMDP(ABC):
         :return:
         """
         users = list(set(self.dataframe[self.user_col_name]))
-        full_states = []
-        full_rewards = []
-        full_actions = []
-        full_termates = []
+        full_states, full_rewards, full_actions, full_terminates = [], [], [], []
         for user in users:
-            # view data for only one user
             user_df = self.dataframe[self.dataframe[self.user_col_name] == user].sort_values(self.timestamp_col_name)
-            # get history for each interaction
             if user_df.shape[0] < self.framestack: continue
             interaction_history = self.__intaraction_history(user_df)
-            # print(interaction_history['history'][0])
             states, rewards, actions, terminates = self._mdp4user(interaction_history)
-            # print(states[0])
             full_states += states
             full_rewards += rewards
             full_actions += actions
-            full_termates += terminates
-
-        # self.state_size = np.asarray(full_states).shape
-        #  self.rewards_size = np.asarray(full_rewards).shape
-        # self.action_size = np.asarray(full_actions).shape
-        # self.term_size = np.asarray(full_termates).size
-
+            full_terminates += terminates
         self.states = full_states
         self.rewards = full_rewards
         self.actions = full_actions
-        self.termations = full_termates
-
-        return (full_states, full_rewards, full_actions, full_termates)
+        self.termations = full_terminates
+        return (full_states, full_rewards, full_actions, full_terminates)
 
     def save(self, path):
         data = (self.states, self.rewards, self.actions, self.termations)
@@ -146,29 +130,15 @@ class RecSysMDP(ABC):
         with open(path + "_%d.pkl" % random_part, 'wb') as f:
             pickle.dump(data, f)
             print("Saved to %s" % path)
-        with open(path + "_%d_user_embeddings.pkl" % random_part, 'wb') as f:
-            pickle.dump(self.user_mapping, f)
-        with open(path + "_%d_item_embeddings.pkl" % random_part, 'wb') as f:
-            pickle.dump(self.item_mapping, f)
         with open(path + "_%d_df.pkl" % random_part, 'wb') as f:
             pickle.dump(self.dataframe, f)
-        with open(path + "_%d_inv_user_mapping.pkl" % random_part, 'wb') as f:
-            pickle.dump(self.inv_user_mapping, f)
-
         print("Saved at %s" % (path + "_%d.pkl" % random_part))
 
     def __load(self, path):
         with open(path + ".pkl", 'rb') as f:
             self.states, self.rewards, self.actions, self.termations = pickle.load(f)
-        with open(path + "_user_embeddings.pkl", 'rb') as f:
-            self.user_mapping = pickle.load(f)
-        with open(path + "_item_embeddings.pkl", 'rb') as f:
-            self.item_mapping = pickle.load(f)
         with open(path + "_df.pkl", 'rb') as f:
             self.dataframe = pickle.load(f)
-        with open(path + "_inv_user_mapping.pkl", 'rb') as f:
-            self.inv_user_mapping = pickle.load(f)
-
         print("Data loaded!")
 
 
