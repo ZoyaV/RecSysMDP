@@ -1,0 +1,35 @@
+
+name: MovieLens_experiment
+use_wandb: True
+
+experiment:
+  top_k: 10
+  data_path: "./row_data/MovieLens/train_df.csv"
+  test_data_path: "./row_data/MovieLens/test_df.csv"
+  col_mapping:
+    user_col_name: "user_idx"
+    item_col_name: "item_idx"
+    reward_col_name: "relevance"
+    timestamp_col_name: "timestamp"
+
+  mdp_settings:
+    framestack_size: 5
+    reward_function: "monotony_reward"
+    action_function: "continuous_relevance_action"
+    history_keys: ['framestack', 'user_id']
+
+    mdp_type: FullUserHistoryBasedRecSysMDP
+
+  algo_settings:
+    algo: CQL
+    n_epochs: 50
+    batch_size: 1024
+    use_gpu: True
+
+    model_parametrs:
+      user_num: None
+      item_num: None
+      emb_dim: 8
+      hid_dim: 16
+      memory_size: 5
+      feature_size: 256
