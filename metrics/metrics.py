@@ -1,7 +1,7 @@
 import numpy as np
 import math
 import wandb
-
+import torch
 
 def ndcg(k, pred, ground_truth) -> float:
     pred_len = min(k, len(pred))
@@ -12,61 +12,85 @@ def ndcg(k, pred, ground_truth) -> float:
     return dcg / idcg
 
 
+
+def log_user_items_distribution(relevances_for_users, tresholds):
+    if epoch % 10 == 0:
+        for t in tresholds:
+            user_positiove_count = []
+            for i in range(len(relevances_for_users)):
+                only_positive_prediction = [item for item, rat in relevances_for_users[i] if rat > t]
+                user_positiove_count.append(len(only_positive_prediction))
+            data = []
+            for i in range(len(user_positiove_count)):
+                data.append([f"user_{i}", user_positiove_count[i]])
+            table = wandb.Table(data=data, columns=["label", "value"])
+            wandb.log({f"user_likes_distibution {t}": wandb.plot.bar(table, "label", "value",
+                                                                     title=f"User Likes Distibution {t}")})
+    return
+
+def log_rating_distribution(total_prediction):
+    data = total_prediction.ravel().reshape(-1, 1)
+    table = wandb.Table(data=data, columns=["scores"])
+    wandb.log({'Scores Histogram': wandb.plot.histogram(table, "scores", title=None)})
+    pass
+
+def log_items_distribution(total_prediction):
+    predicted_element = np.argmax(total_prediction, axis=1)
+    data = predicted_element.ravel().reshape(-1, 1)
+    table = wandb.Table(data=data, columns=["items"])
+    wandb.log({'Items Histogram': wandb.plot.histogram(table, "items", title=None)})
+    pass
+
 epoch = 0
-def true_ndcg(users,observations, top_k=10):
+def base_ndcg(oservations, true_reward, tresh, top_k=10, discrete = True):
     global epoch
+    if discrete:
+        oservations_cuda = torch.from_numpy(oservations).cpu()
+        #print(oservations)
     def metrics(model=None, episodes=None):
         global epoch
-        metrics_ndcg = []
-        user_positiove_count = []
-        for episode in episodes:
-            current_user = episode.observations[0][-1]
-            mask = np.where(users == current_user)
-            user_observation = observations[mask]
-            items = [value[-2] for value in user_observation]
-            predicted_rating = model.predict(user_observation)
-            item_ratings = list(zip(items, predicted_rating))
-            predicted_top_items = sorted(item_ratings, key=lambda item_rat: item_rat[1])[::-1]
-            predicted_top_items = [item for item, rat in predicted_top_items if rat > 0.5]
-            #TODO: надо проверить что при генерации оценка идет именно к последнему элементу их фреймстака
-
-            # find original top items
-            true_user_items = [value[-2] for value in episode.observations]
-            true_item_ratings = episode.rewards.tolist()
-            true_item_ratings = list(zip(true_user_items, true_item_ratings))
-            original_top_items = sorted(true_item_ratings, key=lambda item_rat: item_rat[1])[::-1]
-            original_top_items = [item for item, rat in original_top_items if rat > 0.5]
-
-            only_positive_prediction = [item for item, rat in item_ratings if rat > 0.5]
-            user_positiove_count.append(len(only_positive_prediction))
-
-           # print("-----------------------")
-           # print(predicted_top_items[:5])
-           # print(original_top_items[:5])
-           # print("-----------------------")
-#
-            if len(predicted_top_items) > 0 and len(original_top_items) > 0:
-                ndcg_user = ndcg(top_k, predicted_top_items, original_top_items)
-            else:
-                ndcg_user = 0
-            metrics_ndcg.append(ndcg_user)
-        # print(metrics_ndcg)
-        data = []
-        for i in range(len(user_positiove_count)):
-            data.append([f"user_{i}", user_positiove_count[i]])
-            # wandb.log({f"user_{i}":user_positiove_count[i]}, name = f"epoch_{epoch}")
-        table = wandb.Table(data=data, columns=["label", "value"])
-        if epoch % 10 == 0:
-            wandb.log({f"user_likes_distibution": wandb.plot.bar(table, "label", "value",
-                                                                 title=f"User Likes Distibution")})
-
-        result_median = np.median(metrics_ndcg)
-        result_mean = np.mean(metrics_ndcg)
-        result_std = np.std(metrics_ndcg)
-        wandb.log({"NDCG_median": result_median})
-        wandb.log({"NDCG_mean": result_mean})
-        wandb.log({"NDCG_std": result_std})
         epoch += 1
+        if discrete:
+            with torch.no_grad():
+                total_prediction = (model._impl._q_func(oservations_cuda)).cpu().detach().numpy()
+                total_prediction = (total_prediction - total_prediction.min())/(total_prediction.max() - total_prediction.min())
+        else:
+            total_prediction = model.predict(oservations)
+        users = np.unique(oservations[:, -1])
+        ndcg_tot = []
+        relevances_for_users = []
+        for user in users:
+            mask = oservations[:, -1] == user
+            if not discrete:
+                items = oservations[:,-2][mask]
+                relevance = total_prediction[mask].ravel()
+                item_relevance = list(zip(items, relevance))
+            else:
+                item_relevance = list(zip(range(0, len(mask)), total_prediction[mask].ravel()))
 
-        return np.mean(metrics_ndcg)
+            item_relevance = sorted(item_relevance, key=lambda item: item[-1])[::-1]
+            top_items = [item for item, r in item_relevance[:top_k]]
+            top_items = sorted(top_items)
+
+            true_top_items = true_reward[user]
+            true_top_items = sorted(true_top_items)
+
+            ndcg_user = ndcg(top_k, top_items, true_top_items)
+            ndcg_tot.append(ndcg_user)
+
+            relevances_for_users.append(item_relevance)
+
+        tresholds = tresh
+
+        log_user_items_distribution(relevances_for_users, tresholds)
+        log_rating_distribution(total_prediction)
+        log_items_distribution(total_prediction)
+
+        result_median = np.median(ndcg_tot)
+        result_mean = np.mean(ndcg_tot)
+        result_std = np.std(ndcg_tot)
+        wandb.log({"true_NDCG_median": result_median})
+        wandb.log({"true_NDCG_mean": result_mean})
+        wandb.log({"true_NDCG_std": result_std})
+        return result_mean
     return metrics
