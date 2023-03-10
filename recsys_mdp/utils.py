@@ -2,7 +2,8 @@ import os
 import numpy as np
 from d3rlpy.dataset import MDPDataset
 
-def to_d3rlpy_form_ND(original_states, original_rewards, original_actions, original_termates):
+def to_d3rlpy_form_ND(original_states, original_rewards, original_actions,
+                      original_termates, discrete = False):
     full_states = []
     full_rewards = []
     full_actions = []
@@ -23,11 +24,12 @@ def to_d3rlpy_form_ND(original_states, original_rewards, original_actions, origi
 
     dataset = MDPDataset(
         observations=states,
-        actions=actions.astype(np.float32),
+        actions=actions,
         rewards=rewards,
         terminals=termates,
-        discrete_action = False
+        discrete_action = discrete
     )
+
     np.random.shuffle(dataset.episodes)
     return dataset
 
