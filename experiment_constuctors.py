@@ -2,6 +2,9 @@ import os
 import argparse
 import yaml
 import pandas as pd
+import numpy as np
+from recsys_mdp.utils import to_d3rlpy_form_ND
+from metrics.metrics import base_ndcg
 def load_data(config, data_path = None):
     col_mapping = {'user_col_name': 'user_idx',
                    'item_col_name': 'item_idx',
@@ -11,6 +14,7 @@ def load_data(config, data_path = None):
         data_path = config['experiment']['data_path']
     col_mapping = config['experiment']['col_mapping']
     data = pd.read_csv(data_path, sep = "\t")
+    print(len(set(data['user_idx'].values)))
     return data, col_mapping
 
 def load_reward_function(config):
@@ -100,3 +104,44 @@ def init_algo(config):
         algo = DiscreteCQL(use_gpu=use_gpu, encoder_factory=actor_encoder_factory, batch_size=batch_size)
     return algo
 
+# def init_interactive_scorer(config, test_data, data_mapping, top_k):
+#     test_mdp_preparator = make_mdp(config=config, data=test_data, data_mapping=data_mapping)
+#     states, rewards, actions, termations, _ = test_mdp_preparator.create_mdp()
+#     test_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations)
+#
+#     users = np.unique(test_mdp.observations[:, -1])
+#     observations = test_mdp.observations[:]
+#     observations = np.unique(observations, axis=0)
+#     scorer = true_ndcg(users, observations, top_k=top_k)
+#     return test_mdp, scorer
+
+def init_next_step_scorer(state_tail, test_users, test_users_or, test_items, \
+                          top_k, tresh, discrete = True):
+    state_tail = np.asarray(state_tail)
+    test_states = []
+    true_items = dict()
+    if discrete:
+        for user in test_users:
+            true_items[user] = test_items[test_users_or == user]
+            user_mask = state_tail[:, -1] == user
+            try:
+                new_obs = state_tail[user_mask][0]
+            except:
+                continue
+            test_states.append(new_obs)
+    else:
+        for user in test_users:
+            user_mask = state_tail[:, -1] == user
+            true_items[user] = test_items[test_users_or == user]
+            test_items_unique = np.unique(test_items)
+            for item in test_items_unique:
+                try:
+                    new_obs = state_tail[user_mask][0]
+                except:
+                    continue
+                new_obs[0:-2] = new_obs[1:-1]
+                new_obs[-2] = item
+                test_states.append(new_obs)
+    test_states = np.asarray(test_states)
+    scorer = base_ndcg(test_states, true_items, tresh,top_k, discrete)
+    return scorer
