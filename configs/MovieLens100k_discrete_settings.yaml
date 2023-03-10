@@ -1,5 +1,5 @@
 
-name: SACMovieLens_DJ
+name: DSACMovieLens_DJ
 use_wandb: True
 
 experiment:
@@ -14,26 +14,26 @@ experiment:
 
   mdp_settings:
     framestack_size: 10
-    reward_function: "condition_reward"
-    action_function: "continuous_relevance_action"
+    reward_function: "relevance_based_reward"
+    action_function: "next_item_action"
     history_keys: ['framestack', 'user_id']
 
     mdp_type: FullUserHistoryBasedRecSysMDP
 
   scorer:
     tresh: [0.7, 0.5, 0.9]
-    prediction: "continious"
+    prediction: "discrete"
 
   algo_settings:
-    algo: CQL
+    algo: DCQL
     n_epochs: 150
     batch_size: 1024
-    use_gpu: True
+    use_gpu: False
 
     model_parametrs:
-      user_num: 751
-      item_num: 1616
+      user_num: 1000
+      item_num: 2000
       emb_dim: 8
       hid_dim: 16
       memory_size: 10
-      feature_size: 256
+      feature_size: 512
