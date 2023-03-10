@@ -100,7 +100,9 @@ class RecSysMDP(ABC):
             framestask_queue.append(row[self.item_col_name])
             framestask_queue.pop(0)
             intarections_list.append(interaction)
-        return pd.DataFrame(intarections_list)
+
+        df = pd.DataFrame(intarections_list)
+        return df
 
     def create_mdp(self):
         """
@@ -109,11 +111,13 @@ class RecSysMDP(ABC):
         """
         users = list(set(self.dataframe[self.user_col_name]))
         full_states, full_rewards, full_actions, full_terminates = [], [], [], []
+        state_tale = []
         for user in users:
             user_df = self.dataframe[self.dataframe[self.user_col_name] == user].sort_values(self.timestamp_col_name)
             if user_df.shape[0] < self.framestack: continue
             interaction_history = self.__intaraction_history(user_df)
             states, rewards, actions, terminates = self._mdp4user(interaction_history)
+            state_tale.append(states[-1][-1])
             full_states += states
             full_rewards += rewards
             full_actions += actions
@@ -122,7 +126,7 @@ class RecSysMDP(ABC):
         self.rewards = full_rewards
         self.actions = full_actions
         self.termations = full_terminates
-        return full_states, full_rewards, full_actions, full_terminates
+        return full_states, full_rewards, full_actions, full_terminates, state_tale
 
     def save(self, path):
         data = (self.states, self.rewards, self.actions, self.termations)
@@ -279,8 +283,8 @@ if __name__ == "__main__":
     print("WindowBasedRecSysMDP, monotony_reward, continuous_relevance_action")
     print("States representation: ", states[0][:3])
     # print("Termations count: ", np. sum(termations.sum()))
-    print("Action example: ", actions[0][:5])
-    print("Reward example: ", rewards[0][:5])
+    print("Action example: ", actions[0][:3])
+    print("Reward example: ", rewards[0][:3])
     print()
     try:
         to_d3rlpy_form_ND(states, rewards, actions, termations)
