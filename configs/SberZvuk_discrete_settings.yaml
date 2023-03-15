@@ -1,11 +1,11 @@
 
-name: DSACMovieLens_DJ2
+name: DSAC_SberZvuk
 use_wandb: True
 
 experiment:
   top_k: 10
-  data_path: "./row_data/MovieLens/train_df.csv"
-  test_data_path: "./row_data/MovieLens/test_df.csv"
+  data_path: "./row_data/sbermusic/more_train_df.csv"
+  test_data_path: "./row_data/sbermusic/more_test_df.csv"
   col_mapping:
     user_col_name: "user_idx"
     item_col_name: "item_idx"
@@ -18,7 +18,7 @@ experiment:
     action_function: "next_item_action"
     history_keys: ['framestack', 'user_id']
 
-    mdp_type: FullUserHistoryBasedRecSysMDP
+    mdp_type: ConditionBasedRecSysMDP
 
   scorer:
     metrics: ['rating_scorer', 'tsne', 'hit_rate']
@@ -27,14 +27,16 @@ experiment:
 
   algo_settings:
     algo: DCQL
-    n_epochs: 60
+    n_epochs: 150
     batch_size: 1024
     use_gpu: False
 
     model_parametrs:
       user_num: 1000
       item_num: 2000
-      emb_dim: 8
-      hid_dim: 16
+      emb_dim: 16
+      hid_dim: 32
       memory_size: 10
       feature_size: 512
+      use_attention: False
+      attention_hidden_size: 32
