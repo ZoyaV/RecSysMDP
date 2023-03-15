@@ -17,7 +17,7 @@ def to_d3rlpy_form_ND(original_states, original_rewards, original_actions,
         full_termates += original_termates[i].tolist()
 
     states = np.asarray(full_states)
-    states = (states).astype(np.uint8)
+    states = states #(states).astype(int)
     rewards = np.asarray(full_rewards).reshape(-1, 1)
     actions = np.asarray(full_actions).reshape(-1, 1)
     termates = np.asarray(full_termates).reshape(-1, 1)
