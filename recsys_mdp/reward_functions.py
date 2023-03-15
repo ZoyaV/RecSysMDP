@@ -15,5 +15,8 @@ def relevance_based_reward(df, key_mapping=None):
     rewards = np.zeros(df.shape[0])
     rewards[df[key_mapping['reward_col_name']] <= 3] = -1
     rewards[df[key_mapping['reward_col_name']] > 3] = 1
+    rewards[df[key_mapping['reward_col_name']] == 5] = 2
     return rewards
 
+#добавить загрузку ембедингов
+#поставить экспериментов
