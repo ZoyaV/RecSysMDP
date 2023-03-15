@@ -1,5 +1,5 @@
 import pandas as pd
-
+import numpy as np
 
 def load_data(config, data_path = None, return_values = False):
     col_mapping = {'user_col_name': 'user_idx',

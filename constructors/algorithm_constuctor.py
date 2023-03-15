@@ -1,4 +1,6 @@
 
+def init_encoder(config):
+    pass
 def init_algo(config):
     from models.models import ActorEncoderFactory
     user_num = config['experiment']['algo_settings']['model_parametrs']['user_num']
@@ -7,7 +9,10 @@ def init_algo(config):
     hid_dim = config['experiment']['algo_settings']['model_parametrs']['hid_dim']
     memory_size = config['experiment']['algo_settings']['model_parametrs']['memory_size']
     feature_size = config['experiment']['algo_settings']['model_parametrs']['feature_size']
-    model_params = [user_num, item_num, emb_dim, hid_dim, memory_size, feature_size]
+    use_attention = config['experiment']['algo_settings']['model_parametrs']['use_attention']
+    attention_hidden_size = config['experiment']['algo_settings']['model_parametrs']['attention_hidden_size']
+    model_params = [user_num, item_num, emb_dim, hid_dim, memory_size,
+                    feature_size, use_attention,attention_hidden_size]
     actor_encoder_factory = ActorEncoderFactory(
         *model_params
     )

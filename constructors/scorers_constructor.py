@@ -1,3 +1,4 @@
+import numpy as np
 from metrics.metrics import base_ndcg, tsne_embeddings, episode_hit_rate
 def init_tsne_vis(test_users, test_items):
     scorer = tsne_embeddings(test_users, test_items)
