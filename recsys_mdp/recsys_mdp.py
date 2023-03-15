@@ -117,6 +117,8 @@ class RecSysMDP(ABC):
             if user_df.shape[0] < self.framestack: continue
             interaction_history = self.__intaraction_history(user_df)
             states, rewards, actions, terminates = self._mdp4user(interaction_history)
+            if len(states) < 1:
+                continue
             state_tale.append(states[-1][-1])
             full_states += states
             full_rewards += rewards
@@ -191,15 +193,19 @@ class ConditionBasedRecSysMDP(RecSysMDP):
         """
         states, rewards, actions, terminations = [], [], [], []
         indx_to_episode_split = self.condition(user_df)
+       # print(indx_to_episode_split)
         for i, idx in enumerate(indx_to_episode_split):
             start = 0 if i == 0 else indx_to_episode_split[i - 1]
             end = idx
+           # print(start, end)
             one_episode = user_df.loc[start:end]
+          #  print(one_episode)
             if len(one_episode) < self.framestack: continue
             rewards.append(self.get_episode_reward(one_episode))
             states.append(one_episode['history'].values.tolist())
             actions.append(self.get_episode_action(one_episode))
             terminations.append(self.get_episode_terminates(one_episode))
+       # print(len(states))
         return states, rewards, actions, terminations
 
 
@@ -319,7 +325,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(e)
 
-    # from utils import to_d3rlpy_form_ND
+    # from constructors import to_d3rlpy_form_ND
     #
     # dataset_train = to_d3rlpy_form_ND(mdp_train.states, mdp_train.rewards,
     #                                mdp_train.actions, mdp_train.termations, 4)
