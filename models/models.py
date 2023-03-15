@@ -32,10 +32,10 @@ class ActorEncoder(nn.Module):
 
     def initialize(self):
         """weight init"""
-        return
-        # for layer in self.layers:
-        #     if isinstance(layer, nn.Linear):
-        #         nn.init.kaiming_uniform_(layer.weight)
+       # return
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                nn.init.kaiming_uniform_(layer.weight)
 
     def forward(self, x):
         """
