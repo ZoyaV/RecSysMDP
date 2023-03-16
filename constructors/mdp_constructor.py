@@ -13,11 +13,11 @@ def load_data(config, data_path = None, return_values = False):
     if return_values:
         users_unique = np.unique(data[config['experiment']['col_mapping']['user_col_name']].values)
         items_unique = np.unique(data[config['experiment']['col_mapping']['item_col_name']].values)
-
+        rating = data[config['experiment']['col_mapping']['reward_col_name']].values
         full_users = data[config['experiment']['col_mapping']['user_col_name']].values
         full_items = data[config['experiment']['col_mapping']['item_col_name']].values
         values = {'users_unique': users_unique, 'items_unique':items_unique,
-                  'full_users': full_users, 'full_items':full_items}
+                  'full_users': full_users, 'full_items':full_items, 'rating':rating}
         return data, col_mapping, values
     return data, col_mapping
 

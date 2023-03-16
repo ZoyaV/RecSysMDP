@@ -8,16 +8,23 @@ class ActorEncoder(nn.Module):
     def __init__(self, user_num, item_num, embedding_dim,
                  hidden_dim, memory_size, feature_size,
                  use_attention = False,
-                 attention_hidden_size = 0):
+                 freeze_emb = False,
+                 attention_hidden_size = 0,
+                 use_als = False,
+                 user_emb = None,
+                 item_emb = None):
         super().__init__()
+
 
         if use_attention:
             self.state_repr = StateReprModuleWithAttention(
-                user_num, item_num, embedding_dim, memory_size, attention_hidden_size
+                user_num, item_num, embedding_dim, memory_size, freeze_emb,
+                attention_hidden_size, use_als, user_emb, item_emb
             )
         else:
             self.state_repr = StateReprModule(
-                user_num, item_num, embedding_dim, memory_size
+                user_num, item_num, embedding_dim,
+                memory_size,freeze_emb, use_als, user_emb, item_emb
             )
         self.feature_size = feature_size
 
@@ -63,7 +70,11 @@ class ActorEncoderFactory(EncoderFactory):
             memory_size,
             feature_size,
             use_attention = False,
-            attention_hidden_size = 0
+            freeze_emb = False,
+            attention_hidden_size = 0,
+            use_als = False,
+            user_emb = None,
+            item_emb = None
 
 
     ):
@@ -74,7 +85,11 @@ class ActorEncoderFactory(EncoderFactory):
         self.memory_size = memory_size
         self.feature_size = feature_size
         self.use_attention = use_attention
+        self.freeze_emb = freeze_emb
         self.attention_hidden_size = attention_hidden_size
+        self.use_als = use_als
+        self.user_emb = user_emb
+        self.item_emb = item_emb
 
     def create(self, observation_shape):
         return ActorEncoder(
@@ -85,7 +100,11 @@ class ActorEncoderFactory(EncoderFactory):
             self.memory_size,
             self.feature_size,
             self.use_attention,
-            self.attention_hidden_size
+            self.freeze_emb,
+            self.attention_hidden_size,
+            self.use_als,
+            self.user_emb,
+            self.item_emb
         )
 
     def get_params(self, deep=False):

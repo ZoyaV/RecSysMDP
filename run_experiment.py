@@ -35,7 +35,8 @@ if __name__ == "__main__":
         config['experiment']['algo_settings']['model_parametrs']['memory_size'] = prm[4]
         config['experiment']['algo_settings']['model_parametrs']['feature_size'] = prm[5]
         config['experiment']['algo_settings']['model_parametrs']['use_attention'] = prm[6]
-        config['experiment']['algo_settings']['model_parametrs']['attention_hidden_size'] = prm[7]
+        config['experiment']['algo_settings']['model_parametrs']['freeze_emb'] = prm[7]
+        config['experiment']['algo_settings']['model_parametrs']['attention_hidden_size'] = prm[8]
 
 
     if config['use_wandb']:
@@ -50,7 +51,7 @@ if __name__ == "__main__":
 
 
     # Load train data
-    data, data_mapping = load_data(config=config)
+    data, data_mapping, train_values = load_data(config=config,  return_values = True)
     mdp_preparator = make_mdp(config=config, data=data, data_mapping=data_mapping)
     states, rewards, actions, termations, state_tail = mdp_preparator.create_mdp()
     train_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations, discrete = prediction_type)
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     test_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations, discrete=prediction_type)
 
     # Init RL algorithm
-    algo = init_algo(config)
+    algo = init_algo(config, train_values)
 
     # Init scorer
     scorers = init_scorers(config, state_tail, test_values, prediction_type)

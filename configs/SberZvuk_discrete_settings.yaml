@@ -30,6 +30,7 @@ experiment:
     n_epochs: 150
     batch_size: 1024
     use_gpu: False
+    use_als: True
 
     model_parametrs:
       user_num: 1000
@@ -39,4 +40,5 @@ experiment:
       memory_size: 10
       feature_size: 512
       use_attention: False
+      freeze_emb: False
       attention_hidden_size: 32

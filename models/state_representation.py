@@ -10,9 +10,18 @@ class StateReprModuleWithAttention(nn.Module):
             item_num,
             embedding_dim,
             memory_size,
+            freeze_emb,
             attention_hidden_size,
+            use_als,
+            user_emb,
+            item_emb
     ):
         super().__init__()
+        self.use_als = use_als
+        self.user_emb = user_emb
+        self.item_emb = item_emb
+        self.freeze_emb = freeze_emb
+
         self.user_embeddings = nn.Embedding(user_num, embedding_dim)
         self.item_embeddings = nn.Embedding(
             item_num + 1, embedding_dim, padding_idx=int(item_num)
@@ -35,8 +44,13 @@ class StateReprModuleWithAttention(nn.Module):
         nn.init.uniform_(self.drr_ave.weight)
         self.drr_ave.bias.data.zero_()
 
-        self.user_embeddings.weight.requires_grad = False
-        self.item_embeddings.weight.requires_grad = False
+        if self.use_als:
+            self.item_embeddings.weight.data.copy_(self.item_emb)
+            self.user_embeddings.weight.data.copy_(self.user_emb)
+
+        if self.freeze_emb:
+            self.user_embeddings.weight.requires_grad = False
+            self.item_embeddings.weight.requires_grad = False
 
 
     def forward(self, user, memory):
@@ -62,7 +76,7 @@ class StateReprModuleWithAttention(nn.Module):
 
         # Compute average DRR values for each item
         drr_ave = self.drr_ave(weighted_item_embeddings).squeeze(1)
-
+       # print(drr_ave.shape)
         # Concatenate user embedding, weighted item embeddings, and DRR values
         state = torch.cat(
             [user_embedding, user_embedding * drr_ave, drr_ave], dim=-1)
@@ -84,8 +98,18 @@ class StateReprModule(nn.Module):
             item_num,
             embedding_dim,
             memory_size,
+            freeze_emb,
+            use_als,
+            user_emb,
+            item_emb
     ):
         super().__init__()
+
+        self.use_als = use_als
+        self.user_emb = user_emb
+        self.item_emb = item_emb
+        self.freeze_emb = freeze_emb
+
         self.user_embeddings = nn.Embedding(user_num, embedding_dim)
         self.item_embeddings = nn.Embedding(
             item_num + 1, embedding_dim, padding_idx=int(item_num)
@@ -106,8 +130,13 @@ class StateReprModule(nn.Module):
 
         self.drr_ave.bias.data.zero_()
 
-        self.item_embeddings.weight.requires_grad = False
-        self.user_embeddings.weight.requires_grad = False
+        if self.use_als:
+            self.item_embeddings.weight.data.copy_(self.item_emb)
+            self.user_embeddings.weight.data.copy_(self.user_emb)
+
+        if self.freeze_emb:
+            self.item_embeddings.weight.requires_grad = False
+            self.user_embeddings.weight.requires_grad = False
 
     def forward(self, user, memory):
         """
