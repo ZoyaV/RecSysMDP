@@ -69,8 +69,9 @@ def make_mdp(config, data, data_mapping):
         from recsys_mdp.recsys_mdp import ConditionBasedRecSysMDP
         def split_by_time(df):
             ts_name = config['experiment']['col_mapping']['timestamp_col_name']
-            ts = pd.to_datetime(df[ts_name]).astype(int) / 10**9#pd.to_datetime(df['datetime_col'])
-           # print(ts)
+            # Преобразование столбца с датой и временем в формат datetime
+
+            ts = pd.to_datetime(df[ts_name]).astype(int) // 10**9
             condition_music = lambda A: A > 100
             result = (ts[1:].values - ts[:-1].values).astype(int)
             indx = np.where(condition_music(result))
