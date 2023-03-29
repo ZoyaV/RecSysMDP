@@ -13,16 +13,14 @@ def ndcg(k, pred, ground_truth) -> float:
     return dcg / idcg
 
 def hit_rate( pred, ground_truth):
+    init_pred_count = len(pred)
+   # print(init_pred_count)
     pred = list(set(pred))
     k = 0
-  #  print("-----------------------------")
-    #print("Pred: ", pred)
-   # print("GT: ", ground_truth)
-  #  print(ground_truth)
     for item in pred:
         if int(item) in ground_truth:
             k+=1
-    return k / len(pred)
+    return k / init_pred_count
 def log_user_items_distribution(relevances_for_users, tresholds):
     if epoch % 10 == 0:
         for t in tresholds:
@@ -56,6 +54,29 @@ def log_items_distribution(total_prediction):
     pass
 
 epoch = 0
+
+def coverage(observations, discrete = True):
+    global epoch
+    if discrete:
+        oservations_cuda = torch.from_numpy(observations).cpu()
+    def metrics(model=None, episodes=None):
+        global epoch
+        epoch += 1
+        if discrete:
+            total_prediction = model.predict(observations)
+        else:
+            raise Exception("Work only with discrete algo!")
+        data = total_prediction.ravel().reshape(-1, 1)
+        # table = wandb.Table(data=data, columns=["items"])
+        wandb.log({'Items Histogram': wandb.Histogram(data)})
+       # log_items_distribution(total_prediction)
+      #  print(total_prediction)
+        coverage = len(set(total_prediction))
+
+        wandb.log({"Covarage": coverage})
+        return coverage
+    return metrics
+
 def base_ndcg(oservations, users_interests, tresh, top_k=10, discrete = True):
     global epoch
     if discrete:
@@ -134,7 +155,8 @@ def episode_hit_rate(top_k, users_interests):
                 new_obs[:-3] = new_obs[1:-2]
                 new_obs[-2] = new_item
                 obs = new_obs.copy()
-
+            #print(len(interactive_items))
+           # exit()
            # print("Episode!!")
             interactive_hit_rate = hit_rate(interactive_items, original_items)
             interactive_hit_rate_target.append(interactive_hit_rate)

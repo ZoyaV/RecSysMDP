@@ -1,8 +1,9 @@
 import numpy as np
-from metrics.metrics import base_ndcg, tsne_embeddings, episode_hit_rate
+from metrics.metrics import base_ndcg, tsne_embeddings, episode_hit_rate, coverage
 def init_tsne_vis(test_users, test_items):
     scorer = tsne_embeddings(test_users, test_items)
     return scorer
+
 
 def init_hit_rate(state_tail, test_items, test_users_or, top_k, discrete):
     test_states, users_interests = get_test_observation(state_tail, test_items, test_users_or, discrete)
@@ -38,6 +39,9 @@ def get_test_observation(state_tail, test_items, test_users_or, discrete):
     test_states = np.asarray(test_states)
     return test_states, true_items
 
+def make_observation(state_tail, test_users_or, test_items, discrete = True):
+    test_states, true_items = get_test_observation(state_tail, test_items, test_users_or, discrete)
+    return test_states, true_items
 def init_next_step_scorer(state_tail, test_users_or, test_items, \
                           top_k, tresh, discrete = True):
     test_states, true_items = get_test_observation(state_tail, test_items, test_users_or, discrete)
@@ -61,4 +65,8 @@ def init_scorers(config, state_tail, test_values, prediction_type):
         hit_rate = init_hit_rate(state_tail, test_values['full_items'], test_values['full_users'], \
                                  top_k, discrete=prediction_type)
         scorers['hit_rate'] = hit_rate
+    if 'coverage' in config['experiment']['scorer']['metrics']:
+        obs, _ = make_observation(state_tail, test_values['full_users'], test_values['full_items'], discrete = True)
+        coverage_m = coverage(obs, discrete=prediction_type)
+        scorers['coverage'] = coverage_m
     return scorers
