@@ -42,4 +42,9 @@ def init_algo(config, values):
     if algo == 'DCQL':
         from d3rlpy.algos import DiscreteCQL
         algo = DiscreteCQL(use_gpu=use_gpu, encoder_factory=actor_encoder_factory, batch_size=batch_size)
+
+    if algo == 'DBC':
+        from d3rlpy.algos import DiscreteBC
+        algo = DiscreteBC(use_gpu=use_gpu, batch_size=batch_size)
+
     return algo
