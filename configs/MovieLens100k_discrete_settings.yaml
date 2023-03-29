@@ -1,0 +1,40 @@
+
+name: DSACMovieLens_DJ2
+use_wandb: True
+
+experiment:
+  top_k: 10
+  data_path: "./row_data/MovieLens/train_df.csv"
+  test_data_path: "./row_data/MovieLens/test_df.csv"
+  col_mapping:
+    user_col_name: "user_idx"
+    item_col_name: "item_idx"
+    reward_col_name: "relevance"
+    timestamp_col_name: "timestamp"
+
+  mdp_settings:
+    framestack_size: 10
+    reward_function: "relevance_based_reward"
+    action_function: "next_item_action"
+    history_keys: ['framestack', 'user_id']
+
+    mdp_type: FullUserHistoryBasedRecSysMDP
+
+  scorer:
+    metrics: ['rating_scorer', 'tsne', 'hit_rate']
+    tresh: [0.7, 0.5, 0.9]
+    prediction: "discrete"
+
+  algo_settings:
+    algo: DCQL
+    n_epochs: 60
+    batch_size: 1024
+    use_gpu: False
+
+    model_parametrs:
+      user_num: 1000
+      item_num: 2000
+      emb_dim: 8
+      hid_dim: 16
+      memory_size: 10
+      feature_size: 512

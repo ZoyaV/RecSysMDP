@@ -56,11 +56,12 @@ def part_of_positive_negative(prediction, user_log, rating, item_id, tresh):
             in_negative += 1
     return in_positive / len(prediction), in_negative/len(prediction)
 
-def hit_rate(positive = True, key_scrapper = lambda obs: obs[-1][-1][0]/255, top_k=10,
+def hit_rate(positive = True, key_scrapper = lambda obs: obs[-1][-1][0], top_k=10,
                          inv_user_mapping = None, item_mapping=None,
                          original_test_logs=None, reward_tresh=3, emb_size = 64,
                          use_user_emb = False, user_id = 'user_id', rating = 'rating',
                          item_id = 'item_id', logger = None):
+    print(inv_user_mapping)
     def scorer(
             algo: AlgoProtocol, episodes: List[Episode]
     ) -> float:
@@ -72,11 +73,19 @@ def hit_rate(positive = True, key_scrapper = lambda obs: obs[-1][-1][0]/255, top
             top_k_preds_by_steps = np.asarray(top_k_preds_by_steps).ravel()
 
             # Get user embedding and translate to user index
+          #  print(episode.observations[-1])
             pkey = key_scrapper(episode.observations)
+          #  print(inv_user_mapping)
+          #  pkey = pkey * 100
+
             for okey in inv_user_mapping:
-                d = np.mean(np.abs(np.asarray(pkey) - np.asarray(okey)))
-                if d < 0.1:
+               # print(okey, pkey)
+
+                d = np.mean(np.abs(np.asarray(pkey) - np.asarray(okey[0])))
+                if d < 0.5:
                     key = okey
+         #   print("Found: ")
+          #  print(pkey)
             user_idx = inv_user_mapping[tuple(key)]
 
             # Calculate part of prediction in postive/negative part
