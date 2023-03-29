@@ -48,24 +48,24 @@ def init_next_step_scorer(state_tail, test_users_or, test_items, \
     scorer = base_ndcg(test_states, true_items, tresh,top_k, discrete)
     return scorer
 
-def init_scorers(config, state_tail, test_values, prediction_type):
-    top_k = config['experiment']['top_k']
-    tresh = config['experiment']['scorer']['tresh']
+def init_scorers(state_tail, test_values, top_k, tresh, metrics, prediction_type):
+    #top_k = config['experiment']['top_k']
+    #tresh = config['experiment']['scorer']['tresh']
     scorers = dict()
-    if 'rating_scorer' in config['experiment']['scorer']['metrics']:
+    if 'rating_scorer' in metrics:
         rating_scorer = init_next_step_scorer(state_tail, test_values['full_users'], \
                                               test_values['full_items'], top_k, tresh, discrete=prediction_type)
         scorers['rating_scorer'] = rating_scorer
 
-    if 'tsne' in config['experiment']['scorer']['metrics']:
+    if 'tsne' in metrics:
         tsne = init_tsne_vis(test_values['users_unique'], test_values['items_unique'])
         scorers['tsne'] = tsne
 
-    if 'hit_rate' in config['experiment']['scorer']['metrics']:
+    if 'hit_rate' in metrics:
         hit_rate = init_hit_rate(state_tail, test_values['full_items'], test_values['full_users'], \
                                  top_k, discrete=prediction_type)
         scorers['hit_rate'] = hit_rate
-    if 'coverage' in config['experiment']['scorer']['metrics']:
+    if 'coverage' in metrics:
         obs, _ = make_observation(state_tail, test_values['full_users'], test_values['full_items'], discrete = True)
         coverage_m = coverage(obs, discrete=prediction_type)
         scorers['coverage'] = coverage_m

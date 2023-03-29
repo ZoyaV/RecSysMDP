@@ -3,9 +3,43 @@ import argparse
 import yaml
 
 from recsys_mdp.utils import to_d3rlpy_form_ND
-from constructors.algorithm_constuctor import init_algo
+from constructors.algorithm_constuctor import init_algo, init_model
 from constructors.mdp_constructor import load_data, make_mdp
 from constructors.scorers_constructor import init_scorers
+
+def main(config):
+    prediction_type = True if config['experiment']['scorer']['prediction_type'] == "discrete" else False
+
+    # Load train data
+    data, data_mapping, train_values = load_data(data_path=config['experiment']['data_path'],
+                                                 return_values=True,
+                                                 col_mapping=config['experiment']['col_mapping'])
+    mdp_preparator = make_mdp(data=data, data_mapping=data_mapping, **config['experiment']['mdp_settings'])
+    states, rewards, actions, termations, state_tail = mdp_preparator.create_mdp()
+    train_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations, discrete=prediction_type)
+
+    # Load test data
+    test_data, _, test_values = load_data(data_path=config['experiment']['test_data_path'],
+                                          return_values=True,
+                                          col_mapping=config['experiment']['col_mapping'])
+
+    test_mdp_preparator = make_mdp(data=test_data, data_mapping=data_mapping, **config['experiment']['mdp_settings'])
+    states, rewards, actions, termations, _ = test_mdp_preparator.create_mdp()
+    test_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations, discrete=prediction_type)
+
+    # Init RL algorithm
+    model = init_model(train_values, **config['experiment']['algo_settings']['model_parametrs'])
+    algo = init_algo(model, **config['experiment']['algo_settings']['general_parametrs'])
+
+    # Init scorer
+    top_k = config['experiment']['top_k']
+    scorers = init_scorers(state_tail, test_values, top_k, **config['experiment']['scorer'])
+
+    # Run experiment
+    batch_size = config['experiment']['algo_settings']['n_epochs']
+    algo.fit(train_mdp, n_epochs=batch_size, eval_episodes=test_mdp, scorers=scorers)
+    algo.save_model(f'pretrained_models/{args.experiment_name}_{name}.pt')
+    return
 
 
 if __name__ == "__main__":
@@ -51,30 +85,5 @@ if __name__ == "__main__":
                    name=f"model_{prm}_top_k_{config['experiment']['top_k']}_framestack_size_\
                         {config['experiment']['mdp_settings']['framestack_size']}")
 
-    prediction_type = True if config['experiment']['scorer']['prediction'] == "discrete" else False
+    main(config)
 
-
-
-    # Load train data
-    data, data_mapping, train_values = load_data(config=config,  return_values = True)
-    mdp_preparator = make_mdp(config=config, data=data, data_mapping=data_mapping)
-    states, rewards, actions, termations, state_tail = mdp_preparator.create_mdp()
-    train_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations, discrete = prediction_type)
-
-    # Load test data
-    test_data, _, test_values = load_data(config=config, data_path=config['experiment']['test_data_path'],
-                                          return_values = True)
-    test_mdp_preparator = make_mdp(config=config, data=test_data, data_mapping=data_mapping)
-    states, rewards, actions, termations, _ = test_mdp_preparator.create_mdp()
-    test_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations, discrete=prediction_type)
-
-    # Init RL algorithm
-    algo = init_algo(config, train_values)
-
-    # Init scorer
-    scorers = init_scorers(config, state_tail, test_values, prediction_type)
-
-    # Run experiment
-    batch_size = config['experiment']['algo_settings']['n_epochs']
-    algo.fit(train_mdp, n_epochs = batch_size, eval_episodes=test_mdp, scorers=scorers)
-    algo.save_model(f'pretrained_models/{args.experiment_name}_{name}.pt')

@@ -192,7 +192,7 @@ class ConditionBasedRecSysMDP(RecSysMDP):
         :return:
         """
         states, rewards, actions, terminations = [], [], [], []
-        indx_to_episode_split = self.condition(user_df)
+        indx_to_episode_split = self.condition(user_df, self.data_mapping)
        # print(indx_to_episode_split)
         for i, idx in enumerate(indx_to_episode_split):
             start = 0 if i == 0 else indx_to_episode_split[i - 1]

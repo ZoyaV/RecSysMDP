@@ -1,8 +1,9 @@
+from typing import List
+
 import numpy as np
-import pandas as pd
-from d3rlpy.dataset import Episode, TransitionMiniBatch
-from typing import Any, Callable, Iterator, List, Optional, Tuple, Union, cast
+from d3rlpy.dataset import Episode
 from d3rlpy.metrics.scorer import AlgoProtocol
+
 
 def collect_top_actions(algo, episode, item_mapping, top_k,
                         emb_size = 64, use_user_emb = False,
