@@ -14,6 +14,8 @@ if __name__ == "__main__":
     parser.add_argument('--experiment_name', type = str, default="default_exp")
     parser.add_argument('--framestack', type = int, default = 0)
     parser.add_argument('--model_parametrs', nargs='+',default = [])
+    parser.add_argument('--freeze_emb', type=int, default=0)
+    parser.add_argument('--use_als', type=int, default=0)
 
     args = parser.parse_args()
     with open(args.config) as f:
@@ -26,6 +28,10 @@ if __name__ == "__main__":
     name = f"top_k_{config['experiment']['top_k']}_framestack_size_\
                         {config['experiment']['mdp_settings']['framestack_size']}"
 
+    config['experiment']['algo_settings']['model_parametrs']['freeze_emb'] = args.freeze_emb
+    config['experiment']['algo_settings']['use_als'] = args.use_als
+
+    prm = []
     if len(args.model_parametrs)>1:
         prm = [int(p) for p in args.model_parametrs]
         config['experiment']['algo_settings']['model_parametrs']['user_num'] = prm[0]
@@ -35,8 +41,7 @@ if __name__ == "__main__":
         config['experiment']['algo_settings']['model_parametrs']['memory_size'] = prm[4]
         config['experiment']['algo_settings']['model_parametrs']['feature_size'] = prm[5]
         config['experiment']['algo_settings']['model_parametrs']['use_attention'] = prm[6]
-        config['experiment']['algo_settings']['model_parametrs']['freeze_emb'] = prm[7]
-        config['experiment']['algo_settings']['model_parametrs']['attention_hidden_size'] = prm[8]
+        config['experiment']['algo_settings']['model_parametrs']['attention_hidden_size'] = prm[7]
 
 
     if config['use_wandb']:
@@ -72,4 +77,4 @@ if __name__ == "__main__":
     # Run experiment
     batch_size = config['experiment']['algo_settings']['n_epochs']
     algo.fit(train_mdp, n_epochs = batch_size, eval_episodes=test_mdp, scorers=scorers)
-    algo.save_model(f'pretrained_models/{name}.pt')
+    algo.save_model(f'pretrained_models/{args.experiment_name}_{name}.pt')
