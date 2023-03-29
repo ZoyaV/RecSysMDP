@@ -14,25 +14,28 @@ experiment:
 
   mdp_settings:
     framestack_size: 10
-    reward_function: "relevance_based_reward"
-    action_function: "next_item_action"
+    reward_function_name: "relevance_based_reward"
+    action_function_name: "next_item_action"
     history_keys: ['framestack', 'user_id']
-
+    window_size: 0
+    step_size: 0
     mdp_type: ConditionBasedRecSysMDP
 
   scorer:
     metrics: ['rating_scorer', 'tsne', 'hit_rate']
     tresh: [0.7, 0.5, 0.9]
-    prediction: "discrete"
+    prediction_type: "discrete"
 
   algo_settings:
-    algo: DCQL
     n_epochs: 150
-    batch_size: 1024
-    use_gpu: False
-    use_als: True
+
+    general_parametrs:
+      algo: DCQL
+      batch_size: 1024
+      use_gpu: False
 
     model_parametrs:
+      use_als: False
       user_num: 1000
       item_num: 2000
       emb_dim: 16
