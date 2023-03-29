@@ -189,3 +189,17 @@ def tsne_embeddings(users, items):
         tsne_scatter(items_emb, "items_emb")
         return 0
     return metrics
+
+def tsne_encoder(users, items):
+    global epoch
+    def metrics(model=None, episodes=None):
+        for episode in episodes:
+            embds = []
+            with torch.no_grad():
+                emb = model._impl._q_func._q_funcs[0]._encoder.state_repr(torch.from_numpy(episode.observations[:,-1]),
+                                                                          torch.from_numpy(episode.observations[:,:-1])).numpy()
+                embds += emb.tolist()
+
+        tsne_scatter(np.asarray(embds), "state_emb")
+        return 0
+    return metrics

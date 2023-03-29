@@ -1,10 +1,11 @@
 import numpy as np
-from metrics.metrics import base_ndcg, tsne_embeddings, episode_hit_rate, coverage
+from metrics.metrics import base_ndcg, tsne_embeddings, episode_hit_rate, coverage, tsne_encoder
 def init_tsne_vis(test_users, test_items):
     scorer = tsne_embeddings(test_users, test_items)
     return scorer
-
-
+def init_tsne_encoder(test_users, test_items):
+    scorer = tsne_encoder(test_users, test_items)
+    return scorer
 def init_hit_rate(state_tail, test_items, test_users_or, top_k, discrete):
     test_states, users_interests = get_test_observation(state_tail, test_items, test_users_or, discrete)
     scorer = episode_hit_rate(top_k, users_interests)
@@ -60,6 +61,10 @@ def init_scorers(state_tail, test_values, top_k, tresh, metrics, prediction_type
     if 'tsne' in metrics:
         tsne = init_tsne_vis(test_values['users_unique'], test_values['items_unique'])
         scorers['tsne'] = tsne
+
+    if 'tsne_encoder' in metrics:
+        tsne_encoder = init_tsne_encoder(test_values['users_unique'], test_values['items_unique'])
+        scorers['tsne_encoder'] = tsne_encoder
 
     if 'hit_rate' in metrics:
         hit_rate = init_hit_rate(state_tail, test_values['full_items'], test_values['full_users'], \

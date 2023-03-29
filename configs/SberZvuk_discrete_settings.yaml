@@ -22,7 +22,7 @@ experiment:
     mdp_type: ConditionBasedRecSysMDP
 
   scorer:
-    metrics: ['rating_scorer', 'tsne', 'hit_rate']
+    metrics: ['rating_scorer', 'tsne', 'hit_rate', 'tsne_encoder']
     tresh: [0.7, 0.5, 0.9]
     prediction_type: "discrete"
 
