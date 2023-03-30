@@ -16,13 +16,12 @@ experiment:
     framestack_size: 10
     reward_function_name: "relevance_based_reward"
     action_function_name: "next_item_action"
+    episode_splitter_name: "full_user_interaction"
     history_keys: ['framestack', 'user_id']
-    window_size: 0
-    step_size: 0
-    mdp_type: ConditionBasedRecSysMDP
+
 
   scorer:
-    metrics: ['rating_scorer', 'tsne', 'hit_rate', 'tsne_encoder']
+    metrics: ['rating_scorer', 'hit_rate']
     tresh: [0.7, 0.5, 0.9]
     prediction_type: "discrete"
 

@@ -43,38 +43,28 @@ def load_action_function(action_function_name):
         action_function = discrete_relevance_action
     return action_function
 
+def load_episode_splitter(episode_splitter_name):
+    # Load action function
+    if episode_splitter_name == 'interaction_interruption':
+        from recsys_mdp.episode_split_fucntions import split_by_time
+        episode_splitter = split_by_time
+    elif episode_splitter_name == 'full_user_interaction':
+        from recsys_mdp.episode_split_fucntions import split_by_user
+        episode_splitter = split_by_user
+
+    return episode_splitter
+
 def make_mdp(data, data_mapping, framestack_size, history_keys,
-             action_function_name, reward_function_name, mdp_type,
-             window_size, step_size):
+             action_function_name, reward_function_name, episode_splitter_name):
     reward_function = load_reward_function(reward_function_name)
     action_function = load_action_function(action_function_name)
-    if mdp_type == "WindowBasedRecSysMDP":
-        from recsys_mdp.recsys_mdp import WindowBasedRecSysMDP
-        mdp_preparator_class = WindowBasedRecSysMDP(load_from_file=False, dataframe=data,
-                                                    data_mapping=data_mapping, framestack=framestack_size,
-                                                    history_keys=history_keys,
-                                                    reward_function=reward_function,
-                                                    action_function=action_function,
-                                                    window_size=window_size,
-                                                    step_size=step_size)
+    episode_splitter = load_episode_splitter(episode_splitter_name)
 
-    if mdp_type == "ConditionBasedRecSysMDP":
-        from recsys_mdp.recsys_mdp import ConditionBasedRecSysMDP
-        from constructors.episode_split_fucntions import split_by_time
-
-        mdp_preparator_class = ConditionBasedRecSysMDP(load_from_file=False, dataframe=data,
-                                                       data_mapping=data_mapping, framestack=framestack_size,
-                                                       history_keys=history_keys,
-                                                       reward_function=reward_function,
-                                                       action_function=action_function,
-                                                       condition=split_by_time)
-
-    if mdp_type == "FullUserHistoryBasedRecSysMDP":
-        from recsys_mdp.recsys_mdp import FullUserHistoryBasedRecSysMDP
-
-        mdp_preparator_class = FullUserHistoryBasedRecSysMDP(load_from_file=False, dataframe=data,
-                                                             data_mapping=data_mapping, framestack=framestack_size,
-                                                             history_keys=history_keys,
-                                                             reward_function=reward_function,
-                                                             action_function=action_function)
+    from recsys_mdp.recsys_mdp import RecSysMDP
+    mdp_preparator_class = RecSysMDP(load_from_file=False, dataframe=data,
+                                                   data_mapping=data_mapping, framestack=framestack_size,
+                                                   history_keys=history_keys,
+                                                   reward_function=reward_function,
+                                                   action_function=action_function,
+                                                   episode_splitter=episode_splitter)
     return mdp_preparator_class
