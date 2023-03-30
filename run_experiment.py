@@ -5,8 +5,25 @@ import yaml
 from recsys_mdp.utils import to_d3rlpy_form_ND
 from constructors.algorithm_constuctor import init_algo, init_model
 from constructors.mdp_constructor import load_data, make_mdp
-from constructors.scorers_constructor import init_scorers
+from constructors.scorers_constructor import init_scorers, init_logger
 
+def eval_algo(algo, logger):
+    logger.static_log(algo)
+    logger.interactive_log(algo)
+    pass
+def fit(algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 10):
+        fitter = algo.fitter(
+            train_mdp,
+            n_epochs=n_epochs,
+            eval_episodes=test_mdp,
+            scorers=scorers
+        )
+
+        for i in range(n_epochs):
+            next(fitter)
+            if i % steps_to_eval == 0 and i != 0:
+                eval_algo(algo, logger)
+        return algo
 def main(config):
     prediction_type = True if config['experiment']['scorer']['prediction_type'] == "discrete" else False
 
@@ -34,10 +51,12 @@ def main(config):
     # Init scorer
     top_k = config['experiment']['top_k']
     scorers = init_scorers(state_tail, test_values, top_k, **config['experiment']['scorer'])
+    logger = init_logger(test_mdp, state_tail, test_values, top_k,  prediction_type)
 
     # Run experiment
-    batch_size = config['experiment']['algo_settings']['n_epochs']
-    algo.fit(train_mdp, n_epochs=batch_size, eval_episodes=test_mdp, scorers=scorers)
+    n_epochs = config['experiment']['algo_settings']['n_epochs']
+    fit(algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 10)
+    #algo.fit(train_mdp, n_epochs=n_epochs, eval_episodes=test_mdp, scorers=scorers)
     algo.save_model(f'pretrained_models/{args.experiment_name}_{name}.pt')
     return
 

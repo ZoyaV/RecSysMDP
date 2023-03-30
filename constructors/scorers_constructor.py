@@ -1,15 +1,25 @@
 import numpy as np
-from metrics.metrics import base_ndcg, tsne_embeddings, episode_hit_rate, coverage, tsne_encoder
+from metrics.d3rlpy_loggers import base_ndcg, tsne_embeddings, episode_hit_rate, coverage, tsne_encoder
+from metrics.logger import Logger
+from metrics.scorers import log_covarage, total_ndcg, interactive_hit_rates
+
+
 def init_tsne_vis(test_users, test_items):
     scorer = tsne_embeddings(test_users, test_items)
     return scorer
+
+
 def init_tsne_encoder(test_users, test_items):
     scorer = tsne_encoder(test_users, test_items)
     return scorer
+
+
 def init_hit_rate(state_tail, test_items, test_users_or, top_k, discrete):
     test_states, users_interests = get_test_observation(state_tail, test_items, test_users_or, discrete)
     scorer = episode_hit_rate(top_k, users_interests)
     return scorer
+
+
 def get_test_observation(state_tail, test_items, test_users_or, discrete):
     state_tail = np.asarray(state_tail)
     test_states = []
@@ -40,18 +50,23 @@ def get_test_observation(state_tail, test_items, test_users_or, discrete):
     test_states = np.asarray(test_states)
     return test_states, true_items
 
-def make_observation(state_tail, test_users_or, test_items, discrete = True):
+
+def make_observation(state_tail, test_users_or, test_items, discrete=True):
     test_states, true_items = get_test_observation(state_tail, test_items, test_users_or, discrete)
     return test_states, true_items
+
+
 def init_next_step_scorer(state_tail, test_users_or, test_items, \
-                          top_k, tresh, discrete = True):
+                          top_k, tresh, discrete=True):
     test_states, true_items = get_test_observation(state_tail, test_items, test_users_or, discrete)
-    scorer = base_ndcg(test_states, true_items, tresh,top_k, discrete)
+    scorer = base_ndcg(test_states, true_items, tresh, top_k, discrete)
     return scorer
 
+
 def init_scorers(state_tail, test_values, top_k, tresh, metrics, prediction_type):
-    #top_k = config['experiment']['top_k']
-    #tresh = config['experiment']['scorer']['tresh']
+    # top_k = config['experiment']['top_k']
+    # tresh = config['experiment']['scorer']['tresh']
+    #rint(state_tail[-1])
     scorers = dict()
     if 'rating_scorer' in metrics:
         rating_scorer = init_next_step_scorer(state_tail, test_values['full_users'], \
@@ -71,7 +86,17 @@ def init_scorers(state_tail, test_values, top_k, tresh, metrics, prediction_type
                                  top_k, discrete=prediction_type)
         scorers['hit_rate'] = hit_rate
     if 'coverage' in metrics:
-        obs, _ = make_observation(state_tail, test_values['full_users'], test_values['full_items'], discrete = True)
+        obs, _ = make_observation(state_tail, test_values['full_users'], test_values['full_items'], discrete=True)
         coverage_m = coverage(obs, discrete=prediction_type)
         scorers['coverage'] = coverage_m
     return scorers
+
+
+def init_logger(test_mdp, state_tail, test_values, top_k, prediction_type):
+    fake_mdp, users_interests = get_test_observation(state_tail, test_values['full_items'], \
+                                                     test_values['full_users'], prediction_type)
+  #  exit()
+    logger = Logger(interactive_mdp=test_mdp, user_interests=users_interests, fake_mdp=fake_mdp, top_k=top_k,
+                    static_scorers=[total_ndcg], interactive_scorers=[interactive_hit_rates])
+
+    return logger
