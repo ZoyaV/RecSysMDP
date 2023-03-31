@@ -42,6 +42,7 @@ def main(config):
                                           return_values=True,
                                           col_mapping=config['experiment']['col_mapping'])
 
+    config['experiment']['mdp_settings']['episode_splitter_name'] = "interaction_interruption"
     test_mdp_preparator = make_mdp(data=test_data, data_mapping=data_mapping, **config['experiment']['mdp_settings'])
     states, rewards, actions, termations, _ = test_mdp_preparator.create_mdp()
     test_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations, discrete=prediction_type)

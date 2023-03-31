@@ -1,5 +1,5 @@
 
-name: DSAC_SberZvuk
+name: DSAC_SberZvuk2
 use_wandb: True
 
 experiment:
@@ -16,12 +16,12 @@ experiment:
     framestack_size: 10
     reward_function_name: "relevance_based_reward"
     action_function_name: "next_item_action"
-    episode_splitter_name: "full_user_interaction"
+    episode_splitter_name: "interaction_interruption"
     history_keys: ['framestack', 'user_id']
 
 
   scorer:
-    metrics: ['rating_scorer', 'hit_rate']
+    metrics: ['ndcg', 'ihitrate', 'coverage', 'stat_hitrate','tsne', 'items_distribution']
     tresh: [0.7, 0.5, 0.9]
     prediction_type: "discrete"
 
