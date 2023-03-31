@@ -8,10 +8,12 @@ from constructors.mdp_constructor import load_data, make_mdp
 from constructors.scorers_constructor import init_scorers, init_logger
 
 def eval_algo(algo, logger):
-    logger.static_log(algo)
-    logger.interactive_log(algo)
+    static_res = logger.static_log(algo)
+    interactive_res = logger.interactive_log(algo)
+
+    logger.visual_log(algo, {"STAT": static_res, "INTERECT":interactive_res})
     pass
-def fit(algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 10):
+def fit(algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 2):
         fitter = algo.fitter(
             train_mdp,
             n_epochs=n_epochs,
@@ -51,11 +53,11 @@ def main(config):
     # Init scorer
     top_k = config['experiment']['top_k']
     scorers = init_scorers(state_tail, test_values, top_k, **config['experiment']['scorer'])
-    logger = init_logger(test_mdp, state_tail, test_values, top_k,  prediction_type)
+    logger = init_logger(test_mdp, state_tail, test_values, top_k,  **config['experiment']['scorer'])
 
     # Run experiment
     n_epochs = config['experiment']['algo_settings']['n_epochs']
-    fit(algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 10)
+    fit(algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 3)
     #algo.fit(train_mdp, n_epochs=n_epochs, eval_episodes=test_mdp, scorers=scorers)
     algo.save_model(f'pretrained_models/{args.experiment_name}_{name}.pt')
     return

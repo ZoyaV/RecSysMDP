@@ -1,8 +1,8 @@
 import numpy as np
 from metrics.d3rlpy_loggers import base_ndcg, tsne_embeddings, episode_hit_rate, coverage, tsne_encoder
 from metrics.logger import Logger
-from metrics.scorers import log_covarage, total_ndcg, interactive_hit_rates
-
+from metrics.scorers import log_covarage, total_ndcg, interactive_hit_rates, static_hit_rates
+from metrics.visual_logger import tsne, items_distribution
 
 def init_tsne_vis(test_users, test_items):
     scorer = tsne_embeddings(test_users, test_items)
@@ -68,35 +68,52 @@ def init_scorers(state_tail, test_values, top_k, tresh, metrics, prediction_type
     # tresh = config['experiment']['scorer']['tresh']
     #rint(state_tail[-1])
     scorers = dict()
-    if 'rating_scorer' in metrics:
-        rating_scorer = init_next_step_scorer(state_tail, test_values['full_users'], \
-                                              test_values['full_items'], top_k, tresh, discrete=prediction_type)
-        scorers['rating_scorer'] = rating_scorer
-
-    if 'tsne' in metrics:
-        tsne = init_tsne_vis(test_values['users_unique'], test_values['items_unique'])
-        scorers['tsne'] = tsne
-
-    if 'tsne_encoder' in metrics:
-        tsne_encoder = init_tsne_encoder(test_values['users_unique'], test_values['items_unique'])
-        scorers['tsne_encoder'] = tsne_encoder
-
-    if 'hit_rate' in metrics:
-        hit_rate = init_hit_rate(state_tail, test_values['full_items'], test_values['full_users'], \
-                                 top_k, discrete=prediction_type)
-        scorers['hit_rate'] = hit_rate
-    if 'coverage' in metrics:
-        obs, _ = make_observation(state_tail, test_values['full_users'], test_values['full_items'], discrete=True)
-        coverage_m = coverage(obs, discrete=prediction_type)
-        scorers['coverage'] = coverage_m
+    # if 'rating_scorer' in metrics:
+    #     rating_scorer = init_next_step_scorer(state_tail, test_values['full_users'], \
+    #                                           test_values['full_items'], top_k, tresh, discrete=prediction_type)
+    #     scorers['rating_scorer'] = rating_scorer
+    #
+    # if 'tsne' in metrics:
+    #     tsne = init_tsne_vis(test_values['users_unique'], test_values['items_unique'])
+    #     scorers['tsne'] = tsne
+    #
+    # if 'tsne_encoder' in metrics:
+    #     tsne_encoder = init_tsne_encoder(test_values['users_unique'], test_values['items_unique'])
+    #     scorers['tsne_encoder'] = tsne_encoder
+    #
+    # if 'hit_rate' in metrics:
+    #     hit_rate = init_hit_rate(state_tail, test_values['full_items'], test_values['full_users'], \
+    #                              top_k, discrete=prediction_type)
+    #     scorers['hit_rate'] = hit_rate
+    # if 'coverage' in metrics:
+    #     obs, _ = make_observation(state_tail, test_values['full_users'], test_values['full_items'], discrete=True)
+    #     coverage_m = coverage(obs, discrete=prediction_type)
+    #     scorers['coverage'] = coverage_m
     return scorers
 
 
-def init_logger(test_mdp, state_tail, test_values, top_k, prediction_type):
+def init_logger(test_mdp, state_tail, test_values, top_k, tresh, metrics, prediction_type):
     fake_mdp, users_interests = get_test_observation(state_tail, test_values['full_items'], \
                                                      test_values['full_users'], prediction_type)
   #  exit()
+    statitic = dict()
+    interactive = dict()
+    visualizations = []
+
+    if 'coverage' in metrics:
+        statitic['coverage'] = log_covarage
+    if 'ndcg' in metrics:
+        statitic['ndcg'] = total_ndcg
+    if 'ihitrate' in metrics:
+        interactive['ihitrate'] = interactive_hit_rates
+    if 'stat_hitrate' in metrics:
+        interactive['stat_hitrate'] = static_hit_rates
+    if 'items_distribution' in metrics:
+        visualizations.append(items_distribution)
+    if 'tsne' in metrics:
+        visualizations.append(tsne)
+
     logger = Logger(interactive_mdp=test_mdp, user_interests=users_interests, fake_mdp=fake_mdp, top_k=top_k,
-                    static_scorers=[total_ndcg], interactive_scorers=[interactive_hit_rates])
+                    static_scorers=statitic, interactive_scorers=interactive, visual_loggers=visualizations)
 
     return logger
