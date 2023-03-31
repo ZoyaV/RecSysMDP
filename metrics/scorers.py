@@ -2,7 +2,8 @@ import numpy as np
 from metrics.metrics import ndcg, hit_rate
 def log_covarage(total_prediction, users_interests, top_k):
     distribution = np.asarray(total_prediction)
-    best_items = np.argmax(distribution, axis = 0)
+    best_items = np.argmax(distribution, axis = 1)
+  #  print(best_items)
     return len(set(best_items))
 
 def total_ndcg(total_prediction, users_interests, top_k):
