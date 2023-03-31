@@ -50,4 +50,4 @@ def static_hit_rates(interaction_result):
         interactive_hit_rate_full = hit_rate(not_interactive_items, users_interests)
         full_hitrate.append(interactive_hit_rate_full)
         hitrate.append(interactive_hit_rate)
-    return {'on_episode':np.mean(full_hitrate), 'on_history':np.mean(hitrate)}
+    return {'on_episode':np.mean(hitrate), 'on_history':np.mean(full_hitrate)}
