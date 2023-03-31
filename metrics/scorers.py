@@ -1,9 +1,10 @@
 import numpy as np
 from metrics.metrics import ndcg, hit_rate
 def log_covarage(total_prediction, users_interests, top_k):
+    print(total_prediction.shape)
     distribution = np.asarray(total_prediction)
     best_items = np.argmax(distribution, axis = 1)
-  #  print(best_items)
+    #print(best_items)
     return len(set(best_items))
 
 def total_ndcg(total_prediction, users_interests, top_k):
@@ -32,7 +33,7 @@ def interactive_hit_rates(interaction_result):
         interactive_hit_rate_full = hit_rate(interactive_items, users_interests)
         full_hitrate.append(interactive_hit_rate_full)
         hitrate.append(interactive_hit_rate)
-    return {'on_episode':np.mean(full_hitrate), 'on_history':np.mean(hitrate)}
+    return {'on_episode':np.mean(hitrate), 'on_history':np.mean(full_hitrate)}
 
 def static_hit_rates(interaction_result):
     """
