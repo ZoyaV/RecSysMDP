@@ -10,7 +10,7 @@ def total_ndcg(total_prediction, users_interests, top_k):
     metricv = []
     for i,user in enumerate(total_prediction[0]):
         ratings = total_prediction[1][i]
-        interests = np.argsort(ratings)
+        interests = np.argsort(ratings)[::-1]
         undcg = ndcg(top_k, interests, users_interests[user])
         metricv.append(undcg)
     return np.mean(metricv)
