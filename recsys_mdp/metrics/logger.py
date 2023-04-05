@@ -16,7 +16,7 @@ class Logger():
     def __init__(self, interactive_mdp, user_interests, fake_mdp,
                  top_k, static_scorers, interactive_scorers, visual_loggers):
         #self.model = model
-        self.discrete = False
+        self.discrete = True
         self.interactive_mdp = interactive_mdp # d3rlpy mdp
         self.fake_mdp = fake_mdp # mdp for static metrics calculation, builded based on train
         self.user_interests = user_interests
@@ -31,13 +31,13 @@ class Logger():
             observations_cuda = torch.from_numpy(obs).cpu()
         if self.discrete:
             with torch.no_grad():
-                predicted_rat = (model.get_values(observations_cuda)).cpu().detach().numpy()
-                print(predicted_rat)
+                predicted_rat = (model._impl._q_func(observations_cuda)).cpu().detach().numpy()
                 predicted_rat = (predicted_rat - predicted_rat.min()) / (predicted_rat.max() - predicted_rat.min())
         else:
             predicted_rat = model.predict(obs)
 
         users = obs[:,-1]
+        print(self.discrete)
         pred_user_interests = [users, predicted_rat]
 
         results = dict()

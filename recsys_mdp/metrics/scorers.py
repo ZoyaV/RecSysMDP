@@ -1,7 +1,6 @@
 import numpy as np
 from recsys_mdp.metrics.metrics import ndcg, hit_rate
 def log_covarage(total_prediction, users_interests, top_k):
-    print(total_prediction.shape)
     distribution = np.asarray(total_prediction)
     best_items = np.argmax(distribution, axis = 1)
     #print(best_items)
