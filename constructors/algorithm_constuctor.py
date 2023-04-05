@@ -7,11 +7,11 @@ def init_embedings(values, emb_dim):
     return users_emb, items_emb
 
 def init_model(values, use_als, user_num, item_num, emb_dim,
-               hid_dim, memory_size, feature_size, use_attention,
+               hid_dim, memory_size, feature_size, state_repr_name,
                freeze_emb, attention_hidden_size):
     from recsys_mdp.models.models import ActorEncoderFactory
     model_params = [user_num, item_num, emb_dim, hid_dim, memory_size,
-                    feature_size, use_attention, freeze_emb, attention_hidden_size]
+                    feature_size, state_repr_name, freeze_emb, attention_hidden_size]
     if use_als:
         users_emb, items_emb = init_embedings(values, emb_dim)
         users_emb = torch.from_numpy(users_emb)

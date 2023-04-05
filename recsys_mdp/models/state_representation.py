@@ -52,7 +52,9 @@ class StateReprModuleWithAttention(nn.Module):
             self.user_embeddings.weight.requires_grad = False
             self.item_embeddings.weight.requires_grad = False
 
-
+    @property
+    def out_embeddings(self):
+        return 3
     def forward(self, user, memory):
         """
         :param user: user batch
@@ -138,6 +140,9 @@ class StateReprModule(nn.Module):
             self.item_embeddings.weight.requires_grad = False
             self.user_embeddings.weight.requires_grad = False
 
+    @property
+    def out_embeddings(self):
+        return 3
     def forward(self, user, memory):
         """
         :param user: user batch
@@ -152,3 +157,80 @@ class StateReprModule(nn.Module):
         return torch.cat(
             (user_embedding, user_embedding * drr_ave, drr_ave), 1
         )
+
+
+class FullHistory(nn.Module):
+    """
+    Compute state for RL environment. Based on `DRR paper
+    <https://arxiv.org/pdf/1810.12027.pdf>`_
+
+    Computes State is a concatenation of user embedding,
+    weighted average pooling of `memory_size` latest relevant items
+    and their pairwise product.
+    """
+
+    def __init__(
+            self,
+            user_num,
+            item_num,
+            embedding_dim,
+            memory_size,
+            freeze_emb,
+            use_als,
+            user_emb,
+            item_emb
+    ):
+        super().__init__()
+
+        self.memory_size = memory_size
+        self.use_als = use_als
+        self.user_emb = user_emb
+        self.item_emb = item_emb
+        self.freeze_emb = freeze_emb
+
+        self.user_embeddings = nn.Embedding(user_num, embedding_dim)
+        self.item_embeddings = nn.Embedding(
+            item_num + 1, embedding_dim, padding_idx=int(item_num)
+        )
+        self.drr_ave = torch.nn.Conv1d(
+            in_channels=memory_size, out_channels=1, kernel_size=1
+        )
+
+        self.initialize()
+
+    @property
+    def out_embeddings(self):
+        return self.memory_size
+    def initialize(self):
+        """weight init"""
+        nn.init.normal_(self.user_embeddings.weight, std=0.01)
+        self.item_embeddings.weight.data[-1].zero_()
+
+        nn.init.normal_(self.item_embeddings.weight, std=0.01)
+        nn.init.uniform_(self.drr_ave.weight)
+
+        self.drr_ave.bias.data.zero_()
+
+        if self.use_als:
+            self.item_embeddings.weight.data.copy_(self.item_emb)
+            self.user_embeddings.weight.data.copy_(self.user_emb)
+
+        if self.freeze_emb:
+            self.item_embeddings.weight.requires_grad = False
+            self.user_embeddings.weight.requires_grad = False
+
+    def forward(self, user, memory):
+        """
+        :param user: user batch
+        :param memory: memory batch
+        :return: vector of dimension 3 * embedding_dim
+        """
+        # user_embedding = self.user_embeddings()
+
+        item_embeddings = self.item_embeddings(memory.long())
+        drr_ave = self.drr_ave(item_embeddings).squeeze(1)
+
+        batch, i, j = item_embeddings.shape
+        # print(item_embeddings.reshape(-1,i*j).shape)
+        #  exit()
+        return item_embeddings.reshape(-1, i * j)

@@ -24,7 +24,7 @@ def fit(algo, train_mdp, test_mdp, n_epochs,
 
         for i in range(n_epochs):
             next(fitter)
-            if i % steps_to_eval == 0 and i != 0:
+            if i % 2 == 0 and i != 0:
                 eval_algo(algo, logger)
                 algo.save_model(f'pretrained_models/{exp_name}_{name}.pt')
         return algo
@@ -74,6 +74,7 @@ if __name__ == "__main__":
     parser.add_argument('--framestack', type = int, default = 0)
     parser.add_argument('--model_parametrs', nargs='+',default = [])
     parser.add_argument('--freeze_emb', type=int, default=0)
+    parser.add_argument('--state_repr', type=str, default='drr')
     parser.add_argument('--use_als', type=int, default=0)
 
     args = parser.parse_args()
@@ -88,6 +89,7 @@ if __name__ == "__main__":
                         {config['experiment']['mdp_settings']['framestack_size']}"
 
     config['experiment']['algo_settings']['model_parametrs']['freeze_emb'] = args.freeze_emb
+    config['experiment']['algo_settings']['model_parametrs']['state_repr_name'] = args.state_repr
     config['experiment']['algo_settings']['use_als'] = args.use_als
 
     prm = []
@@ -99,8 +101,8 @@ if __name__ == "__main__":
         config['experiment']['algo_settings']['model_parametrs']['hid_dim'] = prm[3]
         config['experiment']['algo_settings']['model_parametrs']['memory_size'] = prm[4]
         config['experiment']['algo_settings']['model_parametrs']['feature_size'] = prm[5]
-        config['experiment']['algo_settings']['model_parametrs']['use_attention'] = prm[6]
-        config['experiment']['algo_settings']['model_parametrs']['attention_hidden_size'] = prm[7]
+     #   config['experiment']['algo_settings']['model_parametrs']['use_attention'] = prm[6]
+        config['experiment']['algo_settings']['model_parametrs']['attention_hidden_size'] = prm[6]
 
 
     if config['use_wandb']:

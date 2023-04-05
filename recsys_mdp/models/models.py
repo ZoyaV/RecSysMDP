@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 from d3rlpy.models.encoders import EncoderFactory
-from recsys_mdp.models.state_representation import StateReprModuleWithAttention, StateReprModule
+from recsys_mdp.models.state_representation import StateReprModuleWithAttention, StateReprModule, FullHistory
 
 
 class ActorEncoder(nn.Module):
     def __init__(self, user_num, item_num, embedding_dim,
                  hidden_dim, memory_size, feature_size,
-                 use_attention = False,
+                 state_repr_name ="drr",
                  freeze_emb = False,
                  attention_hidden_size = 0,
                  use_als = False,
@@ -15,21 +15,26 @@ class ActorEncoder(nn.Module):
                  item_emb = None):
         super().__init__()
 
-
-        if use_attention:
+        self.state_repr_name = state_repr_name
+        if state_repr_name == 'drr':
             self.state_repr = StateReprModuleWithAttention(
                 user_num, item_num, embedding_dim, memory_size, freeze_emb,
                 attention_hidden_size, use_als, user_emb, item_emb
             )
-        else:
+        elif state_repr_name == 'adrr':
             self.state_repr = StateReprModule(
                 user_num, item_num, embedding_dim,
                 memory_size,freeze_emb, use_als, user_emb, item_emb
             )
+        elif state_repr_name == 'full_history':
+            self.state_repr = FullHistory(
+                user_num, item_num, embedding_dim,
+                memory_size, freeze_emb, use_als, user_emb, item_emb
+            )
         self.feature_size = feature_size
 
         self.layers = nn.Sequential(
-            nn.Linear(embedding_dim * 3, hidden_dim),
+            nn.Linear(embedding_dim * self.state_repr.out_embeddings, hidden_dim),
             nn.LayerNorm(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, feature_size),
@@ -69,7 +74,7 @@ class ActorEncoderFactory(EncoderFactory):
             hidden_dim,
             memory_size,
             feature_size,
-            use_attention = False,
+            state_repr_name = 'drr',
             freeze_emb = False,
             attention_hidden_size = 0,
             use_als = False,
@@ -84,7 +89,7 @@ class ActorEncoderFactory(EncoderFactory):
         self.hidden_dim = hidden_dim
         self.memory_size = memory_size
         self.feature_size = feature_size
-        self.use_attention = use_attention
+        self.state_repr_name = state_repr_name
         self.freeze_emb = freeze_emb
         self.attention_hidden_size = attention_hidden_size
         self.use_als = use_als
@@ -99,7 +104,7 @@ class ActorEncoderFactory(EncoderFactory):
             self.hidden_dim,
             self.memory_size,
             self.feature_size,
-            self.use_attention,
+            self.state_repr_name,
             self.freeze_emb,
             self.attention_hidden_size,
             self.use_als,
@@ -115,7 +120,7 @@ class ActorEncoderFactory(EncoderFactory):
             'hidden_dim': self.hidden_dim,
             'memory_size': self.memory_size,
             'feature_size': self.feature_size,
-            'use_attention':self.use_attention,
+            'state_repr_name':self.state_repr_name,
             'attention_hidden_size': self.attention_hidden_size
         }
 
