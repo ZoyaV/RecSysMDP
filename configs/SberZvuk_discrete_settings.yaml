@@ -21,7 +21,7 @@ experiment:
 
 
   scorer:
-    metrics: ['ndcg', 'ihitrate', 'coverage', 'stat_hitrate','tsne', 'items_distribution']
+    metrics: ['ndcg', 'stat_hitrate']
     tresh: [0.7, 0.5, 0.9]
     prediction_type: "discrete"
 
@@ -41,6 +41,6 @@ experiment:
       hid_dim: 32
       memory_size: 10
       feature_size: 512
-      use_attention: False
+      state_repr_name: "full_history" #drr adrr
       freeze_emb: False
       attention_hidden_size: 32
