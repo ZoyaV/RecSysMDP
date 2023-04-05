@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from d3rlpy.models.encoders import EncoderFactory
-from models.state_representation import StateReprModuleWithAttention, StateReprModule
+from recsys_mdp.models.state_representation import StateReprModuleWithAttention, StateReprModule
 
 
 class ActorEncoder(nn.Module):

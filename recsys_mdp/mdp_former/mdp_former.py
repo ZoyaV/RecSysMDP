@@ -4,11 +4,11 @@ import sys
 import numpy as np
 import pandas as pd
 
-sys.path.append("./mdp_former")
+#sys.path.append("./mdp_former")
 
-from reward_functions import monotony_reward
-from action_function import continuous_relevance_action
-from episode_split_fucntions import split_by_time
+from recsys_mdp.mdp_former.reward_functions import monotony_reward
+from recsys_mdp.mdp_former.action_function import continuous_relevance_action
+from recsys_mdp.mdp_former.episode_split_fucntions import split_by_time
 class MDPFormer():
     def __init__(self, load_from_file=False, path=None,
                  dataframe=None, data_mapping=None,

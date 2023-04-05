@@ -2,7 +2,7 @@ import argparse
 
 import yaml
 
-from mdp_former.utils import to_d3rlpy_form_ND
+from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
 from constructors.algorithm_constuctor import init_algo, init_model
 from constructors.mdp_constructor import load_data, make_mdp
 from constructors.scorers_constructor import init_scorers, init_logger

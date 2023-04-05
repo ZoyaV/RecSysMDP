@@ -1,8 +1,8 @@
 import numpy as np
-from metrics.d3rlpy_loggers import base_ndcg, tsne_embeddings, episode_hit_rate, coverage, tsne_encoder
-from metrics.logger import Logger
-from metrics.scorers import log_covarage, total_ndcg, interactive_hit_rates, static_hit_rates
-from metrics.visual_logger import tsne, items_distribution
+from recsys_mdp.metrics.d3rlpy_loggers import base_ndcg, tsne_embeddings, episode_hit_rate, tsne_encoder
+from recsys_mdp.metrics.logger import Logger
+from recsys_mdp.metrics.scorers import log_covarage, total_ndcg, interactive_hit_rates, static_hit_rates
+from recsys_mdp.metrics.visual_logger import tsne, items_distribution
 
 def init_tsne_vis(test_users, test_items):
     scorer = tsne_embeddings(test_users, test_items)

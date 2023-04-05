@@ -1,11 +1,10 @@
 import numpy as np
-import math
 import wandb
 import torch
 from sklearn.manifold import TSNE
 np.random.seed(42)
 
-from metrics.metrics import ndcg, hit_rate
+from recsys_mdp.metrics.metrics import ndcg, hit_rate
 
 
 epoch = 0

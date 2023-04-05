@@ -1,5 +1,5 @@
 import torch
-from models.embedddings import als_embeddings
+from recsys_mdp.models.embedddings import als_embeddings
 def init_embedings(values, emb_dim):
     users, items = values['full_users'], values['full_items']
     rating = values['rating']
@@ -9,7 +9,7 @@ def init_embedings(values, emb_dim):
 def init_model(values, use_als, user_num, item_num, emb_dim,
                hid_dim, memory_size, feature_size, use_attention,
                freeze_emb, attention_hidden_size):
-    from models.models import ActorEncoderFactory
+    from recsys_mdp.models.models import ActorEncoderFactory
     model_params = [user_num, item_num, emb_dim, hid_dim, memory_size,
                     feature_size, use_attention, freeze_emb, attention_hidden_size]
     if use_als:
