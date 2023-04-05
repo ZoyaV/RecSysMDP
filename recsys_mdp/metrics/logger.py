@@ -27,9 +27,10 @@ class Logger():
 
     def static_log(self, model):
         obs = self.fake_mdp
+        if len(self.static_scorers) == 0:
+            return {"none" : None}
         if self.discrete:
             observations_cuda = torch.from_numpy(obs).cpu()
-        if self.discrete:
             with torch.no_grad():
                 predicted_rat = (model._impl._q_func(observations_cuda)).cpu().detach().numpy()
                 predicted_rat = (predicted_rat - predicted_rat.min()) / (predicted_rat.max() - predicted_rat.min())
@@ -37,7 +38,7 @@ class Logger():
             predicted_rat = model.predict(obs)
 
         users = obs[:,-1]
-        print(self.discrete)
+        #print(self.discrete)
         pred_user_interests = [users, predicted_rat]
 
         results = dict()
