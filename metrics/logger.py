@@ -32,6 +32,7 @@ class Logger():
         if self.discrete:
             with torch.no_grad():
                 predicted_rat = (model.get_values(observations_cuda)).cpu().detach().numpy()
+                print(predicted_rat)
                 predicted_rat = (predicted_rat - predicted_rat.min()) / (predicted_rat.max() - predicted_rat.min())
         else:
             predicted_rat = model.predict(obs)
@@ -72,23 +73,24 @@ class Logger():
         obs = self.interactive_mdp.observations
         predcted_items = model.predict(obs)
 
-        unique_items = torch.from_numpy(np.arange(1,1000)).long()
-        unique_users = torch.from_numpy(np.arange(1,1000)).long()
-     #   print(len(obs[:,-1].ravel()))
-        users_emb = model._impl._q_func._q_funcs[0]._encoder.state_repr.user_embeddings(unique_users)
-        items_emb = model._impl._q_func._q_funcs[0]._encoder.state_repr.item_embeddings(unique_items)
-        users_emb = users_emb.detach().numpy()
-        items_emb = items_emb.detach().numpy()
-        discrete = True
-        visual_info = {'total_prediction':predcted_items,
-                       'vals': [users_emb,items_emb],
-                       'names':['user_emb','items_emb'],
-                       'discrete': discrete}
+        if len( self.visual_loggers) > 0:
+            unique_items = torch.from_numpy(np.arange(1,1000)).long()
+            unique_users = torch.from_numpy(np.arange(1,1000)).long()
 
-     #   print(self.visual_loggers)
+            users_emb = model._impl._q_func._q_funcs[0]._encoder.state_repr.user_embeddings(unique_users)
+            items_emb = model._impl._q_func._q_funcs[0]._encoder.state_repr.item_embeddings(unique_items)
+            users_emb = users_emb.detach().numpy()
+            items_emb = items_emb.detach().numpy()
+            discrete = True
+            visual_info = {'total_prediction':predcted_items,
+                           'vals': [users_emb,items_emb],
+                           'names':['user_emb','items_emb'],
+                           'discrete': discrete}
+
         for visual_logger in self.visual_loggers:
             visual_logger(**visual_info)
 
         flattened_dict = flatten_dict_keys(log_resuls)
+        print(flattened_dict)
         wandb.log(flattened_dict)
         pass

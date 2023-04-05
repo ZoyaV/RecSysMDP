@@ -7,12 +7,12 @@ os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = 'python'
 
 from d3rlpy.algos import DiscreteCQL
 
-from recsys_mdp.recsys_mdp import RecSysMDP
-from recsys_mdp.utils import to_d3rlpy_form
-from recsys_mdp.d3rlpy_recsys_metrics import evaluate_in_positive, \
+from mdp_former.mdp_former import MDPFormer
+from mdp_former.utils import to_d3rlpy_form
+from mdp_former.d3rlpy_recsys_metrics import evaluate_in_positive, \
                                             evaluate_in_negative
 import rs_datasets
-from recsys_mdp.utils import make_datasets
+from mdp_former.utils import make_datasets
 
 
 wandb.init(project="Right MDP", group = "MovieLens_CQL_with_negative")

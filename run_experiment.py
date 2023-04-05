@@ -2,7 +2,7 @@ import argparse
 
 import yaml
 
-from recsys_mdp.utils import to_d3rlpy_form_ND
+from mdp_former.utils import to_d3rlpy_form_ND
 from constructors.algorithm_constuctor import init_algo, init_model
 from constructors.mdp_constructor import load_data, make_mdp
 from constructors.scorers_constructor import init_scorers, init_logger
@@ -13,7 +13,8 @@ def eval_algo(algo, logger):
 
     logger.visual_log(algo, {"STAT": static_res, "INTERECT":interactive_res})
     pass
-def fit(algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 2):
+def fit(algo, train_mdp, test_mdp, n_epochs,
+        scorers, logger, steps_to_eval, exp_name, name):
         fitter = algo.fitter(
             train_mdp,
             n_epochs=n_epochs,
@@ -25,6 +26,7 @@ def fit(algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 2)
             next(fitter)
             if i % steps_to_eval == 0 and i != 0:
                 eval_algo(algo, logger)
+                algo.save_model(f'pretrained_models/{exp_name}_{name}.pt')
         return algo
 def main(config):
     prediction_type = True if config['experiment']['scorer']['prediction_type'] == "discrete" else False
@@ -58,9 +60,10 @@ def main(config):
 
     # Run experiment
     n_epochs = config['experiment']['algo_settings']['n_epochs']
-    fit(algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 3)
+    fit(algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 3, exp_name = args.experiment_name, name = name)
     #algo.fit(train_mdp, n_epochs=n_epochs, eval_episodes=test_mdp, scorers=scorers)
     algo.save_model(f'pretrained_models/{args.experiment_name}_{name}.pt')
+
     return
 
 
