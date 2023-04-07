@@ -26,9 +26,9 @@ class Logger():
         self.top_k = top_k
 
     def static_log(self, model):
-        obs = self.fake_mdp
         if len(self.static_scorers) == 0:
             return {"none" : None}
+        obs = self.fake_mdp
         if self.discrete:
             observations_cuda = torch.from_numpy(obs).cpu()
             with torch.no_grad():
