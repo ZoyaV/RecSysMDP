@@ -71,10 +71,10 @@ class Logger():
         return results
 
     def visual_log(self, model, log_resuls = None):
-        obs = self.interactive_mdp.observations
-        predcted_items = model.predict(obs)
 
         if len( self.visual_loggers) > 0:
+            obs = self.interactive_mdp.observations
+            predcted_items = model.predict(obs)
             unique_items = torch.from_numpy(np.arange(1,1000)).long()
             unique_users = torch.from_numpy(np.arange(1,1000)).long()
 
