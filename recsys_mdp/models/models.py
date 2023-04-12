@@ -63,6 +63,45 @@ class ActorEncoder(nn.Module):
     def get_feature_size(self):
         return self.feature_size
 
+class ActorEncoderWithAction(nn.Module):
+    def __init__(self,action_size, user_num, item_num, embedding_dim,
+                 hidden_dim, memory_size, feature_size,
+                 state_repr_name ="drr",
+                 freeze_emb = False,
+                 attention_hidden_size = 0,
+                 use_als = False,
+                 user_emb = None,
+                 item_emb = None):
+
+        self.state_encoder = ActorEncoder(
+            user_num,
+            item_num,
+            embedding_dim,
+            hidden_dim,
+            memory_size,
+            feature_size,
+            state_repr_name,
+            freeze_emb,
+            attention_hidden_size,
+            use_als,
+            user_emb,
+            item_emb,
+        )
+
+        self.feature_size = feature_size
+        self.fc1 = nn.Linear(feature_size + action_size, feature_size)
+        self.fc2 = nn.Linear(feature_size, feature_size)
+
+    def forward(self, x, action): # action is also given
+        state = self.state_encoder(x)
+        h = torch.cat([state, action], dim=1)
+        h = torch.relu(self.fc1(h))
+        h = torch.relu(self.fc2(h))
+        return h
+
+    def get_feature_size(self):
+        return self.feature_size
+
 class ActorEncoderFactory(EncoderFactory):
     TYPE = 'custom'
 
@@ -96,21 +135,37 @@ class ActorEncoderFactory(EncoderFactory):
         self.user_emb = user_emb
         self.item_emb = item_emb
 
-    def create(self, observation_shape):
-        return ActorEncoder(
-            self.user_num,
-            self.item_num,
-            self.embedding_dim,
-            self.hidden_dim,
-            self.memory_size,
-            self.feature_size,
-            self.state_repr_name,
-            self.freeze_emb,
-            self.attention_hidden_size,
-            self.use_als,
-            self.user_emb,
-            self.item_emb
-        )
+    def create(self, observation_shape, action_size=None, discrete_action=False):
+            if action_size is None:
+                return ActorEncoder(
+                    self.user_num,
+                    self.item_num,
+                    self.embedding_dim,
+                    self.hidden_dim,
+                    self.memory_size,
+                    self.feature_size,
+                    self.state_repr_name,
+                    self.freeze_emb,
+                    self.attention_hidden_size,
+                    self.use_als,
+                    self.user_emb,
+                    self.item_emb
+                )
+            else:
+                ActorEncoderWithAction(action_size, self.user_num,
+                    self.item_num,
+                    self.embedding_dim,
+                    self.hidden_dim,
+                    self.memory_size,
+                    self.feature_size,
+                    self.state_repr_name,
+                    self.freeze_emb,
+                    self.attention_hidden_size,
+                    self.use_als,
+                    self.user_emb,
+                    self.item_emb
+                )
+
 
     def get_params(self, deep=False):
         return {
@@ -123,6 +178,7 @@ class ActorEncoderFactory(EncoderFactory):
             'state_repr_name':self.state_repr_name,
             'attention_hidden_size': self.attention_hidden_size
         }
+
 
 
 def load_embeddings(path_to_model="model_final.pt", model_params=[943, 1682, 8, 16, 5, False, 64]):
