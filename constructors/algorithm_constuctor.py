@@ -41,6 +41,7 @@ def init_algo(actor_encoder_factory, use_gpu, batch_size, algo):
 
     if algo == 'SDAC':
         from d3rlpy.algos import SDAC
-        algo = SDAC(use_gpu=use_gpu,encoder_factory=actor_encoder_factory, batch_size=batch_size)
+        algo = SDAC(use_gpu=use_gpu, critic_encoder_factory=actor_encoder_factory,
+                    actor_encoder_factory = actor_encoder_factory,  batch_size=batch_size)
 
     return algo
