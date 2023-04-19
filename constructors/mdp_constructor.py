@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 def load_data(data_path, return_values, col_mapping):
-    data = pd.read_csv(data_path, sep = "\t")
+    data = pd.read_csv(data_path)#, sep = "\t")
     data = data.sort_values(col_mapping['timestamp_col_name'])
     if return_values:
         full_users = data[col_mapping['user_col_name']].values

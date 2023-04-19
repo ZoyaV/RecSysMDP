@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Form</title>
+<script src="{{ url_for('static', filename='js/FileSaver.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/js-yaml.min.js') }}"></script>
+</head>
+
+<body>
+    <form id="web-form">
+
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" value="DSAC_SberZvuk2"><br><br>
+        <label for="group_name">Group:</label>
+        <input type="text" id="group_name" name="group_name" value="test"><br><br>
+        <label for="use_wandb">Use WandB:</label>
+        <input type="radio" id="use_wandb_true" name="use_wandb" value="True" checked>
+        <label for="use_wandb_true">True</label>
+        <input type="radio" id="use_wandb_false" name="use_wandb" value="False">
+        <label for="use_wandb_false">False</label><br><br>
+
+        <fieldset>
+    <legend>Experiment</legend>
+    <label for="top_k">Top K:</label>
+    <select id="experiment.top_k" name="experiment.top_k">
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+        <option value="15">15</option>
+        <option value="5">5</option>
+    </select><br><br>
+
+    <label for="data_path">Data Path:</label>
+    <input type="text" id="experiment.data_path" name="experiment.data_path" value="./row_data/sbermusic/more_train_df.csv"><br><br>
+    <label for="test_data_path">Test Data Path:</label>
+    <input type="text" id="experiment.test_data_path" name="experiment.test_data_path" value="./row_data/sbermusic/more_test_df.csv"><br><br>
+
+    <fieldset>
+        <legend>Column Mapping</legend>
+        <label for="user_col_name">User Col Name:</label>
+        <input type="text" id="experiment.col_mapping.user_col_name" name="experiment.col_mapping.user_col_name" value="user_idx"><br><br>
+        <label for="item_col_name">Item Col Name:</label>
+        <input type="text" id="experiment.col_mapping.item_col_name" name="experiment.col_mapping.item_col_name" value="item_idx"><br><br>
+        <label for="reward_col_name">Reward Col Name:</label>
+        <input type="text" id="experiment.col_mapping.reward_col_name" name="experiment.col_mapping.reward_col_name" value="relevance"><br><br>
+        <label for="timestamp_col_name">Timestamp Col Name:</label>
+        <input type="text" id="experiment.col_mapping.timestamp_col_name" name="experiment.col_mapping.timestamp_col_name" value="timestamp"><br><br>
+    </fieldset>
+</fieldset>
+
+            <fieldset>
+    <legend>MDP Settings</legend>
+    <label for="framestack_size">Framestack Size:</label>
+    <input type="number" id="experiment.mdp_settings.framestack_size" name="experiment.mdp_settings.framestack_size" value="10"><br><br>
+    <label for="reward_function_name">Reward Function Name:</label>
+    <select id="experiment.mdp_settings.reward_function_name" name="experiment.mdp_settings.reward_function_name">
+        <option value="relevance_based_reward" selected>relevance_based_reward</option>
+        <option value="condition_reward">condition_reward</option>
+        <option value="monotony_reward">monotony_reward</option>
+    </select><br><br>
+    <label for="action_function_name">Action Function Name:</label>
+    <select id="experiment.mdp_settings.action_function_name" name="experiment.mdp_settings.action_function_name">
+        <option value="next_item_action" selected>next_item_action</option>
+        <option value="continuous_relevance_action">continuous_relevance_action</option>
+        <option value="discrete_relevance_action">discrete_relevance_action</option>
+    </select><br><br>
+    <label for="episode_splitter_name">Episode Splitter Name:</label>
+    <select id="experiment.mdp_settings.episode_splitter_name" name="experiment.mdp_settings.episode_splitter_name">
+        <option value="interaction_interruption" selected>interaction_interruption</option>
+        <option value="full_user_interaction">full_user_interaction</option>
+    </select><br><br>
+    <label for="history_keys">History Keys:</label><br>
+    <input type="checkbox" id="experiment.mdp_settings.history_keys.framestack" name="experiment.mdp_settings.history_keys[]" value="framestack" checked>
+    <label for="framestack">framestack</label><br>
+    <input type="checkbox" id="experiment.mdp_settings.history_keys.user_id" name="experiment.mdp_settings.history_keys[]" value="user_id" checked>
+    <label for="user_id">user_id</label><br>
+    <input type="checkbox" id="experiment.mdp_settings.history_keys.reward" name="experiment.mdp_settings.history_keys[]" value="reward">
+    <label for="reward">reward</label><br><br>
+</fieldset>
+
+            <fieldset>
+    <legend>Scorer</legend>
+    <label for="metrics">Metrics:</label><br>
+    <input type="checkbox" id="experiment.scorer.metrics.coverage" name="experiment.scorer.metrics[]" value="coverage">
+    <label for="coverage">coverage</label><br>
+    <input type="checkbox" id="experiment.scorer.metrics.ndcg" name="experiment.scorer.metrics[]" value="ndcg" checked>
+    <label for="ndcg">ndcg</label><br>
+    <input type="checkbox" id="experiment.scorer.metrics.ihitrate" name="experiment.scorer.metrics[]" value="ihitrate">
+    <label for="ihitrate">ihitrate</label><br>
+    <input type="checkbox" id="experiment.scorer.metrics.stat_hitrate" name="experiment.scorer.metrics[]" value="stat_hitrate" checked>
+    <label for="stat_hitrate">stat_hitrate</label><br><br>
+    <label for="tresh">Thresholds:</label>
+    <input type="text" id="experiment.scorer.tresh" name="experiment.scorer.tresh" value="0.7, 0.5, 0.9"><br><br>
+    <label for="prediction_type">Prediction Type:</label>
+    <select id="experiment.scorer.prediction_type" name="experiment.scorer.prediction_type">
+        <option value="discrete" selected>discrete</option>
+        <option value="continious">continious</option>
+    </select><br><br>
+</fieldset>
+
+
+        <fieldset>
+    <legend>Algorithm Settings</legend>
+    <label for="n_epochs">Number of Epochs:</label>
+    <input type="number" id="experiment.algo_settings.n_epochs" name="experiment.algo_settings.n_epochs" value="150"><br><br>
+    <fieldset>
+        <legend>General Parameters</legend>
+        <label for="algo">Algorithm:</label>
+        <input type="text" id="experiment.algo_settings.general_parametrs.algo" name="experiment.algo_settings.general_parametrs.algo" value="SDAC"><br><br>
+        <label for="batch_size">Batch Size:</label>
+        <input type="number" id="experiment.algo_settings.general_parametrs.batch_size" name="experiment.algo_settings.general_parametrs.batch_size" value="1024"><br><br>
+        <label for="use_gpu">Use GPU:</label>
+        <input type="radio" id="experiment.algo_settings.general_parametrs.use_gpu_true" name="experiment.algo_settings.general_parametrs.use_gpu" value="True">
+        <label for="experiment.algo_settings.general_parametrs.use_gpu_true">True</label>
+        <input type="radio" id="experiment.algo_settings.general_parametrs.use_gpu_false" name="experiment.algo_settings.general_parametrs.use_gpu" value="False" checked>
+        <label for="experiment.algo_settings.general_parametrs.use_gpu_false">False</label><br><br>
+    </fieldset>
+</fieldset>
+                        <fieldset>
+    <legend>Model Parameters</legend>
+    <label for="use_als">Use ALS:</label>
+    <input type="radio" id="experiment.algo_settings.model_parametrs.use_als_true" name="experiment.algo_settings.model_parametrs.use_als" value="True">
+    <label for="experiment.algo_settings.model_parametrs.use_als_true">True</label>
+    <input type="radio" id="experiment.algo_settings.model_parametrs.use_als_false" name="experiment.algo_settings.model_parametrs.use_als" value="False" checked>
+    <label for="experiment.algo_settings.model_parametrs.use_als_false">False</label><br><br>
+    <label for="user_num">User Number:</label>
+    <input type="number" id="experiment.algo_settings.model_parametrs.user_num" name="experiment.algo_settings.model_parametrs.user_num" value="1000"><br><br>
+    <label for="item_num">Item Number:</label>
+    <input type="number" id="experiment.algo_settings.model_parametrs.item_num" name="experiment.algo_settings.model_parametrs.item_num" value="2000"><br><br>
+    <label for="emb_dim">Embedding Dimension:</label>
+    <input type="number" id="experiment.algo_settings.model_parametrs.emb_dim" name="experiment.algo_settings.model_parametrs.emb_dim" value="16"><br><br>
+    <label for="hid_dim">Hidden Dimension:</label>
+    <input type="number" id="experiment.algo_settings.model_parametrs.hid_dim" name="experiment.algo_settings.model_parametrs.hid_dim" value="32"><br><br>
+    <label for="memory_size">Memory Size:</label>
+    <input type="number" id="experiment.algo_settings.model_parametrs.memory_size" name="experiment.algo_settings.model_parametrs.memory_size" value="10"><br><br>
+    <label for="feature_size">Feature Size:</label>
+    <input type="number" id="experiment.algo_settings.model_parametrs.feature_size" name="experiment.algo_settings.model_parametrs.feature_size" value="512"><br><br>
+    <label for="state_repr_name">State Representation Name:</label>
+    <select id="experiment.algo_settings.model_parametrs.state_repr_name" name="experiment.algo_settings.model_parametrs.state_repr_name">
+        <option value="full_history" selected>full_history</option>
+        <option value="drr">drr</option>
+        <option value="adrr">adrr</option>
+    </select><br><br>
+    <label for="freeze_emb">Freeze Embedding:</label>
+    <input type="radio" id="experiment.algo_settings.model_parametrs.freeze_emb_true" name="experiment.algo_settings.model_parametrs.freeze_emb" value="True">
+    <label for="experiment.algo_settings.model_parametrs.freeze_emb_true">True</label>
+    <input type="radio" id="experiment.algo_settings.model_parametrs.freeze_emb_false" name="experiment.algo_settings.model_parametrs.freeze_emb" value="False" checked>
+    <label for="experiment.algo_settings.model_parametrs.freeze_emb_false">False</label><br><br>
+    <label for="attention_hidden_size">Attention Hidden Size:</label>
+
+<input type="number" id="experiment.algo_settings.model_parametrs.attention_hidden_size" name="experiment.algo_settings.model_parametrs.attention_hidden_size" value="32"><br><br>
+</fieldset>
+        </fieldset>
+    </fieldset>
+
+    <button type="button" id="save-button">Run experiment</button>
+        <input type="file" id="file-input" style="display:none" webkitdirectory>
+</form>
+<script>
+function download(content, fileName, contentType) {
+  const file = new Blob([content], { type: contentType });
+  saveAs(file, fileName);
+}
+
+function saveFile(file) {
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+
+  fetch('/upload', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => {
+    if (response.ok) {
+      console.log('File has been saved');
+    } else {
+      console.error('Error saving file:', response.statusText);
+    }
+  })
+  .catch(error => {
+    console.error('Error saving file:', error);
+  });
+}
+
+
+function processForm() {
+  const form = document.getElementById("web-form");
+  const formData = new FormData(form);
+  const data = {};
+
+  formData.forEach((value, key) => {
+    const keys = key.split('.');
+    let currentLevel = data;
+
+    keys.forEach((keyPart, index) => {
+      if (index === keys.length - 1) {
+        if (keyPart.endsWith('[]')) {
+          const arrayKey = keyPart.slice(0, -2);
+          if (!currentLevel[arrayKey]) {
+            currentLevel[arrayKey] = [];
+          }
+          currentLevel[arrayKey].push(value);
+        } else {
+          currentLevel[keyPart] = value;
+        }
+      } else {
+        if (!currentLevel[keyPart]) {
+          currentLevel[keyPart] = {};
+        }
+        currentLevel = currentLevel[keyPart];
+      }
+    });
+  });
+
+  let yamlData = jsyaml.dump(data, { indent: 2 });
+    yamlData = yamlData.replace(/'(-?\d+\.?\d*|\d*\.?\d+)'/g, "$1");
+    yamlData = yamlData.replace(/'True'/g, "True");
+    yamlData = yamlData.replace(/'False'/g, "False");
+
+    const blob = new Blob([yamlData], { type: 'text/yaml' });
+    saveFile(blob);
+}
+
+document.getElementById("save-button").addEventListener("click", processForm);
+</script>
+
+</body>
+</html>
