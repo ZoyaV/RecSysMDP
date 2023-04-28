@@ -1,0 +1,125 @@
+# runner type tag
+_type_: test.mdp_next_item
+# wandb project
+project: recsys.synth.mdp.next_item
+# wandb logging
+log: True
+
+seed: 42
+cuda_device: ...
+
+generation:
+  epochs: 5
+  episodes_per_epoch: 20
+  samples_per_epoch: 10000
+
+learning:
+  epochs: 10
+  eval_schedule: 10
+  eval_episodes: 20
+
+env:
+  global_config: ???
+  seed: ???
+  n_users: 100
+  n_items: 100
+  max_episode_len: [40, 20]
+  embeddings:
+    n_dims: 5
+    users: embeddings.clusters
+    items: embeddings.clusters
+  user_state:
+    base_satiation: 0.15
+    base_satiation_speed: [0.2, .4]
+    similarity_metric: l2
+    relevance_boosting: [0.2, 4.0]
+    boosting_softness: [2.0, 2.0]
+
+mdp:
+  actions: continuous
+  rewards:
+    baseline: [0.0, 0.5]
+    continuous: 0.0
+    discrete: [0.0, 0.5]
+    continuous_error: 0.0
+    discrete_error: -0.5
+
+model:
+  _base_: models.random
+  batch_size: 32
+
+models:
+  random:
+    _type_: model.random
+    seed: ???
+    n_actions: ???
+    batch_size: ???
+  cql:
+    _type_: d3rlpy.cql
+    _base_: default
+    actor_learning_rate: 1e-3
+    critic_learning_rate: 3e-3
+    temp_learning_rate: 1e-4
+    alpha_learning_rate: 1e-4
+    alpha_threshold: 10.0
+    conservative_weight: 5.0
+    initial_temperature: 1.0
+    initial_alpha: 1.0
+    n_action_samples: 10
+    soft_q_backup: False
+  bc:
+    _type_: d3rlpy.bc
+    _base_: default
+    learning_rate: 5e-4
+  sac:
+    _type_: d3rlpy.sac
+    _base_: default
+  ddpg:
+    _type_: d3rlpy.ddpg
+    _base_: default
+    temp_learning_rate: 1e-4
+    initial_temperature: 1.0
+  discrete_cql:
+    _type_: d3rlpy.discrete_cql
+    _base_: default
+  sdac:
+    _type_: d3rlpy.sdac
+    _base_: default
+  discrete_sac:
+    _type_: d3rlpy.discrete_sac
+    _base_: default
+  default:
+    actor_learning_rate: 1e-4
+    critic_learning_rate: 3e-4
+    temp_learning_rate: 1e-4  #?
+    alpha_learning_rate: 1e-4 # ?
+    q_func_factory: "mean"
+    batch_size: 256
+    n_frames: 1
+    n_steps: 1
+    gamma: 0.99
+    tau: 0.005
+    n_critics: 2
+    initial_temperature: 1.0  #?
+    initial_alpha: 1.0  #?
+    alpha_threshold: 10.0 # ?
+    conservative_weight: 5.0 # ?
+    n_action_samples: 10  #?
+    soft_q_backup: False  #?
+
+embeddings:
+  random:
+    _type_: embeddings.random
+    seed: ???
+    n_dims: ???
+
+  clusters:
+    _type_: embeddings.clusters
+    seed: ???
+    n_dims: ???
+    n_clusters: [2, 1, 4, 1, 2]
+    intra_cluster_noise_scale: 0.05
+    n_dissimilar_dims_required: 3
+    min_dim_delta: 0.3
+    min_l2_dist: 0.1
+    max_generation_tries: 10000

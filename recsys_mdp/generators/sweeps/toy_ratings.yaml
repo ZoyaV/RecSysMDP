@@ -1,0 +1,74 @@
+program: run.py
+#entity: TBI   # default: $WANDB_ENTITY
+
+project: recsys_toy_ratings
+method: grid
+parameters:
+  seed.:
+    values: [40, 41, 42, 43, 44, 45, 46] #, 47, 48, 49] #, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
+  cuda_device.:
+    value: True
+  epochs.:
+    value: 200
+  eval_schedule.:
+    value: 10
+  model.._base_:
+    value: models.cql
+  dataset..source.n_users:
+    value: 20
+  dataset..source.n_items:
+    value: 40
+  dataset..source.n_pairs:
+    value: 0.5
+  train_test_split..train:
+    value: 1.0
+  model..batch_size:
+    value: 32
+  model..actor_learning_rate:
+    value: 1e-3
+  model..critic_learning_rate:
+    value: 3e-3
+  dataset..embeddings_n_dims:
+    value: 5
+  dataset..user_embeddings._base_:
+    value: embeddings.clusters
+#  negative_samples..n_pairs:
+#    value: 0.0
+  mdp..rewards.baseline:
+    value: [0.0, 0.1]
+  mdp..rewards.continuous:
+    value: 0.0
+  mdp..rewards.discrete:
+    value: [0.0, 0.5]
+  mdp..rewards.continuous_error:
+    value: 0.0
+  mdp..rewards.discrete_error:
+    value: -0.5
+
+  negative_samples..n_pairs:
+    values:
+      - 0.0
+      - 0.05
+      - 0.1
+      - 0.2
+  model..gamma:
+    values:
+      - 0.0
+      - 1.0
+      - 0.99
+      - 0.7
+  dataset..ratings.positive_ratio:
+    values:
+      - 0.1
+      - 0.33
+      - 0.5
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
+
+    # REQUIRED. Config path convention is {path_to_sweep_config}/../configs/{config}
+  - --config
+  - ../configs/toy_ratings.yaml
