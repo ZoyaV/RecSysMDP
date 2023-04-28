@@ -9,22 +9,22 @@ import pandas as pd
 from d3rlpy.algos import AlgoBase
 from d3rlpy.dataset import MDPDataset
 
-from replay.models.rl.experiments.datasets.synthetic.dataset import (
+from recsys_mdp.generators.datasets.synthetic.dataset import (
     ToyRatingsDataset,
     ToyRatingsDatasetBuilder
 )
-from replay.models.rl.experiments.datasets.synthetic.embeddings import (
+from recsys_mdp.generators.datasets.synthetic.embeddings import (
     RandomEmbeddingsGenerator,
     RandomClustersEmbeddingsGenerator
 )
-from replay.models.rl.experiments.datasets.synthetic.log import RandomLogGenerator
-from replay.models.rl.experiments.mdp.ratings import MdpDatasetBuilder
+from recsys_mdp.generators.datasets.synthetic.log import RandomLogGenerator
+from recsys_mdp.generators.mdp.ratings import MdpDatasetBuilder
 
-from replay.models.rl.experiments.run.wandb import get_logger
-from replay.models.rl.experiments.utils.config import (
+from recsys_mdp.generators.run.wandb import get_logger
+from recsys_mdp.generators.utils.config import (
     TConfig, GlobalConfig, LazyTypeResolver
 )
-from replay.models.rl.experiments.utils.timer import timer, print_with_timestamp
+from recsys_mdp.generators.utils.timer import timer, print_with_timestamp
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
@@ -162,9 +162,9 @@ class TypesResolver(LazyTypeResolver):
         if type_name == 'd3rlpy.discrete_cql':
             from d3rlpy.algos import DiscreteCQL
             return DiscreteCQL
-        if type_name == 'd3rlpy.sdac':
-            from replay.models.rl.sdac.sdac import SDAC
-            return SDAC
+        # if type_name == 'd3rlpy.sdac':
+        #     from replay.models.rl.sdac.sdac import SDAC
+        #     return SDAC
         if type_name == 'd3rlpy.discrete_sac':
             from d3rlpy.algos import DiscreteSAC
             return DiscreteSAC

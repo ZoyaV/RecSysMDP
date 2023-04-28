@@ -5,8 +5,8 @@ import dataclasses
 import numpy as np
 import pandas as pd
 
-from replay.models.rl.experiments.datasets.synthetic.relevance import RelevanceCalculator
-from replay.models.rl.experiments.utils.config import GlobalConfig, TConfig
+from recsys_mdp.generators.datasets.synthetic.relevance import RelevanceCalculator
+from recsys_mdp.generators.utils.config import GlobalConfig, TConfig
 
 
 @dataclasses.dataclass

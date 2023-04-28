@@ -6,13 +6,13 @@ from pathlib import Path
 
 import wandb
 
-from replay.models.rl.experiments.run.argparse import parse_arg_list
-from replay.models.rl.experiments.run.entrypoint import RunParams, run_single_run_experiment
-from replay.models.rl.experiments.run.wandb import (
+from recsys_mdp.generators.run.argparse import parse_arg_list
+from recsys_mdp.generators.run.entrypoint import RunParams, run_single_run_experiment
+from recsys_mdp.generators.run.wandb import (
     set_wandb_sweep_threading,
     turn_off_gui_for_matplotlib
 )
-from replay.models.rl.experiments.utils.config import extracted, read_config
+from recsys_mdp.generators.utils.config import extracted, read_config
 
 
 def run_sweep(

@@ -3,7 +3,7 @@ from __future__ import annotations
 from ast import literal_eval
 from typing import Any
 
-from replay.models.rl.experiments.utils.config import TKeyPathValue
+from recsys_mdp.generators.utils.config import TKeyPathValue
 
 
 def parse_arg_list(args: list[str]) -> list[TKeyPathValue]:

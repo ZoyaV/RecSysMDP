@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from d3rlpy.dataset import MDPDataset
 
-from replay.models.rl.experiments.datasets.synthetic.dataset import ToyRatingsDataset
+from recsys_mdp.generators.datasets.synthetic.dataset import ToyRatingsDataset
 
 
 class MdpDatasetBuilder:

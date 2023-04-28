@@ -9,14 +9,14 @@ import numpy as np
 import pandas as pd
 from numpy.random import Generator
 
-from replay.models.rl.experiments.datasets.synthetic.dataset import ToyRatingsDataset
-from replay.models.rl.experiments.datasets.synthetic.relevance import similarity
-from replay.models.rl.experiments.mdp.ratings import MdpDatasetBuilder
-from replay.models.rl.experiments.run.wandb import get_logger
-from replay.models.rl.experiments.utils.config import (
+from recsys_mdp.generators.datasets.synthetic.dataset import ToyRatingsDataset
+from recsys_mdp.generators.datasets.synthetic.relevance import similarity
+from recsys_mdp.generators.mdp.ratings import MdpDatasetBuilder
+from recsys_mdp.generators.run.wandb import get_logger
+from recsys_mdp.generators.utils.config import (
     TConfig, GlobalConfig, LazyTypeResolver
 )
-from replay.models.rl.experiments.utils.timer import timer, print_with_timestamp
+from recsys_mdp.generators.utils.timer import timer, print_with_timestamp
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
@@ -386,22 +386,22 @@ class MdpNextItemExperiment:
 class TypesResolver(LazyTypeResolver):
     def resolve(self, type_name: str, **kwargs):
         if type_name == 'dataset.toy_ratings':
-            from replay.models.rl.experiments.datasets.synthetic.dataset import \
+            from recsys_mdp.generators.datasets.synthetic.dataset import \
                 ToyRatingsDatasetBuilder
             return ToyRatingsDatasetBuilder
         if type_name == 'ds_source.random':
-            from replay.models.rl.experiments.datasets.synthetic.log import RandomLogGenerator
+            from recsys_mdp.generators.datasets.synthetic.log import RandomLogGenerator
             return RandomLogGenerator
         if type_name == 'embeddings.random':
-            from replay.models.rl.experiments.datasets.synthetic.embeddings import \
+            from recsys_mdp.generators.datasets.synthetic.embeddings import \
                 RandomEmbeddingsGenerator
             return RandomEmbeddingsGenerator
         if type_name == 'embeddings.clusters':
-            from replay.models.rl.experiments.datasets.synthetic.embeddings import \
+            from recsys_mdp.generators.datasets.synthetic.embeddings import \
                 RandomClustersEmbeddingsGenerator
             return RandomClustersEmbeddingsGenerator
         if type_name == 'model.random':
-            from replay.models.rl.random_recommender import RandomRecommender
+            from recsys_mdp.generators.random_recommender import RandomRecommender
             return RandomRecommender
         if type_name == 'd3rlpy.cql':
             from d3rlpy.algos import CQL
@@ -415,9 +415,9 @@ class TypesResolver(LazyTypeResolver):
         if type_name == 'd3rlpy.discrete_cql':
             from d3rlpy.algos import DiscreteCQL
             return DiscreteCQL
-        if type_name == 'd3rlpy.sdac':
-            from replay.models.rl.sdac.sdac import SDAC
-            return SDAC
+        # if type_name == 'd3rlpy.sdac':
+        #     from replay.models.rl.sdac.sdac import SDAC
+        #     return SDAC
         if type_name == 'd3rlpy.discrete_sac':
             from d3rlpy.algos import DiscreteSAC
             return DiscreteSAC

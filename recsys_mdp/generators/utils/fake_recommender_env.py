@@ -8,7 +8,7 @@ import pandas as pd
 import wandb
 from gym.spaces import Box
 
-from replay.models.rl.experiments.utils.metrics import ndcg, mean_average_precision
+from recsys_mdp.generators.utils.metrics import ndcg, mean_average_precision
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
