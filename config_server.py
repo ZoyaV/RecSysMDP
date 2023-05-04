@@ -11,13 +11,14 @@ app = Flask(__name__, template_folder='.')
 
 
 
-def run_experiment(config_file_path, group_name = "aboba"):
+def run_experiment(config_file_path, group_name = "aboba", folder_name = None):
     print(group_name)
     # Создаем новый процесс
     process = multiprocessing.Process(target=subprocess.call,
                                       args=(["python3", "run_experiment.py",
                                              "--config", config_file_path,
-                                             "--experiment_name", group_name],))
+                                             "--experiment_name", group_name,
+                                             "--folder_name", folder_name],))
     process.start()
 
 @app.route('/')
@@ -49,7 +50,7 @@ def upload_file():
         # Load the YAML data from the file
         yaml_data = yaml.safe_load(file)
     # Запускаем эксперимент
-    run_experiment(new_file_path, group_name = yaml_data['group_name'])
+    run_experiment(new_file_path, group_name = yaml_data['group_name'], folder_name = folder_name)
 
     return f'Aboba has been uploaded', 200
 

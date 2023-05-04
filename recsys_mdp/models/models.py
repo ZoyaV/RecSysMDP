@@ -58,7 +58,7 @@ class ActorEncoder(nn.Module):
         user = x[:,-1]
         memory = x[:, :-1]
         state = self.state_repr(user, memory)
-        return self.layers(state)
+        return torch.relu(self.layers(state))
 
     def get_feature_size(self):
         return self.feature_size

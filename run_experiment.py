@@ -13,22 +13,24 @@ def eval_algo(algo, logger):
 
     logger.visual_log(algo, {"STAT": static_res, "INTERECT":interactive_res})
     pass
-def fit(algo, train_mdp, test_mdp, n_epochs,
+def fit(checkpoints_name, algo, train_mdp, test_mdp, n_epochs,
         scorers, logger, steps_to_eval, exp_name, name):
         fitter = algo.fitter(
             train_mdp,
             n_epochs=n_epochs,
             eval_episodes=test_mdp,
-            scorers=scorers
+            scorers=scorers,
+            save_metrics=False
         )
 
         for i in range(n_epochs):
             next(fitter)
             if i % 2 == 0 and i != 0:
                 eval_algo(algo, logger)
-                algo.save_model(f'pretrained_models/{exp_name}_{name}.pt')
+                model_name = f"{exp_name}_{name}.pt" if checkpoints_name is None else checkpoints_name
+                algo.save_model(f'pretrained_models/{model_name}.pt')
         return algo
-def main(config):
+def main(config, checkpoints_name = None):
     prediction_type = True if config['experiment']['scorer']['prediction_type'] == "discrete" else False
 
     # Load train data
@@ -60,9 +62,11 @@ def main(config):
 
     # Run experiment
     n_epochs = config['experiment']['algo_settings']['n_epochs']
-    fit(algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 3, exp_name = args.experiment_name, name = name)
+    fit(checkpoints_name, algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 3, exp_name = args.experiment_name, name = name)
     #algo.fit(train_mdp, n_epochs=n_epochs, eval_episodes=test_mdp, scorers=scorers)
-    algo.save_model(f'pretrained_models/{args.experiment_name}_{name}.pt')
+
+    model_name = f"{args.experiment_name}_{name}.pt" if checkpoints_name is None else checkpoints_name
+    algo.save_model(f'pretrained_models/{model_name}.pt')
 
     return
 
@@ -70,17 +74,21 @@ def main(config):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', dest='config')
+    parser.add_argument('--folder_name', type = str)
     parser.add_argument('--experiment_name', type = str, default="default_exp")
     parser.add_argument('--framestack', type = int, default = 0)
     parser.add_argument('--model_parametrs', nargs='+',default = [])
-    parser.add_argument('--freeze_emb', type=int, default=0)
-    parser.add_argument('--state_repr', type=str, default='drr')
-    parser.add_argument('--use_als', type=int, default=0)
+    parser.add_argument('--freeze_emb', type=int)
+    parser.add_argument('--state_repr', type=str)
+    parser.add_argument('--use_als', type=int)
 
     args = parser.parse_args()
     with open(args.config) as f:
         config = yaml.load(f)
 
+    checkpoints_name = None
+    if args.folder_name is not None:
+        checkpoints_name = args.folder_name
     if args.framestack!=0:
         config['experiment']['algo_settings']['model_parametrs']['memory_size'] = args.framestack
         config['experiment']['mdp_settings']['framestack_size'] = args.framestack
@@ -88,9 +96,12 @@ if __name__ == "__main__":
     name = f"top_k_{config['experiment']['top_k']}_framestack_size_\
                         {config['experiment']['mdp_settings']['framestack_size']}"
 
-    config['experiment']['algo_settings']['model_parametrs']['freeze_emb'] = args.freeze_emb
-    config['experiment']['algo_settings']['model_parametrs']['state_repr_name'] = args.state_repr
-    config['experiment']['algo_settings']['use_als'] = args.use_als
+    if args.freeze_emb:
+        config['experiment']['algo_settings']['model_parametrs']['freeze_emb'] = args.freeze_emb
+    if args.state_repr:
+        config['experiment']['algo_settings']['model_parametrs']['state_repr_name'] = args.state_repr
+    if args.use_als:
+        config['experiment']['algo_settings']['use_als'] = args.use_als
 
     prm = []
     if len(args.model_parametrs)>1:
@@ -112,5 +123,5 @@ if __name__ == "__main__":
                    name=f"model_{prm}_top_k_{config['experiment']['top_k']}_framestack_size_\
                         {config['experiment']['mdp_settings']['framestack_size']}")
 
-    main(config)
+    main(config, checkpoints_name)
 
