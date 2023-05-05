@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import logging
 from itertools import count
 from pathlib import Path
@@ -7,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
 from recsys_mdp.generators.datasets.synthetic.dataset import ToyRatingsDataset
@@ -181,6 +183,7 @@ class NextItemEnvironment:
 
     max_episode_len: tuple[int, int]
     timestep: int
+    timestamp: datetime.datetime
     state: UserState
     states: list[UserState]
     current_max_episode_len: int
@@ -214,6 +217,7 @@ class NextItemEnvironment:
                 max_episode_len[0] + max_episode_len[1]
             )
         self.timestep = 0
+        self.timestamp = random_datetime(self.rng, end_year=2019)
 
     def reset(self, user_id: int = None):
         if user_id is None:
@@ -230,6 +234,7 @@ class NextItemEnvironment:
     def step(self, item_id: int):
         relevance = self.state.step(item_id)
         self.timestep += 1
+        self.timestamp += pause_random_duration(self.rng)
 
         terminated = self.timestep >= self.current_max_episode_len
         # if terminated:
@@ -244,6 +249,7 @@ class MdpNextItemExperiment:
 
     init_time: float
     seed: int
+    rng: Generator
 
     generation_config: MdpNextItemGenerationConfig
     learning_config: MdpNextItemLearningConfig
@@ -251,6 +257,7 @@ class MdpNextItemExperiment:
     def __init__(
             self, config: TConfig, config_path: Path, seed: int,
             generation: TConfig, learning: TConfig,
+            zoya_settings: TConfig,
             mdp: TConfig, model: TConfig,
             env: TConfig,
             log: bool, cuda_device: bool | int | None,
@@ -266,17 +273,20 @@ class MdpNextItemExperiment:
         self.print_with_timestamp('==> Init')
 
         self.seed = seed
+        self.rng = np.random.default_rng(seed)
         self.generation_config = MdpNextItemGenerationConfig(**generation)
         self.learning_config = MdpNextItemLearningConfig(**learning)
+        self.zoya_settings = zoya_settings
 
         self.env: NextItemEnvironment = self.config.resolve_object(
             env, object_type_or_factory=NextItemEnvironment
         )
         self.mdp_builder = MdpDatasetBuilder(**mdp)
-        self.model = self.config.resolve_object(
+        self.model: LearnableBase = self.config.resolve_object(
             model | dict(use_gpu=get_cuda_device(cuda_device)),
             n_actions=self.env.n_items
         )
+        self.learnable_model = False
 
     def run(self):
         logging.disable(logging.DEBUG)
@@ -287,7 +297,10 @@ class MdpNextItemExperiment:
         for generation_epoch in range(self.generation_config.epochs):
             self.print_with_timestamp(f'Gen Epoch: {generation_epoch} ==>')
             dataset = self._generate_dataset()
-            total_epoch += self._learn_on_dataset(total_epoch, dataset)
+            total_epoch += self._learn_on_dataset(
+                total_epoch, dataset,
+                **self.zoya_settings
+            )
 
         self.print_with_timestamp('<==')
 
@@ -310,45 +323,89 @@ class MdpNextItemExperiment:
         trajectory = []
         while True:
             item_id = model.predict()
+            timestamp = env.timestamp
+
             relevance, terminated = env.step(item_id)
             continuous_relevance, discrete_relevance = relevance
             trajectory.append((
-                user_id, item_id, continuous_relevance, discrete_relevance,
+                timestamp,
+                user_id, item_id,
+                continuous_relevance, discrete_relevance,
                 terminated
             ))
             if terminated:
                 break
+
         return trajectory
 
-    def _learn_on_dataset(self, total_epoch: int, dataset: list[tuple]):
-        log = pd.DataFrame(dataset, columns=[
-            'user_id', 'item_id', 'continuous_rating', 'discrete_rating', 'terminal'
-        ])
-        dataset = ToyRatingsDataset(
-            log,
-            user_embeddings=self.env.embeddings.users,
-            item_embeddings=self.env.embeddings.items,
-        )
-        dataset.log['gt_continuous_rating'] = dataset.log['continuous_rating']
-        dataset.log['gt_discrete_rating'] = dataset.log['discrete_rating']
-        dataset.log['ground_truth'] = True
-        mdp_dataset = self.mdp_builder.build(dataset, use_ground_truth=True)
+    def _learn_on_dataset(
+            self, total_epoch: int, dataset: list[tuple],
+            top_k: int,
+            mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
+    ):
+        from constructors.mdp_constructor import make_mdp
+        from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
+        from constructors.algorithm_constuctor import init_model
+        from constructors.algorithm_constuctor import init_algo
+        from constructors.scorers_constructor import init_scorers
+        from constructors.scorers_constructor import init_logger
+        from run_experiment import eval_algo
 
+        log = pd.DataFrame(dataset, columns=[
+            'timestamp',
+            'user_id', 'item_id',
+            'continuous_rating', 'discrete_rating',
+            'terminal'
+        ])
+        data_mapping = dict(
+            user_col_name='user_id',
+            item_col_name='item_id',
+            reward_col_name='discrete_rating',
+            timestamp_col_name='timestamp'
+        )
+        train_values = get_values_fixme(log, data_mapping)
+        mdp_preparator = make_mdp(data=log, data_mapping=data_mapping, **mdp_settings)
+        states, rewards, actions, terminations, state_tail = mdp_preparator.create_mdp()
+        train_mdp = to_d3rlpy_form_ND(
+            states, rewards, actions, terminations,
+            discrete=scorer['prediction_type'] == "discrete"
+        )
+
+        # Init RL algorithm
+        if not self.learnable_model:
+            model = init_model(train_values, **algo_settings['model_parametrs'])
+            algo = init_algo(model, **algo_settings['general_parametrs'])
+            self.model = algo
+            self.learnable_model = True
+
+        # Init scorer
+        scorers = init_scorers(state_tail, train_values, top_k, **scorer)
+        logger = init_logger(
+            train_mdp, state_tail, train_values, top_k, wandb_logger=self.logger, **scorer
+        )
+
+        # Run experiment
         config = self.learning_config
         fitter = self.model.fitter(
-            dataset=mdp_dataset,
-            n_epochs=config.epochs, verbose=False,
-            save_metrics=False, show_progress=False,
+            dataset=train_mdp,
+            n_epochs=config.epochs,
+            eval_episodes=train_mdp,
+            scorers=scorers,
+            verbose=False, save_metrics=False, show_progress=False,
         )
         for epoch, metrics in fitter:
             if epoch == 1 or epoch % config.eval_schedule == 0:
-                self._eval_and_log(total_epoch)
+                eval_algo(self.model, logger)
+                # self._eval_and_log(total_epoch)
             total_epoch += 1
         return total_epoch
 
-    def _learn_on_dataset_old(self, total_epoch: int, dataset: list[tuple]):
+    def _learn_on_dataset_old(self, total_epoch: int, dataset: list[tuple], **_):
         log = pd.DataFrame(dataset, columns=[
-            'user_id', 'item_id', 'continuous_rating', 'discrete_rating', 'terminal'
+            'timestamp',
+            'user_id', 'item_id',
+            'continuous_rating', 'discrete_rating',
+            'terminal'
         ])
         dataset = ToyRatingsDataset(
             log,
@@ -448,6 +505,44 @@ class TypesResolver(LazyTypeResolver):
             from d3rlpy.algos.bc import BC
             return BC
         raise ValueError(f'Unknown type: {type_name}')
+
+
+def get_values_fixme(data, col_mapping):
+    full_users = data[col_mapping['user_col_name']].values
+    full_items = data[col_mapping['item_col_name']].values
+
+    users_unique = np.unique(data[col_mapping['user_col_name']].values)
+    items_unique = np.unique(data[col_mapping['item_col_name']].values)
+
+    rating = data[col_mapping['reward_col_name']].values
+    return {
+        'users_unique': users_unique,
+        'items_unique': items_unique,
+        'full_users': full_users,
+        'full_items': full_items,
+        'rating': rating
+    }
+
+
+def random_datetime(
+        rng: Generator, start_year: int = 2019, end_year: int = 2021
+) -> datetime.datetime:
+    return datetime.datetime(
+        year=rng.integers(start_year, end_year, endpoint=True),
+        month=rng.integers(1, 12, endpoint=True),
+        day=rng.integers(1, 28, endpoint=True),
+        hour=rng.integers(1, 24, endpoint=True),
+        minute=rng.integers(1, 60, endpoint=True),
+        second=rng.integers(1, 60, endpoint=True)
+    )
+
+
+def pause_random_duration(rng: Generator) -> datetime.timedelta:
+    return datetime.timedelta(minutes=float(rng.integers(15, 600, endpoint=True)))
+
+
+def track_random_duration(rng: Generator) -> datetime.timedelta:
+    return datetime.timedelta(seconds=float(rng.integers(120, 260, endpoint=True)))
 
 
 def get_cuda_device(cuda_device: int | None) -> int | bool:

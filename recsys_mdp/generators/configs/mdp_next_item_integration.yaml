@@ -9,13 +9,13 @@ seed: 42
 cuda_device: ...
 
 generation:
-  epochs: 5
-  episodes_per_epoch: 20
+  epochs: 1
+  episodes_per_epoch: 40
   samples_per_epoch: 10000
 
 learning:
-  epochs: 10
-  eval_schedule: 10
+  epochs: 100
+  eval_schedule: 5
   eval_episodes: 20
 
 env:
@@ -34,6 +34,39 @@ env:
     similarity_metric: l2
     relevance_boosting: [0.2, 4.0]
     boosting_softness: [2.0, 2.0]
+
+zoya_settings:
+  top_k: 10
+  mdp_settings:
+    framestack_size: 10
+    reward_function_name: "relevance_based_reward"
+    action_function_name: "next_item_action"
+    episode_splitter_name: "full_user_interaction"
+    history_keys: ['framestack', 'user_id']
+
+
+  scorer:
+    metrics: ['ndcg', 'stat_hitrate']
+    tresh: [0.7, 0.5, 0.9]
+    prediction_type: "discrete"
+
+  algo_settings:
+    general_parametrs:
+      algo: DCQL
+      batch_size: 1024
+      use_gpu: False
+
+    model_parametrs:
+      use_als: False
+      user_num: 2900
+      item_num: 3521
+      emb_dim: 16
+      hid_dim: 32
+      memory_size: 10
+      feature_size: 512
+      state_repr_name: "full_history" #drr adrr
+      freeze_emb: False
+      attention_hidden_size: 32
 
 mdp:
   actions: continuous
