@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     with open(args.config) as f:
-        config = yaml.load(f)
+        config = yaml.load(f, Loader=yaml.Loader)
 
     if args.framestack!=0:
         config['experiment']['algo_settings']['model_parametrs']['memory_size'] = args.framestack

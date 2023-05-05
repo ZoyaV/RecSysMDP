@@ -1,3 +1,9 @@
+### ================ DEFAULT PYTHON IGNORES ====================
+# d3rlpy logs
+d3rlpy_logs/
+
+### ================ DEFAULT PYTHON IGNORES ====================
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
