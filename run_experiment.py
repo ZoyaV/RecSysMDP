@@ -30,7 +30,7 @@ def fit(checkpoints_name, algo, train_mdp, test_mdp, n_epochs,
                 model_name = f"{exp_name}_{name}.pt" if checkpoints_name is None else checkpoints_name
                 algo.save_model(f'pretrained_models/{model_name}.pt')
         return algo
-def main(config, checkpoints_name = None):
+def main(config, checkpoints_name = None, wandb_logger = None):
     prediction_type = True if config['experiment']['scorer']['prediction_type'] == "discrete" else False
 
     # Load train data
@@ -58,7 +58,11 @@ def main(config, checkpoints_name = None):
     # Init scorer
     top_k = config['experiment']['top_k']
     scorers = init_scorers(state_tail, test_values, top_k, **config['experiment']['scorer'])
-    logger = init_logger(test_mdp, state_tail, test_values, top_k,  **config['experiment']['scorer'])
+    logger = init_logger(
+        test_mdp, state_tail, test_values, top_k,
+        wandb_logger=wandb_logger,
+        **config['experiment']['scorer']
+    )
 
     # Run experiment
     n_epochs = config['experiment']['algo_settings']['n_epochs']
@@ -116,12 +120,19 @@ if __name__ == "__main__":
         config['experiment']['algo_settings']['model_parametrs']['attention_hidden_size'] = prm[6]
 
 
+    wandb_run = None
     if config['use_wandb']:
         import wandb
-        wandb.init(project=f"{config['name']}", \
-                   group = args.experiment_name,
-                   name=f"model_{prm}_top_k_{config['experiment']['top_k']}_framestack_size_\
-                        {config['experiment']['mdp_settings']['framestack_size']}")
 
-    main(config, checkpoints_name)
+        top_k = config['experiment']['top_k']
+        framestack_size = config['experiment']['mdp_settings']['framestack_size']
+        run_name = f"model_{prm}_top_k_{top_k}_framestack_size_{framestack_size}"
+
+        wandb_run = wandb.init(
+            project=f"{config['name']}",
+            group = args.experiment_name,
+            name=run_name
+        )
+
+    main(config, checkpoints_name, wandb_run)
 

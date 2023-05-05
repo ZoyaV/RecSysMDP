@@ -1,7 +1,6 @@
-import torch
 import numpy as np
+import torch
 
-import wandb
 
 def flatten_dict_keys(d, parent_key='', sep='_'):
     items = []
@@ -13,8 +12,11 @@ def flatten_dict_keys(d, parent_key='', sep='_'):
             items.append((new_key, v))
     return dict(items)
 class Logger():
-    def __init__(self, interactive_mdp, user_interests, fake_mdp,
-                 top_k, static_scorers, interactive_scorers, visual_loggers):
+    def __init__(
+            self, interactive_mdp, user_interests, fake_mdp,
+            top_k, static_scorers, interactive_scorers, visual_loggers,
+            wandb_logger=None
+    ):
         #self.model = model
         self.discrete = True
         self.interactive_mdp = interactive_mdp # d3rlpy mdp
@@ -24,6 +26,7 @@ class Logger():
         self.interactive_scorers = interactive_scorers
         self.visual_loggers = visual_loggers
         self.top_k = top_k
+        self.wandb_logger = wandb_logger
 
     def static_log(self, model):
         if len(self.static_scorers) == 0:
@@ -93,5 +96,5 @@ class Logger():
 
         flattened_dict = flatten_dict_keys(log_resuls)
         print(flattened_dict)
-        wandb.log(flattened_dict)
-        pass
+        if self.wandb_logger:
+            self.wandb_logger.log(flattened_dict)

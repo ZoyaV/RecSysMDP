@@ -68,10 +68,14 @@ def init_scorers(state_tail, test_values, top_k, tresh, metrics, prediction_type
     return scorers
 
 
-def init_logger(test_mdp, state_tail, test_values, top_k, tresh, metrics, prediction_type):
-    fake_mdp, users_interests = get_test_observation(state_tail, test_values['full_items'], \
-                                                     test_values['full_users'], prediction_type)
-  #  exit()
+def init_logger(
+        test_mdp, state_tail, test_values, top_k, tresh, metrics, prediction_type,
+        wandb_logger=None
+):
+    fake_mdp, users_interests = get_test_observation(
+        state_tail, test_values['full_items'], test_values['full_users'], prediction_type
+    )
+
     statitic = dict()
     interactive = dict()
     visualizations = []
@@ -90,7 +94,11 @@ def init_logger(test_mdp, state_tail, test_values, top_k, tresh, metrics, predic
         visualizations.append(tsne)
 
     #print(visualizations)
-    logger = Logger(interactive_mdp=test_mdp, user_interests=users_interests, fake_mdp=fake_mdp, top_k=top_k,
-                    static_scorers=statitic, interactive_scorers=interactive, visual_loggers=visualizations)
+    logger = Logger(
+        interactive_mdp=test_mdp, user_interests=users_interests,
+        fake_mdp=fake_mdp, top_k=top_k,
+        static_scorers=statitic, interactive_scorers=interactive, visual_loggers=visualizations,
+        wandb_logger=wandb_logger
+    )
 
     return logger
