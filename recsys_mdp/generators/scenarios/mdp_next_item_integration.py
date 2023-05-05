@@ -248,7 +248,6 @@ class MdpNextItemExperiment:
     generation_config: MdpNextItemGenerationConfig
     learning_config: MdpNextItemLearningConfig
 
-
     def __init__(
             self, config: TConfig, config_path: Path, seed: int,
             generation: TConfig, learning: TConfig,
@@ -322,6 +321,32 @@ class MdpNextItemExperiment:
         return trajectory
 
     def _learn_on_dataset(self, total_epoch: int, dataset: list[tuple]):
+        log = pd.DataFrame(dataset, columns=[
+            'user_id', 'item_id', 'continuous_rating', 'discrete_rating', 'terminal'
+        ])
+        dataset = ToyRatingsDataset(
+            log,
+            user_embeddings=self.env.embeddings.users,
+            item_embeddings=self.env.embeddings.items,
+        )
+        dataset.log['gt_continuous_rating'] = dataset.log['continuous_rating']
+        dataset.log['gt_discrete_rating'] = dataset.log['discrete_rating']
+        dataset.log['ground_truth'] = True
+        mdp_dataset = self.mdp_builder.build(dataset, use_ground_truth=True)
+
+        config = self.learning_config
+        fitter = self.model.fitter(
+            dataset=mdp_dataset,
+            n_epochs=config.epochs, verbose=False,
+            save_metrics=False, show_progress=False,
+        )
+        for epoch, metrics in fitter:
+            if epoch == 1 or epoch % config.eval_schedule == 0:
+                self._eval_and_log(total_epoch)
+            total_epoch += 1
+        return total_epoch
+
+    def _learn_on_dataset_old(self, total_epoch: int, dataset: list[tuple]):
         log = pd.DataFrame(dataset, columns=[
             'user_id', 'item_id', 'continuous_rating', 'discrete_rating', 'terminal'
         ])

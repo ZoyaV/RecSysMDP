@@ -1,0 +1,45 @@
+name: CQL
+use_wandb: True
+
+experiment:
+  top_k: 10
+  data_path: "~/data/spotify/transformed_spotify.csv"
+  test_data_path: "~/data/spotify/transformed_spotify.csv"
+  col_mapping:
+    user_col_name: "session_num"
+    item_col_name: "track_num"
+    reward_col_name: "skip_val"
+    timestamp_col_name: "timestamp"
+
+  mdp_settings:
+    framestack_size: 10
+    reward_function_name: "relevance_based_reward"
+    action_function_name: "next_item_action"
+    episode_splitter_name: "interaction_interruption"
+    history_keys: ['framestack', 'user_id']
+
+
+  scorer:
+    metrics: ['ndcg', 'stat_hitrate']
+    tresh: [0.7, 0.5, 0.9]
+    prediction_type: "discrete"
+
+  algo_settings:
+    n_epochs: 5
+
+    general_parametrs:
+      algo: DCQL
+      batch_size: 1024
+      use_gpu: False
+
+    model_parametrs:
+      use_als: False
+      user_num: 2900
+      item_num: 3521
+      emb_dim: 16
+      hid_dim: 32
+      memory_size: 10
+      feature_size: 512
+      state_repr_name: "full_history" #drr adrr
+      freeze_emb: False
+      attention_hidden_size: 32
