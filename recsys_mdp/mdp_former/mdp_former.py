@@ -66,7 +66,7 @@ class MDPFormer():
         for i, idx in enumerate(indx_to_episode_split):
             start = 0 if i == 0 else indx_to_episode_split[i - 1]
             end = idx
-            one_episode = user_df.loc[start:end]
+            one_episode = user_df.iloc[start:end]
             if len(one_episode) < self.framestack:
                 continue
             rewards.append(self.get_episode_reward(one_episode))
