@@ -51,12 +51,12 @@ zoya_settings:
     prediction_type: "discrete"
 
   algo_settings:
-    general_parametrs:
+    general_parameters:
       algo: DCQL
       batch_size: 1024
       use_gpu: False
 
-    model_parametrs:
+    model_parameters:
       use_als: False
       user_num: 2900
       item_num: 3521

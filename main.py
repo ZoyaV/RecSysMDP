@@ -53,10 +53,10 @@ if __name__ == "__main__":
   # mdp_test = RecSysMDP(load_from_file=True, path='./data/ml_100k_first_1000_test_63')
     #
     dataset_train = to_d3rlpy_form(mdp_train.states, mdp_train.rewards,
-                                   mdp_train.actions, mdp_train.termations)
+                                   mdp_train.actions, mdp_train.terminations)
 
     dataset_test = to_d3rlpy_form(mdp_test.states, mdp_test.rewards,
-                                   mdp_test.actions, mdp_test.termations)
+                                   mdp_test.actions, mdp_test.terminations)
 
     algo = DiscreteCQL(use_gpu=True)
     part_of_positive = evaluate_in_positive(top_k=10, inv_user_mapping=mdp_train.inv_user_mapping,

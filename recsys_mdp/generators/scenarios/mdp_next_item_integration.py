@@ -373,8 +373,8 @@ class MdpNextItemExperiment:
 
         # Init RL algorithm
         if not self.learnable_model:
-            model = init_model(train_values, **algo_settings['model_parametrs'])
-            algo = init_algo(model, **algo_settings['general_parametrs'])
+            model = init_model(train_values, **algo_settings['model_parameters'])
+            algo = init_algo(model, **algo_settings['general_parameters'])
             self.model = algo
             self.learnable_model = True
 
