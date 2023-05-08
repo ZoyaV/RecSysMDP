@@ -2,6 +2,7 @@ import os
 import numpy as np
 from d3rlpy.dataset import MDPDataset
 
+
 def to_d3rlpy_form_ND(original_states, original_rewards, original_actions,
                       original_termates, discrete = False):
     full_states = []
@@ -32,6 +33,7 @@ def to_d3rlpy_form_ND(original_states, original_rewards, original_actions,
 
     np.random.shuffle(dataset.episodes)
     return dataset
+
 
 def make_datasets(dataframe, col_mapping, test_part,
                   data_directory = "./data", data_name = "ml_100k_first100",
@@ -68,3 +70,8 @@ def make_datasets(dataframe, col_mapping, test_part,
     mdp_test.save(path)
 
     return mdp_train, mdp_test
+
+
+def isnone(x, default):
+    """Return x if it's not None, or default value instead."""
+    return x if x is not None else default

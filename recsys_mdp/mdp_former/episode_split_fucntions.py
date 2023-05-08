@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Callable, Any
+from typing import Callable
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 def split_by_time(user_log, col_mapping):
@@ -15,9 +15,9 @@ def split_by_time(user_log, col_mapping):
     :param col_mapping: dict with names of columns
     :return: indices of transitions to a new episode
     """
-    def pause_condition(col):
+    def pause_condition(col: pd.Series):
         pause_minutes = (col.iloc[1:] - col.iloc[:-1]).dt.total_seconds() / 60
-        return np.argwhere(pause_minutes.values > 20)
+        return pause_minutes.values > 20
 
     return split_by_column_condition(
         user_log, col_name=col_mapping['timestamp_col_name'], condition=pause_condition
@@ -27,7 +27,7 @@ def split_by_time(user_log, col_mapping):
 def split_by_column_condition(
         user_log: pd.DataFrame,
         col_name: str,
-        condition: Callable[[pd.Series], bool]
+        condition: Callable[[pd.Series], np.ndarray | list[bool]]
 ):
     """
     Split the user's log into episodes by the condition set on one of the log's columns.
@@ -37,9 +37,8 @@ def split_by_column_condition(
     :param condition: Callable[[pd.Series], bool] that applies condition logic for splitting
     :return: indices of transitions to a new episode
     """
-    split_indices = np.argwhere(condition(user_log[col_name]))
-    if split_indices.size == 0:
-        return [-1]
+    split_mask = condition(user_log[col_name])
+    split_indices = np.argwhere(split_mask).tolist() + [-1]
     return split_indices
 
 
@@ -51,4 +50,10 @@ def split_by_user(user_log, col_mapping):
     :param col_mapping: dict with names of columns
     :return: indices of transitions to a new episode
     """
-    return [0, len(user_log)]
+
+    def entire_log_condition(col: pd.Series):
+        return np.full_like(col.values, False)
+
+    return split_by_column_condition(
+        user_log, col_name=col_mapping['timestamp_col_name'], condition=entire_log_condition
+    )
