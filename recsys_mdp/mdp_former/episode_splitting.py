@@ -9,6 +9,7 @@ import pandas as pd
 def to_episode_ranges(
         user_log: pd.DataFrame, split_indices: list[int]
 ) -> Iterable[tuple[int, int]]:
+    # noinspection GrazieInspection
     """
     Transform indices declaring splits of user's log into episodes
     to a list of tuples [start_ind, end_ind) declaring each episode range.

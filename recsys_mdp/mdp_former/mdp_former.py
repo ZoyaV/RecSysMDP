@@ -3,9 +3,9 @@ import pickle
 import numpy as np
 import pandas as pd
 
-from recsys_mdp.mdp_former.action_function import continuous_relevance_action
-from recsys_mdp.mdp_former.episode_split_fucntions import split_by_time, to_episode_ranges
-from recsys_mdp.mdp_former.reward_functions import monotony_reward
+from recsys_mdp.mdp_former.acting import continuous_relevance_action
+from recsys_mdp.mdp_former.episode_splitting import split_by_time, to_episode_ranges
+from recsys_mdp.mdp_former.rewarding import monotony_reward
 from recsys_mdp.mdp_former.utils import isnone
 
 DEFAULT_HISTORY_KEYS = ['framestack', 'user_id']
