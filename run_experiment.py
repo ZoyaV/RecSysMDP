@@ -2,10 +2,14 @@ import argparse
 
 import yaml
 
+from recsys_mdp.generators.utils.lazy_imports import lazy_import
 from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
 from constructors.algorithm_constuctor import init_algo, init_model
 from constructors.mdp_constructor import load_data, make_mdp
 from constructors.scorers_constructor import init_scorers, init_logger
+
+wandb = lazy_import('wandb')
+
 
 def eval_algo(algo, logger):
     static_res = logger.static_log(algo)
@@ -13,8 +17,12 @@ def eval_algo(algo, logger):
 
     logger.visual_log(algo, {"STAT": static_res, "INTERECT":interactive_res})
     pass
-def fit(checkpoints_name, algo, train_mdp, test_mdp, n_epochs,
-        scorers, logger, steps_to_eval, exp_name, name):
+
+
+def fit(
+        checkpoints_name, algo, train_mdp, test_mdp, n_epochs, scorers,
+        logger, steps_to_eval, exp_name, name
+):
         fitter = algo.fitter(
             train_mdp,
             n_epochs=n_epochs,
@@ -30,24 +38,34 @@ def fit(checkpoints_name, algo, train_mdp, test_mdp, n_epochs,
                 model_name = f"{exp_name}_{name}.pt" if checkpoints_name is None else checkpoints_name
                 algo.save_model(f'pretrained_models/{model_name}.pt')
         return algo
-def main(config, checkpoints_name = None, wandb_logger = None):
-    prediction_type = True if config['experiment']['scorer']['prediction_type'] == "discrete" else False
+
+
+def main(args, config, name, checkpoints_name=None, wandb_logger=None):
+    prediction_type = config['experiment']['scorer']['prediction_type'] == "discrete"
 
     # Load train data
-    data, data_mapping, train_values = load_data(data_path=config['experiment']['data_path'],
-                                                 return_values=True,
-                                                 col_mapping=config['experiment']['col_mapping'])
-    mdp_preparator = make_mdp(data=data, data_mapping=data_mapping, **config['experiment']['mdp_settings'])
+    data, data_mapping, train_values = load_data(
+        data_path=config['experiment']['data_path'],
+        return_values=True,
+        col_mapping=config['experiment']['col_mapping']
+    )
+    mdp_preparator = make_mdp(
+        data=data, data_mapping=data_mapping, **config['experiment']['mdp_settings']
+    )
     states, rewards, actions, termations, state_tail = mdp_preparator.create_mdp()
     train_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations, discrete=prediction_type)
 
     # Load test data
-    test_data, _, test_values = load_data(data_path=config['experiment']['test_data_path'],
-                                          return_values=True,
-                                          col_mapping=config['experiment']['col_mapping'])
+    test_data, _, test_values = load_data(
+        data_path=config['experiment']['test_data_path'],
+        return_values=True,
+        col_mapping=config['experiment']['col_mapping']
+    )
 
     config['experiment']['mdp_settings']['episode_splitter_name'] = "interaction_interruption"
-    test_mdp_preparator = make_mdp(data=test_data, data_mapping=data_mapping, **config['experiment']['mdp_settings'])
+    test_mdp_preparator = make_mdp(
+        data=test_data, data_mapping=data_mapping, **config['experiment']['mdp_settings']
+    )
     states, rewards, actions, termations, _ = test_mdp_preparator.create_mdp()
     test_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations, discrete=prediction_type)
 
@@ -66,16 +84,22 @@ def main(config, checkpoints_name = None, wandb_logger = None):
 
     # Run experiment
     n_epochs = config['experiment']['algo_settings']['n_epochs']
-    fit(checkpoints_name, algo, train_mdp, test_mdp, n_epochs, scorers, logger, steps_to_eval = 3, exp_name = args.experiment_name, name = name)
+    fit(
+        checkpoints_name, algo, train_mdp, test_mdp, n_epochs,
+        scorers, logger, steps_to_eval=3, exp_name=args.experiment_name, name=name
+    )
     #algo.fit(train_mdp, n_epochs=n_epochs, eval_episodes=test_mdp, scorers=scorers)
 
-    model_name = f"{args.experiment_name}_{name}.pt" if checkpoints_name is None else checkpoints_name
+    if checkpoints_name is None:
+        model_name = f"{args.experiment_name}_{name}.pt"
+    else:
+        model_name = checkpoints_name
     algo.save_model(f'pretrained_models/{model_name}.pt')
 
     return
 
 
-if __name__ == "__main__":
+def start_experiment():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', dest='config')
     parser.add_argument('--folder_name', type = str)
@@ -134,5 +158,8 @@ if __name__ == "__main__":
             name=run_name
         )
 
-    main(config, checkpoints_name, wandb_run)
+    main(args, config, name, checkpoints_name, wandb_run)
 
+
+if __name__ == "__main__":
+    start_experiment()
