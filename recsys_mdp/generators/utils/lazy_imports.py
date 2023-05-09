@@ -2,8 +2,12 @@ import importlib.util
 import sys
 
 
-def lazy_import(name):
-    spec = importlib.util.find_spec(name)
+def lazy_import(name, package=None):
+    module = sys.modules.get(name, None)
+    if module is not None:
+        return module
+
+    spec = importlib.util.find_spec(name, package=package)
     loader = importlib.util.LazyLoader(spec.loader)
     spec.loader = loader
     module = importlib.util.module_from_spec(spec)
