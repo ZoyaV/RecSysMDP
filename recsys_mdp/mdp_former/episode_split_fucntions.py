@@ -1,23 +1,40 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Iterable
 
 import numpy as np
 import pandas as pd
 
 
-def split_by_time(user_log, col_mapping):
+def to_episode_ranges(
+        user_log: pd.DataFrame, split_indices: list[int]
+) -> Iterable[tuple[int, int]]:
     """
-    Divides the story into episodes, taking into account the interruption
-    of the user's interaction with the service
+    Transform indices declaring splits of user's log into episodes
+    to a list of tuples [start_ind, end_ind) declaring each episode range.
+    """
+    ep_start_ind = 0
+    for ep_end_ind in split_indices:
+        yield ep_start_ind, ep_end_ind
+        ep_start_ind = ep_end_ind
 
-    :param user_log: pandas array of one user interaction history
+    ep_end_ind = len(user_log)
+    yield ep_start_ind, ep_end_ind
+
+
+def split_by_time(user_log: pd.DataFrame, col_mapping: dict, threshold_minutes: int = 20):
+    """
+    Divides the user's log into separate episodes where the pause duration
+    between two consecutive interactions in an episode is under the passed threshold.
+
+    :param user_log: pandas array of a single user interaction history
     :param col_mapping: dict with names of columns
+    :param threshold_minutes: int with the pause in minutes required for a new episode starting
     :return: indices of transitions to a new episode
     """
     def pause_condition(col: pd.Series):
         pause_minutes = (col.iloc[1:] - col.iloc[:-1]).dt.total_seconds() / 60
-        return pause_minutes.values > 20
+        return pause_minutes.values > threshold_minutes
 
     return split_by_column_condition(
         user_log, col_name=col_mapping['timestamp_col_name'], condition=pause_condition
@@ -35,10 +52,10 @@ def split_by_column_condition(
     :param user_log: pandas array of one user interaction history
     :param col_name: str name of a column by which the split is implemented
     :param condition: Callable[[pd.Series], bool] that applies condition logic for splitting
-    :return: indices of transitions to a new episode
+    :return: np.ndarray with indices of transitions to a new episode
     """
     split_mask = condition(user_log[col_name])
-    split_indices = np.argwhere(split_mask).tolist() + [-1]
+    split_indices = np.argwhere(split_mask)
     return split_indices
 
 

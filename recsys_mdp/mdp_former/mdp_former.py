@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from recsys_mdp.mdp_former.action_function import continuous_relevance_action
-from recsys_mdp.mdp_former.episode_split_fucntions import split_by_time
+from recsys_mdp.mdp_former.episode_split_fucntions import split_by_time, to_episode_ranges
 from recsys_mdp.mdp_former.reward_functions import monotony_reward
 from recsys_mdp.mdp_former.utils import isnone
 
@@ -56,18 +56,16 @@ class MDPFormer:
         terminates[-1] = 1
         return terminates
 
-    def _get_user_episodes(self, user_df):
+    def _get_user_episodes(self, user_log: pd.DataFrame):
         """
         Transforms the user's log to MDP trajectories aka episodes
         :return:
         """
         states, rewards, actions, terminations = [], [], [], []
-        episode_split_indices = self.condition(user_df, self.data_mapping)
-        ep_start_ind = 0
-        for ep_end_ind in episode_split_indices:
-            episode = user_df.iloc[ep_start_ind:ep_end_ind]
-            ep_start_ind = ep_end_ind
 
+        episode_split_indices = self.condition(user_log, self.data_mapping)
+        for ep_start_ind, ep_end_ind in to_episode_ranges(user_log, episode_split_indices):
+            episode = user_log.iloc[ep_start_ind:ep_end_ind]
             if len(episode) < self.framestack:
                 # throw out too short trajectories
                 continue
@@ -75,6 +73,7 @@ class MDPFormer:
             states.append(episode['history'].values.tolist())
             actions.append(self.get_episode_action(episode))
             terminations.append(self.get_episode_terminates(episode))
+
         return states, rewards, actions, terminations
 
     def _interaction_history(self, user_df):
