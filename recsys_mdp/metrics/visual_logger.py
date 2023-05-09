@@ -1,6 +1,11 @@
 import numpy as np
-import wandb
 from sklearn.manifold import TSNE
+
+from recsys_mdp.generators.utils.lazy_imports import lazy_import
+
+wandb = lazy_import('wandb')
+
+
 def log_user_items_distribution(relevances_for_users, tresholds):
     for t in tresholds:
         user_positiove_count = []
