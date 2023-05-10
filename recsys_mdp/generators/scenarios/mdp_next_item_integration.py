@@ -113,6 +113,7 @@ class UserState:
             similarity_metric: str,
             relevance_boosting: tuple[float, float],
             boosting_softness: tuple[float, float],
+            discrete_actions: list[tuple[float, float]],
             rng: Generator
     ):
         self.user_id = user_id
@@ -136,6 +137,7 @@ class UserState:
 
         self.relevance_boosting_k = tuple(relevance_boosting)
         self.boosting_softness = tuple(boosting_softness)
+        self.discrete_actions_distr = discrete_actions
         self.metric = similarity_metric
         self.embeddings = embeddings
 
@@ -162,10 +164,7 @@ class UserState:
 
         # 4) compute continuous and discrete relevance as user feedback
         relevance = base_item_to_user_relevance * relevance_boosting
-        if relevance < 0.5:
-            discrete_relevance = self.rng.binomial(1, p=1-relevance)
-        else:
-            discrete_relevance = 0
+        discrete_relevance = self.sample_user_response(relevance)
 
         # print(
         #     f'AggSat {aggregate_item_satiation:.2f} '
@@ -173,6 +172,10 @@ class UserState:
         #     f'| Rel {relevance:.3f}'
         # )
         return relevance, discrete_relevance
+
+    def sample_user_response(self, relevance):
+        marks = np.array([self.rng.normal(*distr) for distr in self.discrete_actions_distr])
+        return 2 + np.argmin(np.abs(marks - relevance))
 
 
 class NextItemEnvironment:
