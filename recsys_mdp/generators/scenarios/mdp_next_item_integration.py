@@ -324,8 +324,18 @@ class MdpNextItemExperiment:
         env, model = self.env, self.model
         user_id = env.reset()
         trajectory = []
+        # print(user_id)
+        fake_obs = np.random.randint(0, 3521, 10).tolist() + [user_id]
+        # print(fake_obs)
+        obs = np.asarray(fake_obs)
+
         while True:
-            item_id = model.predict()
+            try:
+                item_id = model.predict(obs.reshape(1, -1))[0]
+            except:
+                item_id = model.predict(obs[:10].reshape(1, -1))[0]
+            obs[:9] = obs[1:10]
+            obs[-2] = item_id
             timestamp = env.timestamp
 
             relevance, terminated = env.step(item_id)
@@ -338,7 +348,6 @@ class MdpNextItemExperiment:
             ))
             if terminated:
                 break
-
         return trajectory
 
     def _learn_on_dataset(
