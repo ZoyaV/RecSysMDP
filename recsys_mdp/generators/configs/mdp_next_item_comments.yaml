@@ -5,27 +5,88 @@ project: recsys.synth.mdp.next_item
 # wandb logging
 log: True
 
+# General info:
+# There are two special constants that are supported by the config system:
+#   ... means None
+#   ??? means "Expected to be set during runtime before the usage", i.e. I set it dynamically
+#             based on the information available at the moment when this attribute is used.
+
+# Config system includes several resolvers (== specific helpers) that are united in the
+# GlobalConfig class:
+#   ConfigResolver: adds link support, e.g.
+#         in "users: embeddings.clusters" the right part is the link,
+#         which means "config['embeddings']['clusters']", that's what .resolve() method returns.
+
+#         Or "users: $another_config_file.embeddings.clusters" is a link to a part of
+#         another config file named "another_config_file.yaml". Resolve will read the file
+#         and return corresponding "another_config_file['embeddings']['clusters']".
+
+#         It also supports "_base_" config attribute containing the link to a base config,
+#         which means the resulted value will be "base_config.update(config)" — i.e. you can
+#         specify defaults in base config and overwrite a part it in the current.
+#         Actually,
+#           users: embeddings.clusters
+#         is just a shorthand to
+#           users:
+#             _base_: embeddings.clusters
+
+#   TypeResolver: adds type auto-resolving, see TypesResolver class for an example
+#         It could be eager resolver: dict type_tag_string --> Type / FactoryFunction / LambdaFunc
+#         or class inherited from LazyTypeResolver with .resolve method implementation.
+#         Both are used to build objects of specific types based on the special
+#         "_type_" config attribute — that's how binding is implemented.
+
+#         Lazy resolver with local imports speeds up an experiment startup
+#         compared to eager resolvers — I suggest prefer lazy resolving.
+
+#   ObjectResolver: encapsulates the whole object construction routine
+#         It uses ConfigResolver and TypeResolver under the hood.
+#         You just say ".resolve(obj_config)" and get constructed object. Before constructing
+#         it will also check that none of the config attributes are equal to "???", and before
+#         that it will try to resolve them using the substitution dict, passed to the "resolve":
+#         ".resolve(obj_config, param1=value1, param2=value2)" means that
+#         if there are param1 or param2 in obj_config have value "???", they will be replaced to
+#         corresponding values value1 and value2.
+
+#         In the prev example the type is expected to be specified via "_type_" config attribute.
+#         If you know exact type or obj builder, you can pass it to resolve instead.
+
 seed: 42
 cuda_device: ...
 
+# == meta-epochs: MdpNextItemGenerationConfig
 generation:
   epochs: 1
+  # one of them should be set, the other could be ...
+  # if both set, the first triggered will break generation process
   episodes_per_epoch: 40
   samples_per_epoch: 10000
 
+# each meta-epoch there's a learning stage with the specified settings
 learning:
   epochs: 100
+  # eval each N epochs
   eval_schedule: 5
+  # how many episodes will be used for evaluation
   eval_episodes: 20
 
+# specifies environment settings
+# NB: for now, only one env is used for the whole experiment — good for now, but
+#   I may support multiple simultaneous envs (== scenarios) in near future
 env:
+  # as I build env with my config system, it implicitly resolves two attributes:
+  # seed and global_config, i.e. you don't have to pass them to ".resolve(obj_config, ...)"
   global_config: ???
   seed: ???
+  # how many users/items are generated in the environment
   n_users: 100
   n_items: 100
+  # [avg_len, delta]: episode len is sampled each reset from uniform: avg_len +/- delta
   max_episode_len: [40, 20]
   embeddings:
+    # shared embedding space dimensionality
     n_dims: 5
+    # links to embedding generator configs
     users: embeddings.clusters
     items: embeddings.clusters
   user_state:
@@ -147,15 +208,24 @@ models:
 
 embeddings:
   random:
+    # embeddings are random points from uniform
     _type_: embeddings.random
     seed: ???
     n_dims: ???
 
   clusters:
+    # clusters are sampled first
+    # and then each embedding is sampled from (==near) one of these clusters:
+    #     randomly select cluster --> sample position near the cluster
     _type_: embeddings.clusters
     seed: ???
     n_dims: ???
+    # N: generate N different centers of gaussians
+    # [n1, n2, n3, ..., n_m]: generate M centers of meta-clusters (gaussians),
+    #     and for each i-th meta-cluster generate n_i clusters — centers of gaussians,
+    #     i.e. results to N = n1+n2+...+nM clusters. This way I can have several cluster groups.
     n_clusters: [2, 1, 4, 1, 2]
+    # The rest are probably should not be changed! I manually selected them.
     intra_cluster_noise_scale: 0.05
     n_dissimilar_dims_required: 3
     min_dim_delta: 0.3
