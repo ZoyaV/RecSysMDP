@@ -71,7 +71,12 @@ def split_by_column_condition(
     """
     split_mask = condition(user_log[col_name])
     split_indices = np.argwhere(split_mask)
-    return split_indices
+    indices = []
+    if len(split_indices) > 0:
+        indices = [0]
+        for idx in split_indices:
+            indices.append(idx[0])
+    return indices
 
 
 def split_by_user(user_log, col_mapping):
