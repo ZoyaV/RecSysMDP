@@ -261,8 +261,7 @@ class MdpNextItemExperiment:
             self, config: TConfig, config_path: Path, seed: int,
             generation: TConfig, learning: TConfig,
             zoya_settings: TConfig,
-            mdp: TConfig, model: TConfig,
-            env: TConfig,
+            model: TConfig, env: TConfig,
             log: bool, cuda_device: bool | int | None,
             project: str = None,
             **_
@@ -284,7 +283,6 @@ class MdpNextItemExperiment:
         self.env: NextItemEnvironment = self.config.resolve_object(
             env, object_type_or_factory=NextItemEnvironment
         )
-        self.mdp_builder = MdpDatasetBuilder(**mdp)
         self.model: LearnableBase = self.config.resolve_object(
             model | dict(use_gpu=get_cuda_device(cuda_device)),
             n_actions=self.env.n_items
@@ -412,35 +410,6 @@ class MdpNextItemExperiment:
             if epoch == 1 or epoch % config.eval_schedule == 0:
                 eval_algo(self.model, logger)
                 # self._eval_and_log(total_epoch)
-            total_epoch += 1
-        return total_epoch
-
-    def _learn_on_dataset_old(self, total_epoch: int, dataset: list[tuple], **_):
-        log = pd.DataFrame(dataset, columns=[
-            'timestamp',
-            'user_id', 'item_id',
-            'continuous_rating', 'discrete_rating',
-            'terminal'
-        ])
-        dataset = ToyRatingsDataset(
-            log,
-            user_embeddings=self.env.embeddings.users,
-            item_embeddings=self.env.embeddings.items,
-        )
-        dataset.log['gt_continuous_rating'] = dataset.log['continuous_rating']
-        dataset.log['gt_discrete_rating'] = dataset.log['discrete_rating']
-        dataset.log['ground_truth'] = True
-        mdp_dataset = self.mdp_builder.build(dataset, use_ground_truth=True)
-
-        config = self.learning_config
-        fitter = self.model.fitter(
-            dataset=mdp_dataset,
-            n_epochs=config.epochs, verbose=False,
-            save_metrics=False, show_progress=False,
-        )
-        for epoch, metrics in fitter:
-            if epoch == 1 or epoch % config.eval_schedule == 0:
-                self._eval_and_log(total_epoch)
             total_epoch += 1
         return total_epoch
 

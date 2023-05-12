@@ -70,7 +70,7 @@ learning:
   # how many episodes will be used for evaluation
   eval_episodes: 20
 
-# specifies environment settings
+# Specifies environment settings. Implemented with NextItemEnvironment
 # NB: for now, only one env is used for the whole experiment — good for now, but
 #   I may support multiple simultaneous envs (== scenarios) in near future
 env:
@@ -90,11 +90,28 @@ env:
     users: embeddings.clusters
     items: embeddings.clusters
   user_state:
+    # Implemented with UserState
+    # satiation vector: base + uniform[0,1]; shape: (n_clusters,)
     base_satiation: 0.15
+    # base_speed or [base_speed, k]
+    # speed shape: (n_clusters, )
+    # sampled from uniform [1/(1+k) * base, (1+k) * base], i.e. k means +/- percents around base
     base_satiation_speed: [0.2, .4]
+    # see `similarity` func for supported metrics
     similarity_metric: l2
+
+    # [under_satiation_boost, over_satiation_boost]: e.g. [.2, 4.0] means
+    #    +20% relevance boost if very under-satiated
+    #    -400% relevance penalty if very over-satiated
+    # base satiation is 1.0 => under-satiated when ->0 and over-satiated when ->+inf
     relevance_boosting: [0.2, 4.0]
+    # how fast boosting kicks in depending on satiation difference from 1.0
     boosting_softness: [2.0, 2.0]
+    # list of discrete actions with [center, std] gaussian params
+    # Each timestep sample values from these gaussians and select the action with
+    #   the closest sampled value to the current continuous relevance.
+    # This way I add stochasticity to selecting discrete action based on continuous relevance
+    # Could be an object to changes :)
     discrete_actions:
       - [0.2, 0.3]
       - [0.5, 0.3]
@@ -134,19 +151,12 @@ zoya_settings:
       freeze_emb: False
       attention_hidden_size: 32
 
-mdp:
-  actions: continuous
-  rewards:
-    baseline: [0.0, 0.5]
-    continuous: 0.0
-    discrete: [0.0, 0.5]
-    continuous_error: 0.0
-    discrete_error: -0.5
-
+# for now, it is a "generation model"
 model:
   _base_: models.random
   batch_size: 32
 
+# configs for all different models
 models:
   random:
     _type_: model.random
