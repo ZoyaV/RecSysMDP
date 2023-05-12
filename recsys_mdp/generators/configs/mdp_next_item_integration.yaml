@@ -73,15 +73,6 @@ zoya_settings:
       freeze_emb: False
       attention_hidden_size: 32
 
-mdp:
-  actions: continuous
-  rewards:
-    baseline: [0.0, 0.5]
-    continuous: 0.0
-    discrete: [0.0, 0.5]
-    continuous_error: 0.0
-    discrete_error: -0.5
-
 model:
   _base_: models.random
   batch_size: 32
