@@ -3,6 +3,8 @@ import os
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from itertools import count
+
 from d3rlpy.base import LearnableBase
 
 from recsys_mdp.generators.scenarios.mdp_next_item_integration import NextItemEnvironment, TypesResolver
@@ -29,14 +31,27 @@ def run(config_path = "recsys_mdp/generators/configs/mdp_next_item_integration.y
                 model_conf | dict(use_gpu=False),
                 n_actions=env.n_items
             )
-    return generate_episode(env, model)
+    gen_conf = config['generation']
+    return generate_dataset(gen_conf, env, model)
+
+def generate_dataset(gen_conf, env, model):
+        config = gen_conf
+        samples = []
+        for episode in count():
+            samples.extend(generate_episode(env, model))
+
+            if config['episodes_per_epoch'] is not None and episode >= config['episodes_per_epoch']:
+                break
+            if config['samples_per_epoch'] is not None and len(samples) >= config['samples_per_epoch']:
+                break
+        return samples
 def generate_episode(env, model):
     env, model = env, model
     user_id = env.reset()
     trajectory = []
 
     # [10 last item_ids] + [user_id]
-    fake_obs = np.random.randint(0, 3521, 10).tolist() + [user_id]
+    fake_obs = np.random.randint(0, 100, 10).tolist() + [user_id]
     obs = np.asarray(fake_obs)
 
     while True:
@@ -63,6 +78,7 @@ def generate_episode(env, model):
 
 if __name__ == "__main__":
     trajectories = run()
+
     # Define the column names
     column_names = ['timestamp', 'user_idx', 'item_idx', 'relevance_cont', 'relevance_int', 'terminated']
 
@@ -79,4 +95,5 @@ if __name__ == "__main__":
     file_name = f"{directory}/{case_name}.csv"
 
     # Save the DataFrame to a CSV file
+    print("Data generated: ", df.shape)
     df.to_csv(file_name, index=False)
