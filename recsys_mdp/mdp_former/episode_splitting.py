@@ -34,8 +34,22 @@ def split_by_time(user_log: pd.DataFrame, col_mapping: dict, threshold_minutes: 
     :return: indices of transitions to a new episode
     """
     def pause_condition(col: pd.Series):
-        pause_minutes = (col.iloc[1:] - col.iloc[:-1]).dt.total_seconds() / 60
-        return pause_minutes.values > threshold_minutes
+        # проверка формата столбца с временем, в некоторых датасетка не unix
+        is_not_unix_timestamp = ~pd.to_datetime(col, errors='coerce').notnull().all()
+        is_string_column = col.dtype == 'object'
+
+        if is_not_unix_timestamp or is_string_column:
+            timestamp = pd.to_datetime(col)
+            col = pd.to_datetime(timestamp).astype(int) // 10**9
+        col_values = col.values
+        # Calculate time differences in minutes using np.diff
+        time_diff = np.diff(col_values).astype('timedelta64[s]')
+        pause_minutes = time_diff / 60
+        threshold_timedelta = np.timedelta64(int(threshold_minutes), 'm')
+
+        # Compare the pause_minutes array with the threshold using np.greater
+        is_above_threshold = np.greater(pause_minutes, threshold_timedelta)
+        return is_above_threshold
 
     return split_by_column_condition(
         user_log, col_name=col_mapping['timestamp_col_name'], condition=pause_condition
