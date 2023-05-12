@@ -10,20 +10,20 @@ from flask import Flask, request, render_template
 app = Flask(__name__, template_folder='.')
 
 
+def run_script(config_file_path, group_name, folder_name):
+    subprocess.call(["python3", "run_experiment.py",
+                     "--config", config_file_path,
+                     "--experiment_name", group_name,
+                     "--folder_name", folder_name])
+
 def run_experiment(config_file_path, group_name = "aboba", folder_name = None):
     print(group_name)
-    # Создаем новый процесс
+    # Create a new process
     process = multiprocessing.Process(
-        target=subprocess.call,
-        args=[
-            "python3", "run_experiment.py",
-            "--config", config_file_path,
-            "--experiment_name", group_name,
-            "--folder_name", folder_name
-        ]
+        target=run_script,
+        args=(config_file_path, group_name, folder_name)
     )
     process.start()
-
 
 @app.route('/')
 def index():
