@@ -6,6 +6,62 @@ import numpy as np
 import pandas as pd
 
 
+def split_by_time(user_log: pd.DataFrame, col_mapping: dict, threshold_minutes: int = 20):
+    """
+    Divides the user's log into separate episodes where the pause duration
+    between two consecutive interactions in an episode is under the passed threshold.
+
+    :param user_log: pandas array of a single user interaction history
+    :param col_mapping: dict with names of columns
+    :param threshold_minutes: int with the pause in minutes required for a new episode starting
+    :return: indices of transitions to a new episode
+    """
+    def pause_condition(col: pd.Series):
+        pause_minutes = (col.iloc[1:] - col.iloc[:-1]).dt.total_seconds() / 60
+
+        split_mask = np.empty_like(col.values)
+        split_mask[0] = False
+        split_mask[1:] = pause_minutes.values > threshold_minutes
+        return split_mask
+
+    return split_by_column_condition(
+        user_log, col_name=col_mapping['timestamp_col_name'], condition=pause_condition
+    )
+
+
+def split_by_user(user_log: pd.DataFrame, col_mapping):
+    """
+    Divides story by episodes - entire user story = 1 episode
+
+    :param user_log: pandas array of one user interaction history
+    :param col_mapping: dict with names of columns
+    :return: indices of transitions to a new episode
+    """
+    return split_by_column_condition(
+        user_log, col_name=col_mapping['timestamp_col_name'], condition=no_split_const_condition
+    )
+
+
+def split_by_generated_episodes(user_log: pd.DataFrame, col_mapping):
+    """Divides story into episodes as they were originally generated."""
+    terminal_col = 'terminal'
+    if terminal_col not in user_log.columns:
+        # no split
+        return split_by_column_condition(
+            user_log, col_name=col_mapping['timestamp_col_name'],
+            condition=no_split_const_condition
+        )
+
+    def terminal_condition(col: pd.Series):
+        return col.values
+
+    return split_by_column_condition(user_log, col_name=terminal_col, condition=terminal_condition)
+
+
+def no_split_const_condition(col: pd.Series):
+    return np.full_like(col.values, False)
+
+
 def to_episode_ranges(
         user_log: pd.DataFrame, split_indices: list[int]
 ) -> Iterable[tuple[int, int]]:
@@ -21,25 +77,6 @@ def to_episode_ranges(
 
     ep_end_ind = len(user_log)
     yield ep_start_ind, ep_end_ind
-
-
-def split_by_time(user_log: pd.DataFrame, col_mapping: dict, threshold_minutes: int = 20):
-    """
-    Divides the user's log into separate episodes where the pause duration
-    between two consecutive interactions in an episode is under the passed threshold.
-
-    :param user_log: pandas array of a single user interaction history
-    :param col_mapping: dict with names of columns
-    :param threshold_minutes: int with the pause in minutes required for a new episode starting
-    :return: indices of transitions to a new episode
-    """
-    def pause_condition(col: pd.Series):
-        pause_minutes = (col.iloc[1:] - col.iloc[:-1]).dt.total_seconds() / 60
-        return pause_minutes.values > threshold_minutes
-
-    return split_by_column_condition(
-        user_log, col_name=col_mapping['timestamp_col_name'], condition=pause_condition
-    )
 
 
 def split_by_column_condition(
@@ -58,20 +95,3 @@ def split_by_column_condition(
     split_mask = condition(user_log[col_name])
     split_indices = np.argwhere(split_mask)
     return split_indices
-
-
-def split_by_user(user_log, col_mapping):
-    """
-    Divides story by episodes - entire user story = 1 episode
-
-    :param user_log: pandas array of one user interaction history
-    :param col_mapping: dict with names of columns
-    :return: indices of transitions to a new episode
-    """
-
-    def entire_log_condition(col: pd.Series):
-        return np.full_like(col.values, False)
-
-    return split_by_column_condition(
-        user_log, col_name=col_mapping['timestamp_col_name'], condition=entire_log_condition
-    )

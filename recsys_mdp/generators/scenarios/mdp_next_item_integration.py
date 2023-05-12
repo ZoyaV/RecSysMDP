@@ -11,9 +11,7 @@ import pandas as pd
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
-from recsys_mdp.generators.datasets.synthetic.dataset import ToyRatingsDataset
 from recsys_mdp.generators.datasets.synthetic.relevance import similarity
-from recsys_mdp.generators.mdp.ratings import MdpDatasetBuilder
 from recsys_mdp.generators.run.wandb import get_logger
 from recsys_mdp.generators.utils.config import (
     TConfig, GlobalConfig, LazyTypeResolver
