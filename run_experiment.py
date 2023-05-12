@@ -32,9 +32,9 @@ def fit(
     for epoch, metrics in fitter:
         if (epoch + 1) % eval_schedule == 0:
             eval_algo(algo, logger)
-            algo.save_model(f'pretrained_models/{model_name}.pt')
+            algo.save_model(f'checkpoints/{model_name}/{model_name}.pt')
 
-    algo.save_model(f'pretrained_models/{model_name}.pt')
+    algo.save_model(f'checkpoints/{model_name}/{model_name}.pt')
     return algo
 
 

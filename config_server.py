@@ -42,7 +42,7 @@ def upload_file():
 
     # Генерируем случайное имя папки
     folder_name = ''.join(random.choices(string.ascii_lowercase, k=10))
-    folder_path = f"config/{folder_name}"
+    folder_path = f"checkpoints/{folder_name}"
 
     # Создаем папку
     os.makedirs(folder_path, exist_ok=True)
