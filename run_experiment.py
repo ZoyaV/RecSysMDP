@@ -38,50 +38,54 @@ def fit(
     return algo
 
 
-def run_experiment(experiment, model_name, wandb_logger=None):
-    prediction_type = experiment['experiment']['scorer']['prediction_type'] == "discrete"
+def run_experiment(
+        *,
+        top_k, data_path, test_data_path, col_mapping,
+        mdp_settings, scorer, algo_settings,
+        model_name, wandb_logger=None
+):
+    prediction_type = scorer['prediction_type'] == "discrete"
 
     # Load train data
     data, data_mapping, train_values = load_data(
-        data_path=experiment['experiment']['data_path'],
+        data_path=data_path,
         return_values=True,
-        col_mapping=experiment['experiment']['col_mapping']
+        col_mapping=col_mapping
     )
     mdp_preparator = make_mdp(
-        data=data, data_mapping=data_mapping, **experiment['experiment']['mdp_settings']
+        data=data, data_mapping=data_mapping, **mdp_settings
     )
     states, rewards, actions, terminations, state_tail = mdp_preparator.create_mdp()
     train_mdp = to_d3rlpy_form_ND(states, rewards, actions, terminations, discrete=prediction_type)
 
     # Load test data
     test_data, _, test_values = load_data(
-        data_path=experiment['experiment']['test_data_path'],
+        data_path=test_data_path,
         return_values=True,
-        col_mapping=experiment['experiment']['col_mapping']
+        col_mapping=col_mapping
     )
 
-    experiment['experiment']['mdp_settings']['episode_splitter_name'] = "interaction_interruption"
+    mdp_settings['episode_splitter_name'] = "interaction_interruption"
     test_mdp_preparator = make_mdp(
-        data=test_data, data_mapping=data_mapping, **experiment['experiment']['mdp_settings']
+        data=test_data, data_mapping=data_mapping, **mdp_settings
     )
     states, rewards, actions, terminations, _ = test_mdp_preparator.create_mdp()
     test_mdp = to_d3rlpy_form_ND(states, rewards, actions, terminations, discrete=prediction_type)
 
     # Init RL algorithm
-    model = init_model(train_values, **experiment['experiment']['algo_settings']['model_parametrs'])
-    algo = init_algo(model, **experiment['experiment']['algo_settings']['general_parametrs'])
+    model = init_model(train_values, **algo_settings['model_parametrs'])
+    algo = init_algo(model, **algo_settings['general_parametrs'])
 
     # Init scorer
-    top_k = experiment['experiment']['top_k']
-    scorers = init_scorers(state_tail, test_values, top_k, **experiment['experiment']['scorer'])
+    scorers = init_scorers(state_tail, test_values, top_k, **scorer)
     logger = init_logger(
         test_mdp, state_tail, test_values, top_k,
         wandb_logger=wandb_logger,
-        **experiment['experiment']['scorer']
+        **scorer
     )
 
     # Run experiment
-    n_epochs = experiment['experiment']['algo_settings']['n_epochs']
+    n_epochs = algo_settings['n_epochs']
     fit(
         algo, train_mdp, test_mdp, n_epochs,
         scorers, logger, model_name=model_name, eval_schedule=3
@@ -107,46 +111,48 @@ def main():
     if args.folder_name is not None:
         checkpoints_name = args.folder_name
 
-    if args.framestack!=0:
-        config['experiment']['algo_settings']['model_parametrs']['memory_size'] = args.framestack
-        config['experiment']['mdp_settings']['framestack_size'] = args.framestack
-        print("Update framestack: ", config['experiment']['mdp_settings']['framestack_size'])
+    experiment = config['experiment']
 
-    top_k = config['experiment']['top_k']
-    framestack_size = config['experiment']['mdp_settings']['framestack_size']
+    if args.framestack != 0:
+        experiment['algo_settings']['model_parametrs']['memory_size'] = args.framestack
+        experiment['mdp_settings']['framestack_size'] = args.framestack
+        print("Update framestack: ", experiment['mdp_settings']['framestack_size'])
+
+    top_k = experiment['top_k']
+    framestack_size = experiment['mdp_settings']['framestack_size']
     if checkpoints_name is None:
         model_name = f"{args.experiment_name}_top_k_{top_k}_framestack_size_{framestack_size}"
     else:
         model_name = checkpoints_name
 
     if args.freeze_emb:
-        config['experiment']['algo_settings']['model_parametrs']['freeze_emb'] = args.freeze_emb
+        experiment['algo_settings']['model_parametrs']['freeze_emb'] = args.freeze_emb
     if args.state_repr:
-        config['experiment']['algo_settings']['model_parametrs']['state_repr_name'] = args.state_repr
+        experiment['algo_settings']['model_parametrs']['state_repr_name'] = args.state_repr
     if args.use_als:
-        config['experiment']['algo_settings']['use_als'] = args.use_als
+        experiment['algo_settings']['use_als'] = args.use_als
 
     prm = []
     if len(args.model_parametrs)>1:
         prm = [int(p) for p in args.model_parametrs]
-        config['experiment']['algo_settings']['model_parametrs']['user_num'] = prm[0]
-        config['experiment']['algo_settings']['model_parametrs']['item_num'] = prm[1]
-        config['experiment']['algo_settings']['model_parametrs']['emb_dim'] = prm[2]
-        config['experiment']['algo_settings']['model_parametrs']['hid_dim'] = prm[3]
-        config['experiment']['algo_settings']['model_parametrs']['memory_size'] = prm[4]
-        config['experiment']['algo_settings']['model_parametrs']['feature_size'] = prm[5]
-        config['experiment']['algo_settings']['model_parametrs']['attention_hidden_size'] = prm[6]
+        experiment['algo_settings']['model_parametrs']['user_num'] = prm[0]
+        experiment['algo_settings']['model_parametrs']['item_num'] = prm[1]
+        experiment['algo_settings']['model_parametrs']['emb_dim'] = prm[2]
+        experiment['algo_settings']['model_parametrs']['hid_dim'] = prm[3]
+        experiment['algo_settings']['model_parametrs']['memory_size'] = prm[4]
+        experiment['algo_settings']['model_parametrs']['feature_size'] = prm[5]
+        experiment['algo_settings']['model_parametrs']['attention_hidden_size'] = prm[6]
 
     wandb_run = None
     if config['use_wandb']:
         run_name = f"model_{prm}_top_k_{top_k}_framestack_size_{framestack_size}"
         wandb_run = wandb.init(
             project=f"{config['name']}",
-            group = args.experiment_name,
+            group=args.experiment_name,
             name=run_name
         )
 
-    run_experiment(config, model_name, wandb_run)
+    run_experiment(model_name=model_name, wandb_logger=wandb_run, **experiment)
 
 
 if __name__ == "__main__":
