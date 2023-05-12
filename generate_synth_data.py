@@ -12,6 +12,7 @@ from recsys_mdp.generators.utils.config import (
     TConfig, GlobalConfig, LazyTypeResolver
 )
 import yaml
+import pickle
 
 def run(config_path = "recsys_mdp/generators/configs/mdp_next_item_integration.yaml"):
     with open(config_path) as f:
@@ -26,6 +27,9 @@ def run(config_path = "recsys_mdp/generators/configs/mdp_next_item_integration.y
         env_conf, object_type_or_factory=NextItemEnvironment
     )
 
+    with open('env.pkl', 'wb') as f:
+        pickle.dump(env, f)
+        
     model_conf = config['model']
     model: LearnableBase = config_class.resolve_object(
                 model_conf | dict(use_gpu=False),
