@@ -19,7 +19,7 @@ def eval_algo(algo, logger):
 
 
 def fit(
-        algo, train_mdp, test_mdp, n_epochs, scorers, logger, model_name, eval_schedule=2
+        algo, train_mdp, test_mdp, n_epochs, scorers, logger, model_name, eval_schedule=5
 ):
     fitter = algo.fitter(
         train_mdp,
@@ -30,11 +30,11 @@ def fit(
     )
 
     for epoch, metrics in fitter:
-        if (epoch + 1) % eval_schedule == 0:
+        if epoch % eval_schedule == 0:
             eval_algo(algo, logger)
-            algo.save_model(f'checkpoints/{model_name}/{model_name}.pt')
+            algo.save_model(f'checkpoints/{model_name}/{model_name}_{epoch}.pt')
 
-    algo.save_model(f'checkpoints/{model_name}/{model_name}.pt')
+    algo.save_model(f'checkpoints/{model_name}/{model_name}_final.pt')
     return algo
 
 
@@ -88,7 +88,7 @@ def run_experiment(
     n_epochs = algo_settings['n_epochs']
     fit(
         algo, train_mdp, test_mdp, n_epochs,
-        scorers, logger, model_name=model_name, eval_schedule=3
+        scorers, logger, model_name=model_name, eval_schedule=5
     )
 
 
