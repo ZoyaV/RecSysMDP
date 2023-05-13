@@ -141,8 +141,7 @@ class UserState:
         self.metric = similarity_metric
         self.embeddings = embeddings
 
-    def step(self, item_id: int):
-        # 1) find similarity between item embedding and item clusters
+    def calc_relevance(self, item_id):
         item_embedding = self.embeddings.items[item_id]
         clusters = self.embeddings.item_clusters
         item_to_cluster_relevance = similarity(item_embedding, clusters, metric=self.metric)
@@ -172,6 +171,14 @@ class UserState:
         #     f'| Rel {relevance:.3f}'
         # )
         return relevance, discrete_relevance
+
+    def step(self, item_id: int):
+        relevance, discrete_relevance = self.calc_relevance( item_id)
+        # TODO: 100 change to n_items
+        full_relevence_distrib = [self.calc_relevance(idx)[0] for idx in range(100)]
+        item_relevance = np.argsort(full_relevence_distrib)[::-1]
+      #  print(item_relevance)
+        return relevance, discrete_relevance, item_relevance
 
     def sample_user_response(self, relevance):
         marks = np.array([self.rng.normal(*distr) for distr in self.discrete_actions_distr])
