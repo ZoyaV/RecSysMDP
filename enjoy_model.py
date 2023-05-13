@@ -1,22 +1,17 @@
-import os
-
-import numpy as np
-import pandas as pd
-from pathlib import Path
-from itertools import count
-
-from d3rlpy.base import LearnableBase
-
-from recsys_mdp.generators.scenarios.mdp_next_item_integration import NextItemEnvironment, TypesResolver
-from recsys_mdp.generators.utils.config import (
-    TConfig, GlobalConfig, LazyTypeResolver
-)
-from constructors.mdp_constructor import load_data, make_mdp
-from constructors.algorithm_constuctor import init_algo,init_model
-from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
-
-import yaml
 import pickle
+from pathlib import Path
+import argparse
+import numpy as np
+import yaml
+
+from constructors.algorithm_constuctor import init_algo, init_model
+from constructors.mdp_constructor import load_data, make_mdp
+from generate_synth_data import generate_episode
+from recsys_mdp.generators.scenarios.mdp_next_item_integration import TypesResolver
+from recsys_mdp.generators.utils.config import (
+    GlobalConfig
+)
+from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
 
 
 def load_pretrained_model(conf_name):
@@ -39,55 +34,17 @@ def load_pretrained_model(conf_name):
     return algo
 
 
-def get_enjoy_setting(pretrain_conf, config_path="recsys_mdp/generators/configs/mdp_next_item_integration.yaml"):
+def get_enjoy_setting(pretrain_conf, env_path, config_path):
     with open(config_path) as f:
         config = yaml.load(f, Loader=yaml.Loader)
-    path_object = Path(config_path)
-    config_class = GlobalConfig(
-        config=config, config_path=path_object, type_resolver=TypesResolver()
-    )
     # Unpickle the object
-    with open('env.pkl', 'rb') as f:
+    with open(f'{env_path}/env.pkl', 'rb') as f:
         env = pickle.load(f)
-
-    print(type(env))
-    with open('env.pkl', 'wb') as f:
-        pickle.dump(env, f)
 
     model = load_pretrained_model(pretrain_conf)
     gen_conf = config['generation']
     return gen_conf, env, model
 
-def generate_episode(env, model):
-    env, model = env, model
-    user_id = env.reset()
-    trajectory = []
-
-    # [10 last item_ids] + [user_id]
-    fake_obs = np.random.randint(0, 100, 10).tolist() + [user_id]
-    obs = np.asarray(fake_obs)
-
-    while True:
-        try:
-            item_id = model.predict(obs.reshape(1, -1))[0]
-        except:
-            item_id = model.predict(obs[:10].reshape(1, -1))[0]
-        obs[:9] = obs[1:10]
-        obs[-2] = item_id
-
-        timestamp = env.timestamp
-
-        relevance, terminated = env.step(item_id)
-        continuous_relevance, discrete_relevance = relevance
-        trajectory.append((
-            timestamp,
-            user_id, item_id,
-            continuous_relevance, discrete_relevance,
-            terminated
-        ))
-        if terminated:
-            break
-    return trajectory
 
 def eval_returns(env, model):
     cont_returns, disc_returns = [], []
@@ -100,6 +57,19 @@ def eval_returns(env, model):
         'discrete_return': np.mean(disc_returns),
     }
 
-if __name__ == "__main__":
-    gen_conf, env, model = get_enjoy_setting(pretrain_conf = "mmdhcrqdqr")
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', type=str)
+    parser.add_argument('--pretrain_conf', type=str)
+    parser.add_argument('--env', type=str)
+
+    args = parser.parse_args()
+
+    if args.config is None:
+        args.config = "recsys_mdp/generators/configs/mdp_next_item_integration.yaml"
+    gen_conf, env, model = get_enjoy_setting(pretrain_conf=args.pretrain_conf, env_path=args.env,
+                                             config_path=args.config)
     print(eval_returns(env, model))
+
+if __name__ == "__main__":
+    main()
