@@ -11,10 +11,13 @@ from recsys_mdp.generators.scenarios.mdp_next_item_integration import TypesResol
 from recsys_mdp.generators.utils.config import (
     GlobalConfig
 )
+from recsys_mdp.generators.utils.lazy_imports import lazy_import
 from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
+import wandb
 
-
-def load_pretrained_model(conf_name):
+from temp_utils import log_distributions
+wandb = lazy_import('wandb')
+def load_pretrained_model(conf_name, step = -1):
     with open(f"./checkpoints/{conf_name}/cfg.yaml") as f:
         config = yaml.load(f)
     prediction_type = True if config['experiment']['scorer']['prediction_type'] == "discrete" else False
@@ -30,34 +33,51 @@ def load_pretrained_model(conf_name):
     model = init_model(train_values, **config['experiment']['algo_settings']['model_parametrs'])
     algo = init_algo(model, **config['experiment']['algo_settings']['general_parametrs'])
     algo.build_with_dataset(train_mdp)
-    algo.load_model(f'checkpoints/{conf_name}/{conf_name}.pt')
+    if step == -1:
+        algo.load_model(f'checkpoints/{conf_name}/{conf_name}.pt')
+    else:
+
+        algo.load_model(f'checkpoints/{conf_name}/{conf_name}_{step}.pt')
     return algo
 
 
-def get_enjoy_setting(pretrain_conf, env_path, config_path):
+def get_enjoy_setting(pretrain_conf, env_path, config_path, model_epoch = -1):
     with open(config_path) as f:
         config = yaml.load(f, Loader=yaml.Loader)
     # Unpickle the object
     with open(f'{env_path}/env.pkl', 'rb') as f:
         env = pickle.load(f)
 
-    model = load_pretrained_model(pretrain_conf)
+    model = load_pretrained_model(pretrain_conf, model_epoch)
     gen_conf = config['generation']
     return gen_conf, env, model
 
 
 def eval_returns(env, model):
-    cont_returns, disc_returns = [], []
+    cont_returns, disc_returns, steps_hit_rate = [], [], []
     for ep in range(20):
-        trajectory = generate_episode(env, model)
-        cont_returns.append(np.sum([step[2] for step in trajectory]))
-        disc_returns.append(np.sum([step[3] for step in trajectory]))
+        trajectory = generate_episode(env, model, user_id = 0)
+       # print(trajectory[0])
+        step_hit_rate = [step[2] in step[-1] for step in trajectory]
+       # predicted_item = [step[2] for step in trajectory]
+
+        # true_items += best_ep_item
+        # predicted_items += predicted_item
+
+        cont_returns.append(np.mean([step[2] for step in trajectory]))
+        disc_returns.append(np.mean([step[3] for step in trajectory]))
+        steps_hit_rate.append(np.mean(step_hit_rate))
+  #  log_distributions(true_items, predicted_items, "True best items", "Predicted best items")
     return {
         'continuous_return': np.mean(cont_returns),
         'discrete_return': np.mean(disc_returns),
+        'step_hit_rate': np.mean(steps_hit_rate),
     }
 
 def main():
+    wandb_run = wandb.init(
+        project="log_cases"
+    )
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str)
     parser.add_argument('--pretrain_conf', type=str)
@@ -67,9 +87,11 @@ def main():
 
     if args.config is None:
         args.config = "recsys_mdp/generators/configs/mdp_next_item_integration.yaml"
-    gen_conf, env, model = get_enjoy_setting(pretrain_conf=args.pretrain_conf, env_path=args.env,
-                                             config_path=args.config)
-    print(eval_returns(env, model))
 
+    for i in range(10,500, 10):
+        gen_conf, env, model = get_enjoy_setting(pretrain_conf=args.pretrain_conf, env_path=args.env,
+                                                 config_path=args.config, model_epoch = i)
+        print(f"epoch {i} - {eval_returns(env, model)}")
+        wandb_run.log(eval_returns(env, model))
 if __name__ == "__main__":
     main()
