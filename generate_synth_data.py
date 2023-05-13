@@ -14,9 +14,12 @@ from recsys_mdp.generators.utils.config import (
     GlobalConfig
 )
 
-def generate_episode(env, model, framestack_size=10):
+def generate_episode(env, model, framestack_size=10, user_id = None):
     env, model = env, model
-    user_id = env.reset()
+    if user_id is None:
+        user_id = env.reset()
+    else:
+        user_id = env.reset(user_id)
     trajectory = []
 
     # [N last item_ids] + [user_id]
@@ -34,12 +37,13 @@ def generate_episode(env, model, framestack_size=10):
         timestamp = env.timestamp
 
         relevance, terminated = env.step(item_id)
-        continuous_relevance, discrete_relevance = relevance
+        continuous_relevance, discrete_relevance, items_top = relevance
         trajectory.append((
             timestamp,
             user_id, item_id,
             continuous_relevance, discrete_relevance,
-            terminated
+            terminated,
+            items_top[:10]
         ))
         if terminated:
             break
@@ -71,6 +75,22 @@ def make_env_setting(config_path="", env_name='default'):
     env: NextItemEnvironment = config_class.resolve_object(
         env_conf, object_type_or_factory=NextItemEnvironment
     )
+
+    ### One of user have one stable interest
+    env.states[0].satiation = np.ones_like(env.states[0].satiation)
+    most_relevant= np.argmax(env.states[0].tastes)
+    env.states[0].satiation[most_relevant] = 0
+    env.states[0].satiation_speed[most_relevant] = 0
+
+    ### One two interest with interaction [need to balance]
+    env.states[1].satiation = np.ones_like(env.states[1].satiation)
+    top_1, top_2 = np.argsort(env.states[1].tastes)[:2]
+
+    env.states[1].satiation[top_1] = 0
+    env.states[1].satiation[top_2] = 0
+
+    env.states[1].satiation_speed[top_1] = 0.5
+    env.states[1].satiation_speed[top_2] = 0.5
 
     # make model
     model_conf = config['model']
@@ -104,7 +124,7 @@ def main():
     trajectories = generate_dataset(gen_conf, env, model)
 
     # Define the column names
-    column_names = ['timestamp', 'user_idx', 'item_idx', 'relevance_cont', 'relevance_int', 'terminated']
+    column_names = ['timestamp', 'user_idx', 'item_idx', 'relevance_cont', 'relevance_int', 'terminated', 'true_top']
 
     # Create a DataFrame from the list of tuples
     df = pd.DataFrame(trajectories, columns=column_names)
