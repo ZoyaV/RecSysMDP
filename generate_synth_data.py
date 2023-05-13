@@ -14,13 +14,12 @@ from recsys_mdp.generators.utils.config import (
     GlobalConfig
 )
 
-
 def generate_episode(env, model, framestack_size=10):
     env, model = env, model
     user_id = env.reset()
     trajectory = []
 
-    # [10 last item_ids] + [user_id]
+    # [N last item_ids] + [user_id]
     fake_obs = np.random.randint(0, env.n_items, framestack_size).tolist() + [user_id]
     obs = np.asarray(fake_obs)
 
