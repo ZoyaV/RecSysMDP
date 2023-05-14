@@ -28,17 +28,29 @@ class Logger():
         self.top_k = top_k
         self.wandb_logger = wandb_logger
 
+    def get_value(self, model, obs, item = None):
+        if self.discrete:
+            observations_cuda = torch.from_numpy(obs).cpu()
+            with torch.no_grad():
+                algo = model.__class__.__name__
+               # print(algo)
+                if "BC" in algo:
+                    predicted_rat = model.impl._imitator(observations_cuda.to(torch.float32)).cpu().detach().numpy()
+                else:
+                    predicted_rat = model._impl._q_func(observations_cuda).cpu().detach().numpy()
+                predicted_rat = (predicted_rat - predicted_rat.min()) / (predicted_rat.max() - predicted_rat.min())
+        else:
+            predicted_rat = model.predict(obs)
+        if item is None:
+            return predicted_rat
+        else:
+           # print(predicted_rat[0].shape)
+            return predicted_rat[0][item]
     def static_log(self, model):
         if len(self.static_scorers) == 0:
             return {"none" : None}
         obs = self.fake_mdp
-        if self.discrete:
-            observations_cuda = torch.from_numpy(obs).cpu()
-            with torch.no_grad():
-                predicted_rat = (model._impl._q_func(observations_cuda)).cpu().detach().numpy()
-                predicted_rat = (predicted_rat - predicted_rat.min()) / (predicted_rat.max() - predicted_rat.min())
-        else:
-            predicted_rat = model.predict(obs)
+        predicted_rat = self.get_value(model, obs)
 
         users = obs[:,-1]
         #print(self.discrete)
@@ -55,18 +67,34 @@ class Logger():
         for episode in self.interactive_mdp:
             user = int(episode.observations[0][-1])
             original_items = episode.actions
+            original_rewards = episode.rewards[:self.top_k]
             obs = episode.observations[0]
             not_interactive_items = model.predict(episode.observations)
             interactive_items = []
-            for _ in range(self.top_k):
+            predicted_values = []
+            for i in range(self.top_k):
                 new_item = model.predict([obs])[0]
+                orig_obs = episode.observations[i:i+1]
+                if i>=len(original_items):
+                    break
+                try:
+                    value = self.get_value(model, orig_obs, original_items[i])
+                except Exception as e:
+                    print(e)
+                    break
+
+                predicted_values.append(value)
                 interactive_items.append(new_item)
 
                 new_obs = obs.copy()
                 new_obs[:-3] = new_obs[1:-2]
                 new_obs[-2] = new_item
                 obs = new_obs.copy()
-            interaction_result.append((interactive_items, original_items, self.user_interests[user], not_interactive_items))
+
+
+            interaction_result.append((interactive_items, original_items,
+                                       self.user_interests[user], not_interactive_items,
+                                       original_rewards, predicted_values))
 
         results = dict()
         for iscorer_key in self.interactive_scorers:
