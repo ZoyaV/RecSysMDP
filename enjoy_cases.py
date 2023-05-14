@@ -53,24 +53,22 @@ def get_enjoy_setting(pretrain_conf, env_path, config_path, model_epoch = -1):
     return gen_conf, env, model
 
 
-def eval_returns(env, model):
-    cont_returns, disc_returns, steps_hit_rate = [], [], []
+def eval_returns(env, model, user_id = -1):
+    cont_returns, disc_returns, steps_hit_rate, coverages  = [], [], [], []
     for ep in range(20):
-        trajectory = generate_episode(env, model, user_id = 0)
-       # print(trajectory[0])
+        trajectory = generate_episode(env, model, user_id = user_id)
+        #print(trajectory)
+        coverage = len(set([step[2] in step[-1] for step in trajectory]))
         step_hit_rate = [step[2] in step[-1] for step in trajectory]
-       # predicted_item = [step[2] for step in trajectory]
-
-        # true_items += best_ep_item
-        # predicted_items += predicted_item
-
-        cont_returns.append(np.mean([step[2] for step in trajectory]))
-        disc_returns.append(np.mean([step[3] for step in trajectory]))
+        cont_returns.append(np.mean([step[3] for step in trajectory]))
+        disc_returns.append(np.mean([step[4] for step in trajectory]))
+        coverages.append(coverage)
         steps_hit_rate.append(np.mean(step_hit_rate))
   #  log_distributions(true_items, predicted_items, "True best items", "Predicted best items")
     return {
         'continuous_return': np.mean(cont_returns),
         'discrete_return': np.mean(disc_returns),
+        'coverage':np.mean(coverage),
         'step_hit_rate': np.mean(steps_hit_rate),
     }
 
