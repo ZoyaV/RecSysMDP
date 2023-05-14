@@ -1,3 +1,8 @@
+import numpy as np
+import random
+import torch
+import pickle
+from enjoy_cases import eval_returns
 import argparse
 
 import yaml
@@ -11,15 +16,24 @@ from constructors.scorers_constructor import init_scorers, init_logger
 wandb = lazy_import('wandb')
 
 
-def eval_algo(algo, logger):
+def eval_algo(algo, logger, env = None, looking_for = None):
+    if env:
+        online_res = dict()
+        for i in looking_for:
+            online_res[f"user {i}"] = eval_returns(env,algo,i)
+    else:
+        online_res =None
+   # print(online_res)
     logger.visual_log(algo, {
         "STAT": logger.static_log(algo),
-        "INTERECT": logger.interactive_log(algo)
+        "INTERECT": logger.interactive_log(algo),
+        "ONLINE": online_res
     })
 
 
 def fit(
-        algo, train_mdp, test_mdp, n_epochs, scorers, logger, model_name, eval_schedule=5
+        algo, train_mdp, test_mdp, n_epochs, scorers,
+        logger, model_name, eval_schedule=5, env = None, looking_for=None
 ):
     fitter = algo.fitter(
         train_mdp,
@@ -31,7 +45,7 @@ def fit(
 
     for epoch, metrics in fitter:
         if epoch % eval_schedule == 0:
-            eval_algo(algo, logger)
+            eval_algo(algo, logger, env, looking_for)
             algo.save_model(f'checkpoints/{model_name}/{model_name}_{epoch}.pt')
 
     algo.save_model(f'checkpoints/{model_name}/{model_name}_final.pt')
@@ -42,7 +56,7 @@ def run_experiment(
         *,
         top_k, data_path, test_data_path, col_mapping,
         mdp_settings, scorer, algo_settings,
-        model_name, wandb_logger=None
+        model_name, wandb_logger=None, env_path = None, looking_for = None
 ):
     prediction_type = scorer['prediction_type'] == "discrete"
 
@@ -56,6 +70,7 @@ def run_experiment(
         data=data, data_mapping=data_mapping, **mdp_settings
     )
     states, rewards, actions, terminations, state_tail = mdp_preparator.create_mdp()
+  #  print(states)
     train_mdp = to_d3rlpy_form_ND(states, rewards, actions, terminations, discrete=prediction_type)
 
     # Load test data
@@ -70,6 +85,7 @@ def run_experiment(
         data=test_data, data_mapping=data_mapping, **mdp_settings
     )
     states, rewards, actions, terminations, _ = test_mdp_preparator.create_mdp()
+
     test_mdp = to_d3rlpy_form_ND(states, rewards, actions, terminations, discrete=prediction_type)
 
     # Init RL algorithm
@@ -83,12 +99,14 @@ def run_experiment(
         wandb_logger=wandb_logger,
         **scorer
     )
-
+    # Init online env if cheked
+    with open(f'{env_path}/env.pkl', 'rb') as f:
+        env = pickle.load(f)
     # Run experiment
     n_epochs = algo_settings['n_epochs']
     fit(
         algo, train_mdp, test_mdp, n_epochs,
-        scorers, logger, model_name=model_name, eval_schedule=5
+        scorers, logger, model_name=model_name, eval_schedule=5, env = env, looking_for = looking_for
     )
 
 
@@ -107,6 +125,15 @@ def main():
     with open(args.config) as f:
         config = yaml.load(f, Loader=yaml.Loader)
 
+    np.random.seed(int(config['seed']))
+    random.seed(int(config['seed']))
+    torch.manual_seed(int(config['seed']))
+
+    env_path = None
+    if bool(config["eval_online"]):
+        env_path = config['env_path']
+
+    looking_for = [int(user_id) for user_id in config['looking_for'].split(",")]
     checkpoints_name = None
     if args.folder_name is not None:
         checkpoints_name = args.folder_name
@@ -152,7 +179,7 @@ def main():
             name=run_name
         )
 
-    run_experiment(model_name=model_name, wandb_logger=wandb_run, **experiment)
+    run_experiment(model_name=model_name, wandb_logger=wandb_run, env_path = env_path, looking_for = looking_for, **experiment)
 
 
 if __name__ == "__main__":
