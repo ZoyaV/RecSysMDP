@@ -22,7 +22,6 @@ def split_by_time(user_log: pd.DataFrame, col_mapping: dict, threshold_minutes: 
         # NB: [0] element is NaN
         split_mask = pause_minutes > threshold_minutes
         split_mask[0] = False
-        print(split_mask)
         return split_mask
 
     return split_by_column_condition(

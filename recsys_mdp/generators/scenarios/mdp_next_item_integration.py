@@ -280,8 +280,9 @@ class MdpNextItemExperiment:
         self.print_with_timestamp('==> Run')
         total_epoch = 0
         for generation_epoch in range(self.generation_config.epochs):
-            self.print_with_timestamp(f'Gen Epoch: {generation_epoch} ==>')
+            self.print_with_timestamp(f'Epoch: {generation_epoch} ==> generation')
             dataset = self._generate_dataset()
+            self.print_with_timestamp(f'Epoch: {generation_epoch} ==> learning')
             total_epoch += self._learn_on_dataset(
                 total_epoch, dataset,
                 **self.zoya_settings
