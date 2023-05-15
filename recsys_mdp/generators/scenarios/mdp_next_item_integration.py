@@ -11,6 +11,7 @@ import pandas as pd
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
+from recsys_mdp.generators.datasets.mdp.utils import boosting
 from recsys_mdp.generators.datasets.synthetic.relevance import similarity
 from recsys_mdp.generators.run.wandb import get_logger
 from recsys_mdp.generators.utils.config import (
@@ -22,23 +23,7 @@ if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
 
 
-def boosting(relative_value: float | np.ndarray, k: float, softness: float = 1.5) -> float:
-    # relative value: value / target value  \in [0, +inf)
-    # x = -log(relative_rate)
-    #   0 1 +inf  -> +inf 0 -inf
-    x = -np.log(relative_value)
-    # zero k means "no boosting", that's why we use shifted value.
-    K = k + 1
-
-    # relative_rate -> x -> B:
-    #   0 -> +inf -> K^tanh(+inf) = K^1 = K
-    #   1 -> 0 -> K^tanh(0) = K^0 = 1
-    #   +inf -> -inf -> K^tanh(-inf) = K^(-1) = 1 / K
-    # higher softness just makes the sigmoid curve smoother; default value is empirically optimized
-    return np.power(K, np.tanh(x / softness))
-
-
-class MdpNextItemGenerationConfig:
+class MdpGenerationProcessParameters:
     epochs: int
 
     episodes_per_epoch: int | None
@@ -56,7 +41,7 @@ class MdpNextItemGenerationConfig:
         self.samples_per_epoch = samples_per_epoch
 
 
-class MdpNextItemLearningConfig:
+class LearningProcessParameters:
     epochs: int
     eval_schedule: int
     eval_episodes: int
@@ -226,6 +211,7 @@ class NextItemEnvironment:
 
         self.state = self.states[user_id]
         self.timestep = 0
+        self.timestamp += pause_random_duration(self.rng)
         self.current_max_episode_len = self.rng.integers(*self.max_episode_len)
 
         # print(f'Sat: {self.state.satiation}')
@@ -235,7 +221,7 @@ class NextItemEnvironment:
     def step(self, item_id: int):
         relevance = self.state.step(item_id)
         self.timestep += 1
-        self.timestamp += pause_random_duration(self.rng)
+        self.timestamp += track_random_duration(self.rng)
 
         terminated = self.timestep >= self.current_max_episode_len
         # if terminated:
@@ -252,8 +238,8 @@ class MdpNextItemExperiment:
     seed: int
     rng: Generator
 
-    generation_config: MdpNextItemGenerationConfig
-    learning_config: MdpNextItemLearningConfig
+    generation_config: MdpGenerationProcessParameters
+    learning_config: LearningProcessParameters
 
     def __init__(
             self, config: TConfig, config_path: Path, seed: int,
@@ -274,8 +260,8 @@ class MdpNextItemExperiment:
 
         self.seed = seed
         self.rng = np.random.default_rng(seed)
-        self.generation_config = MdpNextItemGenerationConfig(**generation)
-        self.learning_config = MdpNextItemLearningConfig(**learning)
+        self.generation_config = MdpGenerationProcessParameters(**generation)
+        self.learning_config = LearningProcessParameters(**learning)
         self.zoya_settings = zoya_settings
 
         self.env: NextItemEnvironment = self.config.resolve_object(
