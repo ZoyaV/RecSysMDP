@@ -17,11 +17,12 @@ def split_by_time(user_log: pd.DataFrame, col_mapping: dict, threshold_minutes: 
     :return: indices of transitions to a new episode
     """
     def pause_condition(col: pd.Series):
-        pause_minutes = (col.iloc[1:] - col.iloc[:-1]).dt.total_seconds() / 60
+        pause_minutes = col.diff(1).dt.total_seconds().div(60).values
 
-        split_mask = np.empty_like(col.values)
+        # NB: [0] element is NaN
+        split_mask = pause_minutes > threshold_minutes
         split_mask[0] = False
-        split_mask[1:] = pause_minutes.values > threshold_minutes
+        print(split_mask)
         return split_mask
 
     return split_by_column_condition(
@@ -93,5 +94,5 @@ def split_by_column_condition(
     :return: np.ndarray with indices of transitions to a new episode
     """
     split_mask = condition(user_log[col_name])
-    split_indices = np.argwhere(split_mask)
+    split_indices = np.argwhere(split_mask).flatten()
     return split_indices
