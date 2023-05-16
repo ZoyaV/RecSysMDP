@@ -173,10 +173,30 @@ class UserState:
         return relevance, discrete_relevance
 
     def step(self, item_id: int):
-        relevance, discrete_relevance = self.calc_relevance( item_id)
+
+        # print("//////////////////////////")
+        # print("INPUT item: ", item_id)
+        relevance, discrete_relevance = self.calc_relevance(item_id)
         # TODO: 100 change to n_items
         full_relevence_distrib = [self.calc_relevance(idx)[0] for idx in range(100)]
-        item_relevance = np.argsort(full_relevence_distrib)[::-1]
+        full_relevence_distrib_d = [self.calc_relevance(idx)[1] for idx in range(100)]
+        item_relevance = np.argsort(full_relevence_distrib_d)[::-1]
+        relevance_top = np.sort(full_relevence_distrib_d)[::-1]
+
+        # print(item_relevance[:10])
+        # print(relevance_top[:10])
+        # print(discrete_relevance)
+        # print(full_relevence_distrib_d[item_id])
+
+        # print("Answer: ", discrete_relevance)
+        # print()
+        # print("----------------------------------")
+        # print("TOP first")
+        # print(relevance[:5])
+        # print(item_relevance[:5])
+        # print("TOP last")
+        # print(relevance[-5:])
+        # print(item_relevance[-5:])
       #  print(item_relevance)
         return relevance, discrete_relevance, item_relevance
 
@@ -235,6 +255,7 @@ class NextItemEnvironment:
 
         self.state = self.states[user_id]
         self.timestep = 0
+        self.timestamp += pause_random_duration(self.rng)
         self.current_max_episode_len = self.rng.integers(*self.max_episode_len)
 
         # print(f'Sat: {self.state.satiation}')
@@ -244,7 +265,7 @@ class NextItemEnvironment:
     def step(self, item_id: int):
         relevance = self.state.step(item_id)
         self.timestep += 1
-        self.timestamp += pause_random_duration(self.rng)
+        self.timestamp += track_random_duration(self.rng)
 
         terminated = self.timestep >= self.current_max_episode_len
         # if terminated:
