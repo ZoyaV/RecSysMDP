@@ -58,7 +58,7 @@ def eval_returns(env, model, user_id = -1):
     for ep in range(20):
         trajectory = generate_episode(env, model, user_id = user_id)
         #print(trajectory)
-        coverage = len(set([step[2] in step[-1] for step in trajectory]))
+        coverage = len(set([step[2] for step in trajectory]))
         step_hit_rate = [step[2] in step[-1] for step in trajectory]
         cont_returns.append(np.mean([step[3] for step in trajectory]))
         disc_returns.append(np.mean([step[4] for step in trajectory]))
