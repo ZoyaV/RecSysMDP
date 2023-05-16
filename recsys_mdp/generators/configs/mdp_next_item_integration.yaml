@@ -25,20 +25,20 @@ env:
   n_items: 100
   max_episode_len: [40, 20]
   embeddings:
-    n_dims: 5
+    n_dims: 7
     users: embeddings.clusters
     items: embeddings.clusters
   user_state:
     base_satiation: 0.15
-    base_satiation_speed: [0.0002, .0004]
+    base_satiation_speed: [0.0, .0]
     similarity_metric: l2
     relevance_boosting: [0.2, 4.0]
     boosting_softness: [2.0, 2.0]
     discrete_actions:
-      - [0.2, 0.1]
-      - [0.5, 0.1]
-      - [0.7, 0.3]
-      - [0.9, 0.3]
+      - [0.23, 0.15]
+      - [0.4, 0.1]
+      - [0.58, 0.05]
+      - [0.82, 0.1]
 
 zoya_settings:
   top_k: 10

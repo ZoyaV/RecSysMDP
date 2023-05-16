@@ -16,11 +16,13 @@ class RandomEmbeddingsGenerator:
         self.n_clusters = 1
         self.clusters = np.full(n_dims, 0.5)
 
-    def generate(self, n: int = None) -> np.ndarray:
+    def generate(self, n: int = None) -> tuple[int, np.ndarray] | tuple[np.ndarray, np.ndarray]:
         shape = (n, self.n_dims) if n is not None else (self.n_dims,)
+        if n is None:
+            n = 1
         self.n_clusters = n
         self.clusters = self.rng.uniform(size=shape)
-        return self.clusters
+        return np.arange(n), self.clusters
 
 
 class RandomClustersEmbeddingsGenerator:
@@ -50,14 +52,19 @@ class RandomClustersEmbeddingsGenerator:
         )
         self.n_clusters = len(self.clusters)
 
-    def generate(self, n: int = None) -> np.ndarray:
+    def generate(self, n: int = None) -> tuple[int, np.ndarray] | tuple[np.ndarray, np.ndarray]:
         if n is None:
             return self.generate_one()
-        return np.array([self.generate_one() for _ in range(n)])
 
-    def generate_one(self) -> np.ndarray:
-        cluster = self.rng.choice(self.clusters)
+        result = [self.generate_one() for _ in range(n)]
+        clusters = np.array([cluster_ind for cluster_ind, _ in result])
+        embeddings = np.array([embedding for _, embedding in result])
+        return clusters, embeddings
+
+    def generate_one(self) -> tuple[int, np.ndarray]:
+        cluster_ind = self.rng.choice(self.n_clusters)
+        cluster = self.clusters[cluster_ind]
         embedding = self.rng.normal(
             loc=cluster, scale=self.intra_cluster_noise_scale, size=(self.n_dims,)
         )
-        return np.clip(embedding, 0.0, 1.0)
+        return cluster_ind, np.clip(embedding, 0.0, 1.0)

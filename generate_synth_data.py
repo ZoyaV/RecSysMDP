@@ -73,6 +73,56 @@ def generate_dataset(gen_conf, env, model):
     return samples
 
 
+def make_user_with_stable_interest(user):
+    user.satiation[:] = 100
+    static_tastes = user.relevance(with_satiation=False, with_consume=False)
+    static_tastes = np.array([rel for rel, discr_rel in static_tastes])
+
+    # most relevant item
+    item = np.argmax(static_tastes)
+    item_cluster = user.embeddings.item_cluster_ind[item]
+
+    user.satiation[item_cluster] = 0.1
+    user.satiation_speed[item_cluster] = 0.0
+
+
+def make_user_with_two_interests(user):
+    user.satiation[:] = 1000
+    static_tastes = user.relevance(with_satiation=False, with_consume=False)
+    static_tastes = np.array([rel for rel, discr_rel in static_tastes])
+    sorted_tastes = np.argsort(static_tastes)[::-1]
+
+    top_1 = sorted_tastes[0]
+    top_1_cluster_ind = user.embeddings.item_cluster_ind[top_1]
+    top_1_emb = user.embeddings.items[top_1]
+    top_1_rel_emb = top_1_emb - user.tastes
+
+    top_2, top_2_emb, top_2_cluster_ind = None, None, None
+    for item in sorted_tastes[1:]:
+        item_cluster_ind = user.embeddings.item_cluster_ind[item]
+
+        if item_cluster_ind != top_1_cluster_ind:
+            from recsys_mdp.generators.datasets.synthetic.relevance import similarity
+            emb = user.embeddings.items[item]
+            rel_emb = emb - user.tastes
+            sim = similarity(top_1_emb, emb, metric='l2')
+            if sim > .9:
+                continue
+
+            top_2 = item
+            top_2_emb = emb
+            top_2_cluster_ind = user.embeddings.item_cluster_ind[top_2]
+            break
+
+    print(static_tastes[top_1], top_1_emb)
+    print(static_tastes[top_2], top_2_emb)
+    user.satiation[top_1_cluster_ind] = 0.1
+    user.satiation[top_2_cluster_ind] = 0.1
+
+    user.satiation_speed[top_1_cluster_ind] = 0.25
+    user.satiation_speed[top_2_cluster_ind] = 0.5
+
+
 def make_env_setting(config_path="", env_name='default', dataset_path = None):
     # read configs
     with open(config_path) as f:
@@ -88,20 +138,10 @@ def make_env_setting(config_path="", env_name='default', dataset_path = None):
     )
 
     ### One of user have one stable interest
-    env.states[0].satiation = np.ones_like(env.states[0].satiation)*1000
-    most_relevant = np.argmax(env.states[0].tastes)
-    env.states[0].satiation[most_relevant] = 0.001
-    env.states[0].satiation_speed[most_relevant] = 0.0000001
+    make_user_with_stable_interest(env.states[0])
 
     ### One two interest with interaction [need to balance]
-    env.states[6].satiation = np.ones_like(env.states[1].satiation)*1000
-    top_1, top_2 = np.argsort(env.states[1].tastes)[:2]
-
-    env.states[6].satiation[top_1] = 0.00000001
-    env.states[6].satiation[top_2] = 0.00000001
-
-    env.states[6].satiation_speed[top_1] = 0.25
-    env.states[6].satiation_speed[top_2] = 0.5
+    make_user_with_two_interests(env.states[6])
 
     # make model
     if dataset_path:
@@ -146,7 +186,7 @@ def main():
     file_name = f"{directory}/{args.env_name}.csv"
 
     # Save the DataFrame to a CSV file
-    print("Data generated: ", df.shape)
+    print(f"Data generated to {file_name}: {df.shape}")
     df.to_csv(file_name, index=False)
 
 
