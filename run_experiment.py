@@ -46,7 +46,7 @@ def fit(
     for epoch, metrics in fitter:
         if epoch % eval_schedule == 0:
             eval_algo(algo, logger, env, looking_for)
-            algo.save_model(f'checkpoints/{model_name}/{model_name}_{epoch}.pt')
+          #  algo.save_model(f'checkpoints/{model_name}/{model_name}_{epoch}.pt')
 
     algo.save_model(f'checkpoints/{model_name}/{model_name}_final.pt')
     return algo
@@ -106,14 +106,14 @@ def run_experiment(
     n_epochs = algo_settings['n_epochs']
     fit(
         algo, train_mdp, test_mdp, n_epochs,
-        scorers, logger, model_name=model_name, eval_schedule=5, env = env, looking_for = looking_for
+        scorers, logger, model_name=model_name, eval_schedule=25, env = env, looking_for = looking_for
     )
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', dest='config')
-    parser.add_argument('--folder_name', type = str)
+    parser.add_argument('--folder_name', type = str, default = "aboba")
     parser.add_argument('--experiment_name', type = str, default="default_exp")
     parser.add_argument('--framestack', type = int, default = 0)
     parser.add_argument('--model_parametrs', nargs='+',default = [])
@@ -122,6 +122,8 @@ def main():
     parser.add_argument('--use_als', type=int)
 
     args = parser.parse_args()
+
+
     with open(args.config) as f:
         config = yaml.load(f, Loader=yaml.Loader)
 
@@ -134,7 +136,7 @@ def main():
         env_path = config['env_path']
 
     looking_for = [int(user_id) for user_id in config['looking_for'].split(",")]
-    checkpoints_name = None
+    checkpoints_name = 'checkpoints'
     if args.folder_name is not None:
         checkpoints_name = args.folder_name
 
@@ -175,7 +177,7 @@ def main():
         run_name = f"model_{prm}_top_k_{top_k}_framestack_size_{framestack_size}"
         wandb_run = wandb.init(
             project=f"{config['name']}",
-            group=args.experiment_name,
+            group=config['group_name'],
             name=run_name
         )
 
