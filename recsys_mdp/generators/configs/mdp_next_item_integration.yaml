@@ -30,7 +30,7 @@ env:
     items: embeddings.clusters
   user_state:
     base_satiation: 0.15
-    base_satiation_speed: [0.0, .0]
+    base_satiation_speed: [0.2, .4]
     similarity_metric: l2
     relevance_boosting: [0.2, 4.0]
     boosting_softness: [2.0, 2.0]
