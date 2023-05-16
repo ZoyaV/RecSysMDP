@@ -161,7 +161,7 @@ class UserState:
         self.metric = similarity_metric
         self.embeddings = embeddings
 
-    def relevance_boosting(self, item_embedding: np.ndarray, with_consume: bool = False) -> float:
+    def relevance_boosting(self, item_embedding: np.ndarray, consume: bool = False) -> float:
         clusters = self.embeddings.item_clusters
 
         item_to_cluster_relevance = similarity(item_embedding, clusters, metric=self.metric)
@@ -171,7 +171,7 @@ class UserState:
         assert normalizer > 1e-5, f'Normalization is problematic for {item_to_cluster_relevance}'
         item_to_cluster_relevance /= item_to_cluster_relevance.sum(-1)
 
-        if with_consume:
+        if consume:
             # increase satiation via similarity and speed
             self.satiation *= 1.0 + item_to_cluster_relevance * self.satiation_speed
             np.clip(self.satiation, 1e-4, 1e+4, out=self.satiation)
@@ -184,14 +184,17 @@ class UserState:
         return boosting(aggregate_item_satiation, k=boosting_k, softness=boosting_softness)
 
     def relevance(
-            self, item_id: int = None, with_satiation: bool = True, with_consume: bool = False
+            self, item_id: int = None, with_satiation: bool = True, consume: bool = False
     ):
         if item_id is None:
             # compute relevance for all items without consuming
-            return np.array([
-                self.relevance(item_id, with_satiation=with_satiation, with_consume=False)
+            all_relevance = [
+                self.relevance(item_id, with_satiation=with_satiation, consume=False)
                 for item_id in range(self.embeddings.n_items)
-            ])
+            ]
+            continuous_relevance = np.array([cont for cont, discr in all_relevance])
+            discrete_relevance = np.array([discr for cont, discr in all_relevance])
+            return continuous_relevance, discrete_relevance
 
         item_embedding = self.embeddings.items[item_id]
 
@@ -200,7 +203,7 @@ class UserState:
 
         if with_satiation:
             # compute relevance boosting based on item-to-clusters satiation
-            relevance_boosting = self.relevance_boosting(item_embedding, with_consume=with_consume)
+            relevance_boosting = self.relevance_boosting(item_embedding, consume=consume)
             relevance *= relevance_boosting
 
         # compute continuous and discrete relevance as user feedback
@@ -209,35 +212,16 @@ class UserState:
         return relevance, discrete_relevance
 
     def step(self, item_id: int):
-        # print("//////////////////////////")
-        # print("INPUT item: ", item_id)
-        relevance, discrete_relevance = self.relevance(item_id, with_consume=True)
+        return self.relevance(item_id, consume=True)
 
-        n_items = self.embeddings.items.shape[0]
-        all_relevance = list(map(self.relevance, range(n_items)))
+    def ranked_items(self, discrete: bool, with_satiation: bool):
+        continuous_relevance, discrete_relevance = self.relevance(
+            with_satiation=with_satiation, consume=False
+        )
+        relevance = discrete_relevance if discrete else continuous_relevance
 
-        full_relevence_distrib = [all_relevance[item][0] for item in range(n_items)]
-        full_relevence_distrib_d = [all_relevance[item][1] for item in range(n_items)]
-
-        item_relevance = np.argsort(full_relevence_distrib_d)[::-1]
-        relevance_top = np.sort(full_relevence_distrib_d)[::-1]
-
-        # print(item_relevance[:10])
-        # print(relevance_top[:10])
-        # print(discrete_relevance)
-        # print(full_relevence_distrib_d[item_id])
-
-        # print("Answer: ", discrete_relevance)
-        # print()
-        # print("----------------------------------")
-        # print("TOP first")
-        # print(relevance[:5])
-        # print(item_relevance[:5])
-        # print("TOP last")
-        # print(relevance[-5:])
-        # print(item_relevance[-5:])
-        # print(item_relevance)
-        return relevance, discrete_relevance, item_relevance
+        ranked_items = np.argsort(relevance)[::-1]
+        return ranked_items
 
     def sample_user_response(self, relevance):
         marks = np.array([self.rng.normal(*distr) for distr in self.discrete_actions_distr])

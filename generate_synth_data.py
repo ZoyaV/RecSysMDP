@@ -40,7 +40,8 @@ def generate_episode(env, model, framestack_size=10, user_id = None):
         timestamp = env.timestamp
 
         relevance, terminated = env.step(item_id)
-        continuous_relevance, discrete_relevance, items_top = relevance
+        continuous_relevance, discrete_relevance = relevance
+        items_top = env.state.ranked_items(with_satiation=True, discrete=True)
         #item_id = random.choice(items_top[:10])
 
         trajectory.append((
@@ -75,11 +76,8 @@ def generate_dataset(gen_conf, env, model):
 
 def make_user_with_stable_interest(user):
     user.satiation[:] = 100
-    static_tastes = user.relevance(with_satiation=False, with_consume=False)
-    static_tastes = np.array([rel for rel, discr_rel in static_tastes])
-
     # most relevant item
-    item = np.argmax(static_tastes)
+    item = user.ranked_items(with_satiation=False, discrete=False)[0]
     item_cluster = user.embeddings.item_cluster_ind[item]
 
     user.satiation[item_cluster] = 0.1
@@ -88,14 +86,12 @@ def make_user_with_stable_interest(user):
 
 def make_user_with_two_interests(user):
     user.satiation[:] = 1000
-    static_tastes = user.relevance(with_satiation=False, with_consume=False)
-    static_tastes = np.array([rel for rel, discr_rel in static_tastes])
-    sorted_tastes = np.argsort(static_tastes)[::-1]
+    static_tastes, _ = user.relevance(with_satiation=False, consume=False)
+    sorted_tastes = user.ranked_items(with_satiation=False, discrete=False)
 
     top_1 = sorted_tastes[0]
     top_1_cluster_ind = user.embeddings.item_cluster_ind[top_1]
     top_1_emb = user.embeddings.items[top_1]
-    top_1_rel_emb = top_1_emb - user.tastes
 
     top_2, top_2_emb, top_2_cluster_ind = None, None, None
     for item in sorted_tastes[1:]:
@@ -104,7 +100,6 @@ def make_user_with_two_interests(user):
         if item_cluster_ind != top_1_cluster_ind:
             from recsys_mdp.generators.datasets.synthetic.relevance import similarity
             emb = user.embeddings.items[item]
-            rel_emb = emb - user.tastes
             sim = similarity(top_1_emb, emb, metric='l2')
             if sim > .9:
                 continue

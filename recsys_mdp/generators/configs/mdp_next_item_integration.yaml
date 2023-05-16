@@ -35,10 +35,10 @@ env:
     relevance_boosting: [0.2, 4.0]
     boosting_softness: [2.0, 2.0]
     discrete_actions:
-      - [0.23, 0.15]
-      - [0.4, 0.1]
-      - [0.58, 0.05]
-      - [0.82, 0.1]
+      - [0.15, 0.05]
+      - [0.35, 0.05]
+      - [0.55, 0.03]
+      - [0.75, 0.1]
 
 zoya_settings:
   top_k: 10
