@@ -10,7 +10,7 @@ cuda_device: ...
 
 generation:
   epochs: 1
-  episodes_per_epoch: 40
+  episodes_per_epoch: 200
   samples_per_epoch: 10000
 
 learning:
@@ -30,13 +30,13 @@ env:
     items: embeddings.clusters
   user_state:
     base_satiation: 0.15
-    base_satiation_speed: [0.2, .4]
+    base_satiation_speed: [0.0002, .0004]
     similarity_metric: l2
     relevance_boosting: [0.2, 4.0]
     boosting_softness: [2.0, 2.0]
     discrete_actions:
-      - [0.2, 0.3]
-      - [0.5, 0.3]
+      - [0.2, 0.1]
+      - [0.5, 0.1]
       - [0.7, 0.3]
       - [0.9, 0.3]
 
