@@ -22,7 +22,7 @@ from recsys_mdp.generators.utils.config import (
 )
 
 
-def generate_episode(env, model, framestack_size=10, user_id = None):
+def generate_episode(env, model, framestack_size=10, user_id = None, log_sat=False):
     env, model = env, model
     if user_id is None:
         user_id = env.reset()
