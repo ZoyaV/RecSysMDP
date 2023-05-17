@@ -7,6 +7,7 @@ import argparse
 
 import yaml
 
+from recsys_mdp.generators.scenarios.mdp_next_item_integration import USER_RESET_MODE_INIT
 from recsys_mdp.generators.utils.lazy_imports import lazy_import
 from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
 from constructors.algorithm_constuctor import init_algo, init_model
@@ -18,6 +19,7 @@ wandb = lazy_import('wandb')
 
 def eval_algo(algo, logger, train_logger, env = None, looking_for = None):
     if env:
+        env.hard_reset(mode=USER_RESET_MODE_INIT)
         online_res = dict()
         looking_for.append(-1)
         for i in looking_for:

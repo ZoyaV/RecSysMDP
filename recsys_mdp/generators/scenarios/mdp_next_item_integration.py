@@ -13,6 +13,7 @@ from numpy.random import Generator
 
 from recsys_mdp.generators.datasets.synthetic.relevance import similarity
 from recsys_mdp.generators.run.wandb import get_logger
+from recsys_mdp.generators.utils.base import sample_rng, sample_int
 from recsys_mdp.generators.utils.config import (
     TConfig, GlobalConfig, LazyTypeResolver
 )
@@ -20,6 +21,11 @@ from recsys_mdp.generators.utils.timer import timer, print_with_timestamp
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
+
+
+USER_RESET_MODE_CONTINUE = 'continue'
+USER_RESET_MODE_INIT = 'init'
+USER_RESET_MODE_DISCONTINUE = 'discontinue'
 
 
 def boosting(relative_value: float | np.ndarray, k: float, softness: float = 1.5) -> float:
@@ -129,11 +135,13 @@ class UserState:
     rng: Generator
     user_id: int
 
+    base_satiation: float
     # all projected onto clusters
     # volatile, it also correlates to user's mood
     satiation: np.ndarray
     # changes with reset
     satiation_speed: np.ndarray
+    init_mood_seed: int
 
     relevance_boosting_k: tuple[float, float]
     metric: str
@@ -151,22 +159,14 @@ class UserState:
             rng: Generator
     ):
         self.user_id = user_id
-        self.rng = np.random.default_rng(rng.integers(100_000_000))
+        self.rng = sample_rng(rng)
 
-        n_clusters = embeddings.n_item_clusters
-        self.satiation = base_satiation + self.rng.uniform(size=n_clusters)
-
-        if isinstance(base_satiation_speed, float):
-            self.satiation_speed = np.full(embeddings.n_item_clusters, base_satiation_speed)
-        else:
-            # tuple[float, float]
-            base_satiation_speed, k = base_satiation_speed
-            k = 1.0 + k
-            min_speed, max_speed = 1/k * base_satiation_speed, k * base_satiation_speed
-            self.satiation_speed = np.clip(
-                self.rng.uniform(min_speed, max_speed, n_clusters),
-                0., 1.0
-            )
+        self.base_satiation = base_satiation
+        self.relevance_boosting_k = tuple(relevance_boosting)
+        self.boosting_softness = tuple(boosting_softness)
+        self.discrete_actions_distr = discrete_actions
+        self.metric = similarity_metric
+        self.embeddings = embeddings
 
         # how to normalize item-to-item_clusters similarity to attention/probability
         self.item_to_cluster_classification = dict(
@@ -174,34 +174,34 @@ class UserState:
             normalize=normalize
         )[item_to_cluster_classification]
 
-        self.relevance_boosting_k = tuple(relevance_boosting)
-        self.boosting_softness = tuple(boosting_softness)
-        self.discrete_actions_distr = discrete_actions
-        self.metric = similarity_metric
-        self.embeddings = embeddings
+        self.init_mood_seed = sample_int(self.rng)
+        self.satiation = self.sample_satiation(self.init_mood_seed)
+        self.satiation_speed = self.sample_satiation_speed(base_satiation_speed)
 
     @property
     def tastes(self) -> np.ndarray:
         return self.embeddings.users[self.user_id]
 
-    def relevance_boosting(self, item_embedding: np.ndarray, consume: bool = False) -> float:
-        clusters = self.embeddings.item_clusters
+    def reset(self, mode: str = USER_RESET_MODE_CONTINUE):
+        if mode == USER_RESET_MODE_CONTINUE:
+            # continue based on previous mood
+            pass
+        elif mode == USER_RESET_MODE_INIT:
+            # return to the initial mood
+            self.satiation = self.sample_satiation(self.init_mood_seed)
+        elif mode == USER_RESET_MODE_DISCONTINUE:
+            # re-sample new mood
+            self.satiation = self.sample_satiation(sample_int(self.rng))
+        else:
+            raise ValueError(f'User reset mode "{mode}" does not supported.')
 
-        item_to_cluster_relevance = similarity(item_embedding, clusters, metric=self.metric)
-        # normalize relevance to [0, 1]
-        item_to_cluster_relevance = self.item_to_cluster_classification(item_to_cluster_relevance)
+    def step(self, item_id: int):
+        return self.relevance(item_id, consume=True)
 
-        if consume:
-            # increase satiation via similarity and speed
-            self.satiation *= 1.0 + item_to_cluster_relevance * self.satiation_speed
-            np.clip(self.satiation, 1e-4, 1e+4, out=self.satiation)
-
-        # compute boosting from the aggregate weighted cluster satiation
-        aggregate_item_satiation = np.sum(self.satiation * item_to_cluster_relevance)
-
-        boosting_k = self.relevance_boosting_k[aggregate_item_satiation > 1.0]
-        boosting_softness = self.boosting_softness[aggregate_item_satiation > 1.0]
-        return boosting(aggregate_item_satiation, k=boosting_k, softness=boosting_softness)
+    def sample_satiation(self, seed: int):
+        n_clusters = self.embeddings.n_item_clusters
+        rng = np.random.default_rng(seed)
+        return self.base_satiation + rng.uniform(size=n_clusters)
 
     def relevance(
             self, item_id: int = None, with_satiation: bool = True, consume: bool = False
@@ -227,12 +227,9 @@ class UserState:
             relevance *= relevance_boosting
 
         # compute continuous and discrete relevance as user feedback
-        discrete_relevance = self.sample_user_response(relevance)
+        discrete_relevance = self.sample_discrete_response(relevance)
 
         return relevance, discrete_relevance
-
-    def step(self, item_id: int):
-        return self.relevance(item_id, consume=True)
 
     def ranked_items(self, discrete: bool, with_satiation: bool):
         continuous_relevance, discrete_relevance = self.relevance(
@@ -243,9 +240,42 @@ class UserState:
         ranked_items = np.argsort(relevance)[::-1]
         return ranked_items
 
-    def sample_user_response(self, relevance):
+    def sample_discrete_response(self, relevance):
         marks = np.array([self.rng.normal(*distr) for distr in self.discrete_actions_distr])
         return 2 + np.argmin(np.abs(marks - relevance))
+
+    def relevance_boosting(self, item_embedding: np.ndarray, consume: bool = False) -> float:
+        clusters = self.embeddings.item_clusters
+
+        item_to_cluster_relevance = similarity(item_embedding, clusters, metric=self.metric)
+        # normalize relevance to [0, 1]
+        item_to_cluster_relevance = self.item_to_cluster_classification(item_to_cluster_relevance)
+
+        if consume:
+            # increase satiation via similarity and speed
+            self.satiation *= 1.0 + item_to_cluster_relevance * self.satiation_speed
+            np.clip(self.satiation, 1e-4, 1e+4, out=self.satiation)
+
+        # compute boosting from the aggregate weighted cluster satiation
+        aggregate_item_satiation = np.sum(self.satiation * item_to_cluster_relevance)
+
+        boosting_k = self.relevance_boosting_k[aggregate_item_satiation > 1.0]
+        boosting_softness = self.boosting_softness[aggregate_item_satiation > 1.0]
+        return boosting(aggregate_item_satiation, k=boosting_k, softness=boosting_softness)
+
+    def sample_satiation_speed(self, base_satiation_speed):
+        n_clusters = self.embeddings.n_item_clusters
+        if isinstance(base_satiation_speed, float):
+            return np.full(n_clusters, base_satiation_speed)
+
+        # tuple[float, float]
+        base_satiation_speed, k = base_satiation_speed
+        k = 1.0 + k
+        min_speed, max_speed = 1/k * base_satiation_speed, k * base_satiation_speed
+        return np.clip(
+            self.rng.uniform(min_speed, max_speed, n_clusters),
+            0., 1.0
+        )
 
 
 class NextItemEnvironment:
@@ -285,22 +315,34 @@ class NextItemEnvironment:
             UserState(user_id, embeddings=self.embeddings, rng=self.rng, **user_state)
             for user_id in range(self.n_users)
         ]
+
         if isinstance(max_episode_len, int):
-            self.max_episode_len = (max_episode_len, max_episode_len)
-        else:
-            # tuple[int, int]: (avg_len, delta)
-            self.max_episode_len = (
-                max_episode_len[0] - max_episode_len[1],
-                max_episode_len[0] + max_episode_len[1]
-            )
+            max_episode_len = (max_episode_len, 0)
+        avg_len, delta = max_episode_len
+        self.max_episode_len = (avg_len - delta, avg_len + delta)
+
         self.global_timestep = self.timestep = 0
         self.timestamp = random_datetime(self.rng, end_year=2019)
 
-    def reset(self, user_id: int = None):
+    def hard_reset(self, mode: str = USER_RESET_MODE_INIT):
+        self.global_timestep = self.timestep = 0
+
+        assert mode in [USER_RESET_MODE_INIT, USER_RESET_MODE_DISCONTINUE], \
+            f'Env hard reset mode "{mode}" does not supported.'
+
+        for user in self.states:
+            user.reset(mode)
+
+    def reset(self, user_id: int = None, mode: str = USER_RESET_MODE_CONTINUE):
         if user_id is None:
             user_id = self.rng.integers(self.n_users)
 
         self.state = self.states[user_id]
+
+        assert mode in [USER_RESET_MODE_CONTINUE, USER_RESET_MODE_DISCONTINUE], \
+            f'Env reset mode "{mode}" does not supported.'
+        self.state.reset(mode)
+
         self.timestep = 0
         self.timestamp += pause_random_duration(self.rng)
         self.current_max_episode_len = self.rng.integers(*self.max_episode_len)
