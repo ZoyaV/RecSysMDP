@@ -16,9 +16,10 @@ from constructors.scorers_constructor import init_scorers, init_logger
 wandb = lazy_import('wandb')
 
 
-def eval_algo(algo, logger, env = None, looking_for = None):
+def eval_algo(algo, logger, train_logger, env = None, looking_for = None):
     if env:
         online_res = dict()
+        looking_for.append(-1)
         for i in looking_for:
             online_res[f"user {i}"] = eval_returns(env,algo,i)
     else:
@@ -30,10 +31,16 @@ def eval_algo(algo, logger, env = None, looking_for = None):
         "ONLINE": online_res
     })
 
+    train_logger.visual_log(algo, {
+        "train_STAT": train_logger.static_log(algo),
+        "train_INTERECT": train_logger.interactive_log(algo),
+    })
+
 
 def fit(
         algo, train_mdp, test_mdp, n_epochs, scorers,
-        logger, model_name, eval_schedule=5, env = None, looking_for=None
+        logger, train_scorers, train_loggers,
+        model_name, eval_schedule=5, env = None, looking_for=None
 ):
     fitter = algo.fitter(
         train_mdp,
@@ -45,7 +52,7 @@ def fit(
 
     for epoch, metrics in fitter:
         if epoch % eval_schedule == 0:
-            eval_algo(algo, logger, env, looking_for)
+            eval_algo(algo, logger, train_loggers, env, looking_for)
           #  algo.save_model(f'checkpoints/{model_name}/{model_name}_{epoch}.pt')
 
     algo.save_model(f'checkpoints/{model_name}/{model_name}_final.pt')
@@ -99,6 +106,13 @@ def run_experiment(
         wandb_logger=wandb_logger,
         **scorer
     )
+
+    train_scorers = init_scorers(state_tail, train_values, top_k, **scorer)
+    train_logger = init_logger(
+        train_mdp, state_tail, train_values, top_k,
+        wandb_logger=wandb_logger,
+        **scorer
+    )
     # Init online env if cheked
     with open(f'{env_path}/env.pkl', 'rb') as f:
         env = pickle.load(f)
@@ -106,7 +120,8 @@ def run_experiment(
     n_epochs = algo_settings['n_epochs']
     fit(
         algo, train_mdp, test_mdp, n_epochs,
-        scorers, logger, model_name=model_name, eval_schedule=25, env = env, looking_for = looking_for
+        scorers, logger,train_scorers, train_logger,
+        model_name=model_name, eval_schedule=25, env = env, looking_for = looking_for
     )
 
 
