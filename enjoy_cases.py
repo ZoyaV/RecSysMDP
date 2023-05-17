@@ -53,10 +53,12 @@ def get_enjoy_setting(pretrain_conf, env_path, config_path, model_epoch = -1):
     return gen_conf, env, model
 
 
-def eval_returns(env, model, user_id=-1):
+def eval_returns(env, model, user_id=None, logger=None):
     cont_returns, disc_returns, steps_hit_rate, coverages = [], [], [], []
+
+    n_episodes = 20 if user_id is not None else 50
     for ep in range(20):
-        trajectory = generate_episode(env, model, user_id=user_id, log_sat=True)
+        trajectory = generate_episode(env, model, user_id=user_id, log_sat=True, logger=logger)
         coverage = len({step[2] for step in trajectory})
         step_hit_rate = [step[2] in step[-1] for step in trajectory]
         cont_returns.append(np.mean([step[3] for step in trajectory]))

@@ -20,10 +20,13 @@ wandb = lazy_import('wandb')
 def eval_algo(algo, logger, train_logger, env = None, looking_for = None):
     if env:
         env.hard_reset(mode=USER_RESET_MODE_INIT)
+
         online_res = dict()
-        looking_for.append(-1)
+        looking_for.append(None)
         for i in looking_for:
-            online_res[f"user {i}"] = eval_returns(env,algo,i)
+            online_res[f"user {i}"] = eval_returns(
+                env, algo, user_id=i, logger=logger.wandb_logger
+            )
     else:
         online_res =None
    # print(online_res)

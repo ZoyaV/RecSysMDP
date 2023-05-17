@@ -23,18 +23,16 @@ from recsys_mdp.generators.utils.lazy_imports import lazy_import
 wandb = lazy_import('wandb')
 
 
-def generate_episode(env, model, framestack_size=10, user_id = None, log_sat=False):
-    env, model = env, model
-    if user_id is None:
-        user_id = env.reset()
-    else:
-        user_id = env.reset(user_id)
+def generate_episode(
+        env, model, framestack_size=10, user_id = None, log_sat=False, logger=None
+):
+    orig_user_id = user_id
+    user_id = env.reset(user_id=user_id)
     trajectory = []
 
     # [N last item_ids] + [user_id]
     fake_obs = np.random.randint(0, env.n_items, framestack_size).tolist() + [user_id]
     obs = np.asarray(fake_obs)
-    item_id = 0
     while True:
         try:
             item_id = model.predict(obs.reshape(1, -1))[0]
@@ -49,11 +47,11 @@ def generate_episode(env, model, framestack_size=10, user_id = None, log_sat=Fal
         relevance, terminated = env.step(item_id)
         continuous_relevance, discrete_relevance = relevance
         items_top = env.state.ranked_items(with_satiation=True, discrete=True)
-        if log_sat and user_id is not None:
+        if log_sat and logger is not None:
             hist = (env.state.satiation, np.arange(len(env.state.satiation)+1))
             histogram = wandb.Histogram(np_histogram=hist)
-            wandb.log({f'user_{user_id}_satiation': histogram})
-      #  item_id = random.choice(items_top[:10])
+            logger.log({f'user_{orig_user_id}_satiation': histogram})
+        # item_id = random.choice(items_top[:10])
 
         trajectory.append((
             timestamp,
