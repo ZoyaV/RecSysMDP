@@ -14,7 +14,7 @@ class RandomEmbeddingsGenerator:
         self.rng = np.random.default_rng(seed)
         self.n_dims = n_dims
         self.n_clusters = 1
-        self.clusters = np.full(n_dims, 0.5)
+        _, self.clusters = np.full(n_dims, 0.5)
 
     def generate(self, n: int = None) -> tuple[int, np.ndarray] | tuple[np.ndarray, np.ndarray]:
         shape = (n, self.n_dims) if n is not None else (self.n_dims,)
@@ -34,6 +34,7 @@ class RandomClustersEmbeddingsGenerator:
 
     def __init__(
             self, seed: int, n_dims: int, n_clusters: int | list[int],
+            cluster_sampling_weight: dict[int, float] = None,
             intra_cluster_noise_scale: float = 0.05,
             n_dissimilar_dims_required: int = 3,
             min_dim_delta: float = 0.3,
@@ -51,6 +52,11 @@ class RandomClustersEmbeddingsGenerator:
             max_tries=max_generation_tries,
         )
         self.n_clusters = len(self.clusters)
+        self.cluster_sampling_weights = np.ones(self.n_clusters)
+        if cluster_sampling_weight is not None:
+            for cluster, weight in cluster_sampling_weight.items():
+                self.cluster_sampling_weights[cluster] = weight
+        self.cluster_sampling_weights /= self.cluster_sampling_weights.sum()
 
     def generate(self, n: int = None) -> tuple[int, np.ndarray] | tuple[np.ndarray, np.ndarray]:
         if n is None:
@@ -63,7 +69,7 @@ class RandomClustersEmbeddingsGenerator:
 
     def generate_one(self, cluster_ind=None) -> tuple[int, np.ndarray]:
         if cluster_ind is None:
-            cluster_ind = self.rng.choice(self.n_clusters)
+            cluster_ind = self.rng.choice(self.n_clusters, p=self.cluster_sampling_weights)
 
         cluster = self.clusters[cluster_ind]
         embedding = self.rng.normal(

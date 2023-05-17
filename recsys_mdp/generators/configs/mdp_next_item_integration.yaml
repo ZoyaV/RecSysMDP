@@ -36,6 +36,8 @@ env:
     items:
       _base_: embeddings.clusters
       n_clusters: 10
+      cluster_sampling_weight:
+        0: 1
       intra_cluster_noise_scale: 0.15
       min_l2_dist: 0.
   user_state:
