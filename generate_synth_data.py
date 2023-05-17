@@ -1,7 +1,6 @@
 import argparse
 import os
 import pickle
-import random
 from itertools import count
 from pathlib import Path
 
@@ -9,7 +8,6 @@ import numpy as np
 import pandas as pd
 import yaml
 from d3rlpy.base import LearnableBase
-import wandb
 
 from als_model import ALSRecommender
 from recsys_mdp.generators.datasets.synthetic.relevance import similarity
@@ -20,6 +18,9 @@ from recsys_mdp.generators.scenarios.mdp_next_item_integration import (
 from recsys_mdp.generators.utils.config import (
     GlobalConfig
 )
+from recsys_mdp.generators.utils.lazy_imports import lazy_import
+
+wandb = lazy_import('wandb')
 
 
 def generate_episode(env, model, framestack_size=10, user_id = None, log_sat=False):
