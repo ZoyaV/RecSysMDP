@@ -61,8 +61,10 @@ class RandomClustersEmbeddingsGenerator:
         embeddings = np.array([embedding for _, embedding in result])
         return clusters, embeddings
 
-    def generate_one(self) -> tuple[int, np.ndarray]:
-        cluster_ind = self.rng.choice(self.n_clusters)
+    def generate_one(self, cluster_ind=None) -> tuple[int, np.ndarray]:
+        if cluster_ind is None:
+            cluster_ind = self.rng.choice(self.n_clusters)
+
         cluster = self.clusters[cluster_ind]
         embedding = self.rng.normal(
             loc=cluster, scale=self.intra_cluster_noise_scale, size=(self.n_dims,)
