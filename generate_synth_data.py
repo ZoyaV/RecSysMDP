@@ -1,6 +1,7 @@
 import argparse
 import os
 import pickle
+import random
 from itertools import count
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from d3rlpy.base import LearnableBase
+import wandb
 
 from als_model import ALSRecommender
 from recsys_mdp.generators.datasets.synthetic.relevance import similarity
@@ -46,7 +48,11 @@ def generate_episode(env, model, framestack_size=10, user_id = None):
         relevance, terminated = env.step(item_id)
         continuous_relevance, discrete_relevance = relevance
         items_top = env.state.ranked_items(with_satiation=True, discrete=True)
-        #item_id = random.choice(items_top[:10])
+        if log_sat and user_id is not None:
+            hist = (env.state.satiation, np.arange(len(env.state.satiation)+1))
+            histogram = wandb.Histogram(np_histogram=hist)
+            wandb.log({f'user_{user_id}_satiation': histogram})
+      #  item_id = random.choice(items_top[:10])
 
         trajectory.append((
             timestamp,
