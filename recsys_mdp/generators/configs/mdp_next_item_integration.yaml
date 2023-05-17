@@ -10,10 +10,8 @@ cuda_device: ...
 
 generation:
   epochs: 1
-#  episodes_per_epoch: 1000
-#  samples_per_epoch: 10000
-  episodes_per_epoch: 500
-  samples_per_epoch: 3000
+  episodes_per_epoch: 1000
+  samples_per_epoch: 10000
 
 learning:
   epochs: 100
