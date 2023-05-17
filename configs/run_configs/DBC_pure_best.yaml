@@ -1,0 +1,49 @@
+name: eval_on_cases_3
+group_name: DBC_pure_best
+seed: 42
+use_wandb: True
+eval_online: True
+env_path: environments/env_random
+looking_for: 0,6,99
+experiment:
+  top_k: 10
+  data_path: environments/env_best/train_data.csv
+  test_data_path: environments/env_best/test_data.csv
+  col_mapping:
+    user_col_name: user_idx
+    item_col_name: item_idx
+    reward_col_name: relevance_int
+    timestamp_col_name: timestamp
+  mdp_settings:
+    framestack_size: 10
+    reward_function_name: relevance_based_reward
+    action_function_name: next_item_action
+    episode_splitter_name: full_user_interaction
+    history_keys:
+      - framestack
+      - user_id
+  scorer:
+    metrics:
+      - ndcg
+      - PC
+      - ihitrate
+      - stat_hitrate
+    tresh: '[0.5, 0.7]'
+    prediction_type: discrete
+  algo_settings:
+    n_epochs: 300
+    general_parametrs:
+      algo: DBC
+      batch_size: 1024
+      use_gpu: False
+    model_parametrs:
+      use_als: False
+      user_num: 100
+      item_num: 100
+      emb_dim: 5
+      hid_dim: 256
+      memory_size: 10
+      feature_size: 512
+      state_repr_name: full_history
+      freeze_emb: False
+      attention_hidden_size: 32

@@ -1,0 +1,49 @@
+env_path: environments/env_random
+eval_online: true
+experiment:
+  algo_settings:
+    general_parametrs:
+      algo: SDAC
+      batch_size: 1024
+      use_gpu: false
+    model_parametrs:
+      attention_hidden_size: 32
+      emb_dim: 5
+      feature_size: 512
+      freeze_emb: true
+      hid_dim: 256
+      item_num: 100
+      memory_size: 10
+      state_repr_name: full_history
+      use_als: false
+      user_num: 100
+    n_epochs: 300
+  col_mapping:
+    item_col_name: item_idx
+    reward_col_name: relevance_int
+    timestamp_col_name: timestamp
+    user_col_name: user_idx
+  data_path: environments/env_best/train_data.csv
+  mdp_settings:
+    action_function_name: next_item_action
+    episode_splitter_name: interaction_interruption
+    framestack_size: 10
+    history_keys:
+    - framestack
+    - user_id
+    reward_function_name: relevance_based_reward
+  scorer:
+    metrics:
+    - ndcg
+    - PC
+    - ihitrate
+    - stat_hitrate
+    prediction_type: discrete
+    tresh: '[0.5, 0.7]'
+  test_data_path: environments/env_best/test_data.csv
+  top_k: 10
+group_name: ('environments/env_random', 'SDAC', 'interaction_interruption', True)
+looking_for: 0,6,99
+name: eval_on_cases_3
+seed: 42
+use_wandb: true
