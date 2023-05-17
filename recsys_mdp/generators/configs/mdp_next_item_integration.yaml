@@ -41,10 +41,14 @@ env:
   user_state:
     base_satiation: 0.15
     base_satiation_speed: [0.04, .4]
+    satiation_drift: .2
+    item_listening_trace_decay: .9
+    item_repeat_penalty_power: .15
+    early_stop_delta: 0.005
     similarity_metric: l2
     item_to_cluster_classification: softmax
     relevance_boosting: [0.2, 4.0]
-    boosting_softness: [2.0, 2.0]
+    boosting_softness: [2.0, 3.0]
     discrete_actions:
       - [0.2, 0.08]
       - [0.37, 0.05]

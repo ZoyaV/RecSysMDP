@@ -43,14 +43,13 @@ def generate_episode(
         obs[-2] = item_id
 
         timestamp = env.timestamp
+        # log satiation histogram
+        if env.timestep % 4 == 0 and log_sat:
+            log_satiation(logger, env.state.satiation, orig_user_id)
 
         relevance, terminated = env.step(item_id)
         continuous_relevance, discrete_relevance = relevance
         items_top = env.state.ranked_items(with_satiation=True, discrete=True)
-        if log_sat and logger is not None:
-            hist = (env.state.satiation, np.arange(len(env.state.satiation)+1))
-            histogram = wandb.Histogram(np_histogram=hist)
-            logger.log({f'user_{orig_user_id}_satiation': histogram})
         # item_id = random.choice(items_top[:10])
 
         trajectory.append((
@@ -62,7 +61,19 @@ def generate_episode(
         ))
         if terminated:
             break
+
+    if log_sat:
+        log_satiation(logger, env.state.satiation, orig_user_id)
+
     return trajectory
+
+
+def log_satiation(logger, satiation, user_id):
+    if logger is None:
+        return
+    hist = (satiation, np.arange(len(satiation)+1))
+    histogram = wandb.Histogram(np_histogram=hist)
+    logger.log({f'user_{user_id}_satiation': histogram})
 
 
 def poor_model_from_dataset(dataset_path):
@@ -104,7 +115,7 @@ def make_user_with_stable_interest(user, print_debug=False):
         print(f'    Tastes: {user.tastes}')
         print(f'    Top1:   {top1_item_emb}')
         print(f'    Top1Cluster: {top1_item_cluster}')
-        relevance, discr_relevance = user.relevance(top1_item, with_satiation=False, consume=False)
+        relevance, discr_relevance = user.relevance(top1_item, with_satiation=False)
         print(f'    Top1Rel: {round(relevance, 3)} | Top1DiscrRel: {discr_relevance}')
 
         item_clusters = embeddings.item_clusters
@@ -156,7 +167,7 @@ def make_user_with_two_interests(user, print_debug=False):
     user.satiation[top1] = 0.5
     user.satiation[top2] = 0.5
 
-    user.satiation_speed[top1] = 0.02
+    user.satiation_speed[top1] = 0.01
     user.satiation_speed[top2] = 0.04
 
 
