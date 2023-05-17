@@ -13,13 +13,30 @@
 
         <label for="name">Name:</label>
         <input type="text" id="name" name="name" value="DSAC_SberZvuk2"><br><br>
+
         <label for="group_name">Group:</label>
         <input type="text" id="group_name" name="group_name" value="test"><br><br>
+
+        <label for="seed">Random seed</label>
+        <input type="text" id="seed" name="seed" value="42"><br><br>
+
         <label for="use_wandb">Use WandB:</label>
         <input type="radio" id="use_wandb_true" name="use_wandb" value="True" checked>
         <label for="use_wandb_true">True</label>
         <input type="radio" id="use_wandb_false" name="use_wandb" value="False">
         <label for="use_wandb_false">False</label><br><br>
+
+        <label for="Eval online">Eval online</label>
+        <select id="=eval_online" name="eval_online">
+        <option value="True" selected>True</option>
+        <option value="False">False</option>
+        </select><br><br>
+
+        <label for="env_path">env_path</label>
+        <input type="text" id="env_path" name="env_path" value="None"><br><br>
+
+        <label for="looking_for">Users onling looking for</label>
+        <input type="text" id="looking_for" name="looking_for" value="0,1"><br><br>
 
         <fieldset>
     <legend>Experiment</legend>
@@ -85,6 +102,8 @@
     <input type="checkbox" id="experiment.scorer.metrics.coverage" name="experiment.scorer.metrics[]" value="coverage">
     <label for="coverage">coverage</label><br>
     <input type="checkbox" id="experiment.scorer.metrics.ndcg" name="experiment.scorer.metrics[]" value="ndcg" checked>
+    <label for="PC">preference correlation</label><br>
+                <input type="checkbox" id="experiment.scorer.metrics.pc" name="experiment.scorer.metrics[]" value="PC" checked>
     <label for="ndcg">ndcg</label><br>
     <input type="checkbox" id="experiment.scorer.metrics.ihitrate" name="experiment.scorer.metrics[]" value="ihitrate">
     <label for="ihitrate">ihitrate</label><br>

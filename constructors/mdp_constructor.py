@@ -15,7 +15,11 @@ def load_data(data_path, return_values, col_mapping):
 
         values = {'users_unique': users_unique, 'items_unique':items_unique,
                   'full_users': full_users, 'full_items':full_items, 'rating':rating}
+        print("////////////////")
+        print(values)
         return data, col_mapping, values
+    print("////////////////")
+    print(data)
     return data, col_mapping
 
 def load_reward_function(reward_function_name):

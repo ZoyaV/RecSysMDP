@@ -465,6 +465,6 @@ class GlobalConfig:
             config,
             object_type_or_factory=object_type_or_factory,
             config_type=config_type,
-            **substitution_registry | self.global_substitution_registry
+            **(self.global_substitution_registry | substitution_registry)
         )
 
