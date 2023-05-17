@@ -1,7 +1,6 @@
 import argparse
 import os
 import pickle
-import random
 from itertools import count
 from pathlib import Path
 
@@ -10,12 +9,17 @@ import pandas as pd
 import yaml
 from d3rlpy.base import LearnableBase
 
-from recsys_mdp.generators.scenarios.mdp_next_item_integration import NextItemEnvironment, TypesResolver
+from als_model import ALSRecommender
+from recsys_mdp.generators.datasets.synthetic.relevance import similarity
+from recsys_mdp.generators.scenarios.mdp_next_item_integration import (
+    NextItemEnvironment,
+    TypesResolver
+)
 from recsys_mdp.generators.utils.config import (
     GlobalConfig
 )
 
-from als_model import ALSRecommender
+
 def generate_episode(env, model, framestack_size=10, user_id = None):
     env, model = env, model
     if user_id is None:
@@ -55,6 +59,7 @@ def generate_episode(env, model, framestack_size=10, user_id = None):
             break
     return trajectory
 
+
 def poor_model_from_dataset(dataset_path):
     model = ALSRecommender()
     data = pd.read_csv(dataset_path)
@@ -74,48 +79,80 @@ def generate_dataset(gen_conf, env, model):
     return samples
 
 
-def make_user_with_stable_interest(user):
-    user.satiation[:] = 100
-    # most relevant item
-    item = user.ranked_items(with_satiation=False, discrete=False)[0]
-    item_cluster = user.embeddings.item_cluster_ind[item]
+@np.printoptions(3)
+def make_user_with_stable_interest(user, print_debug=False):
+    embeddings = user.embeddings
+    # generate user embeddings near the first item cluster
+    item_cluster = 0
+    _, user_emb = embeddings.item_embeddings_generator.generate_one(cluster_ind=item_cluster)
+    # put user to the first item cluster
+    # NB: user cluster index from now on is kinda incorrect!
+    user.embeddings.users[user.user_id] = user_emb
 
-    user.satiation[item_cluster] = 0.1
-    user.satiation_speed[item_cluster] = 0.0
+    if print_debug:
+        # most relevant item
+        sorted_tastes = user.ranked_items(with_satiation=False, discrete=False)
+        top1_item = sorted_tastes[0]
+        top1_item_cluster = user.embeddings.item_cluster_ind[top1_item]
+        top1_item_emb = user.embeddings.items[top1_item]
+        print(f'User with stable interest =>')
+        print(f'    Tastes: {user.tastes}')
+        print(f'    Top1:   {top1_item_emb}')
+        print(f'    Top1Cluster: {top1_item_cluster}')
+        relevance, discr_relevance = user.relevance(top1_item, with_satiation=False, consume=False)
+        print(f'    Top1Rel: {round(relevance, 3)} | Top1DiscrRel: {discr_relevance}')
+
+        item_clusters = embeddings.item_clusters
+        to_item_clusters_relevance = similarity(user.tastes, item_clusters, metric=user.metric)
+        print(f'    ToClusterSims: {to_item_clusters_relevance}')
+        print()
+
+    user.satiation[:] = 1
+    user.satiation[item_cluster] = 0.5
+    user.satiation_speed[:] = 0.0
 
 
-def make_user_with_two_interests(user):
-    user.satiation[:] = 1000
-    static_tastes, _ = user.relevance(with_satiation=False, consume=False)
-    sorted_tastes = user.ranked_items(with_satiation=False, discrete=False)
+@np.printoptions(3)
+def make_user_with_two_interests(user, print_debug=False):
+    embeddings = user.embeddings
+    item_clusters = embeddings.item_clusters
+    # find two the closest clusters
+    pairwise_cluster_sim = np.array([
+        similarity(item_cluster, item_clusters, metric='l2')
+        for item_cluster in item_clusters
+    ])
+    # zero out the diagonal as its elements obviously equal 1 and will be among maximal values
+    pairwise_cluster_sim[np.diag_indices(item_clusters.shape[0])] = 0
 
-    top_1 = sorted_tastes[0]
-    top_1_cluster_ind = user.embeddings.item_cluster_ind[top_1]
-    top_1_emb = user.embeddings.items[top_1]
+    top1, top2 = np.unravel_index(
+        np.argmax(pairwise_cluster_sim),
+        shape=pairwise_cluster_sim.shape
+    )
+    top1_emb, top2_emb = embeddings.item_clusters[top1], embeddings.item_clusters[top2]
+    # make user embedding to be almost in the middle between them
+    user_emb = .6 * top1_emb + .4 * top2_emb
+    # put user tastes to the specified place
+    # NB: user cluster index from now on is kinda incorrect!
+    user.embeddings.users[user.user_id] = user_emb
 
-    top_2, top_2_emb, top_2_cluster_ind = None, None, None
-    for item in sorted_tastes[1:]:
-        item_cluster_ind = user.embeddings.item_cluster_ind[item]
+    if print_debug:
+        print(f'User with two interests =>')
+        print(f'    Tastes:   {user.tastes}')
+        print(f'    Top1Cl:   {top1_emb}')
+        print(f'    Top2Cl:   {top2_emb}')
+        print(f'    TopTwoClusters: {top1} and {top2}')
 
-        if item_cluster_ind != top_1_cluster_ind:
-            from recsys_mdp.generators.datasets.synthetic.relevance import similarity
-            emb = user.embeddings.items[item]
-            sim = similarity(top_1_emb, emb, metric='l2')
-            if sim > .9:
-                continue
+        item_clusters = embeddings.item_clusters
+        to_item_clusters_relevance = similarity(user.tastes, item_clusters, metric=user.metric)
+        print(f'    ToClusterSims: {to_item_clusters_relevance}')
+        print()
 
-            top_2 = item
-            top_2_emb = emb
-            top_2_cluster_ind = user.embeddings.item_cluster_ind[top_2]
-            break
+    user.satiation[:] = 1
+    user.satiation[top1] = 0.5
+    user.satiation[top2] = 0.5
 
-    print(static_tastes[top_1], top_1_emb)
-    print(static_tastes[top_2], top_2_emb)
-    user.satiation[top_1_cluster_ind] = 0.1
-    user.satiation[top_2_cluster_ind] = 0.1
-
-    user.satiation_speed[top_1_cluster_ind] = 0.25
-    user.satiation_speed[top_2_cluster_ind] = 0.5
+    user.satiation_speed[top1] = 0.02
+    user.satiation_speed[top2] = 0.04
 
 
 def make_env_setting(config_path="", env_name='default', dataset_path = None):
@@ -133,10 +170,10 @@ def make_env_setting(config_path="", env_name='default', dataset_path = None):
     )
 
     ### One of user have one stable interest
-    make_user_with_stable_interest(env.states[0])
+    make_user_with_stable_interest(env.states[0], print_debug=True)
 
     ### One two interest with interaction [need to balance]
-    make_user_with_two_interests(env.states[6])
+    make_user_with_two_interests(env.states[6], print_debug=True)
 
     # make model
     if dataset_path:

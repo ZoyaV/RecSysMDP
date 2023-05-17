@@ -28,6 +28,7 @@ def boosting(relative_value: float | np.ndarray, k: float, softness: float = 1.5
     #   0 1 +inf  -> +inf 0 -inf
     x = -np.log(relative_value)
     # zero k means "no boosting", that's why we use shifted value.
+    # noinspection PyPep8Naming
     K = k + 1
 
     # relative_rate -> x -> B:
@@ -36,6 +37,19 @@ def boosting(relative_value: float | np.ndarray, k: float, softness: float = 1.5
     #   +inf -> -inf -> K^tanh(-inf) = K^(-1) = 1 / K
     # higher softness just makes the sigmoid curve smoother; default value is empirically optimized
     return np.power(K, np.tanh(x / softness))
+
+
+def normalize(x: np.ndarray) -> np.ndarray:
+    normalizer = x.sum(-1)
+    assert normalizer > 1e-8, f'Normalization is dangerous for {x}'
+    return x / normalizer
+
+
+def softmax(x: np.ndarray, temp=.12) -> np.ndarray:
+    """Computes softmax values for a vector `x` with a given temperature."""
+    temp = np.clip(temp, 1e-5, 1e+3)
+    e_x = np.exp((x - np.max(x, axis=-1)) / temp)
+    return e_x / e_x.sum(axis=-1)
 
 
 class MdpNextItemGenerationConfig:
@@ -95,26 +109,25 @@ class Embeddings:
 
         rng = np.random.default_rng(seed)
         self.n_users = n_users
-        user_embeddings_generator = global_config.resolve_object(
+        self.user_embeddings_generator = global_config.resolve_object(
             users, n_dims=self.n_dims, seed=rng.integers(100_000_000)
         )
-        self.user_cluster_ind, self.users = user_embeddings_generator.generate(n_users)
-        self.user_clusters = user_embeddings_generator.clusters
-        self.n_user_clusters = user_embeddings_generator.n_clusters
+        self.user_cluster_ind, self.users = self.user_embeddings_generator.generate(n_users)
+        self.user_clusters = self.user_embeddings_generator.clusters
+        self.n_user_clusters = self.user_embeddings_generator.n_clusters
 
         self.n_items = n_items
-        item_embeddings_generator = global_config.resolve_object(
+        self.item_embeddings_generator = global_config.resolve_object(
             items, n_dims=self.n_dims, seed=rng.integers(100_000_000)
         )
-        self.item_cluster_ind, self.items = item_embeddings_generator.generate(n_items)
-        self.item_clusters = item_embeddings_generator.clusters
-        self.n_item_clusters = item_embeddings_generator.n_clusters
+        self.item_cluster_ind, self.items = self.item_embeddings_generator.generate(n_items)
+        self.item_clusters = self.item_embeddings_generator.clusters
+        self.n_item_clusters = self.item_embeddings_generator.n_clusters
 
 
 class UserState:
     rng: Generator
     user_id: int
-    tastes: np.ndarray
 
     # all projected onto clusters
     # volatile, it also correlates to user's mood
@@ -131,13 +144,13 @@ class UserState:
             base_satiation: float,
             base_satiation_speed: float | tuple[float, float],
             similarity_metric: str,
+            item_to_cluster_classification: str,
             relevance_boosting: tuple[float, float],
             boosting_softness: tuple[float, float],
             discrete_actions: list[tuple[float, float]],
             rng: Generator
     ):
         self.user_id = user_id
-        self.tastes = embeddings.users[user_id]
         self.rng = np.random.default_rng(rng.integers(100_000_000))
 
         n_clusters = embeddings.n_item_clusters
@@ -155,21 +168,28 @@ class UserState:
                 0., 1.0
             )
 
+        # how to normalize item-to-item_clusters similarity to attention/probability
+        self.item_to_cluster_classification = dict(
+            softmax=softmax,
+            normalize=normalize
+        )[item_to_cluster_classification]
+
         self.relevance_boosting_k = tuple(relevance_boosting)
         self.boosting_softness = tuple(boosting_softness)
         self.discrete_actions_distr = discrete_actions
         self.metric = similarity_metric
         self.embeddings = embeddings
 
+    @property
+    def tastes(self) -> np.ndarray:
+        return self.embeddings.users[self.user_id]
+
     def relevance_boosting(self, item_embedding: np.ndarray, consume: bool = False) -> float:
         clusters = self.embeddings.item_clusters
 
         item_to_cluster_relevance = similarity(item_embedding, clusters, metric=self.metric)
-
         # normalize relevance to [0, 1]
-        normalizer = item_to_cluster_relevance.sum(-1)
-        assert normalizer > 1e-5, f'Normalization is problematic for {item_to_cluster_relevance}'
-        item_to_cluster_relevance /= item_to_cluster_relevance.sum(-1)
+        item_to_cluster_relevance = self.item_to_cluster_classification(item_to_cluster_relevance)
 
         if consume:
             # increase satiation via similarity and speed

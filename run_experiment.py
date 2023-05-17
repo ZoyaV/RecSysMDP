@@ -55,7 +55,7 @@ def fit(
             eval_algo(algo, logger, train_loggers, env, looking_for)
           #  algo.save_model(f'checkpoints/{model_name}/{model_name}_{epoch}.pt')
 
-    algo.save_model(f'checkpoints/{model_name}/{model_name}_final.pt')
+    # algo.save_model(f'checkpoints/{model_name}/{model_name}_final.pt')
     return algo
 
 
@@ -137,7 +137,6 @@ def main():
     parser.add_argument('--use_als', type=int)
 
     args = parser.parse_args()
-
 
     with open(args.config) as f:
         config = yaml.load(f, Loader=yaml.Loader)

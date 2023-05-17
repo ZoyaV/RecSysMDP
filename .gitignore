@@ -1,6 +1,10 @@
 ### ================ DEFAULT PYTHON IGNORES ====================
 # d3rlpy logs
 d3rlpy_logs/
+# CSV data files
+*.csv
+# Pickle data files
+*.pkl
 
 ### ================ DEFAULT PYTHON IGNORES ====================
 

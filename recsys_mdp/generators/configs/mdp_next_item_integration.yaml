@@ -10,8 +10,10 @@ cuda_device: ...
 
 generation:
   epochs: 1
-  episodes_per_epoch: 200
-  samples_per_epoch: 10000
+#  episodes_per_epoch: 1000
+#  samples_per_epoch: 10000
+  episodes_per_epoch: 500
+  samples_per_epoch: 3000
 
 learning:
   epochs: 100
@@ -25,19 +27,30 @@ env:
   n_items: 100
   max_episode_len: [40, 20]
   embeddings:
-    n_dims: 7
-    users: embeddings.clusters
-    items: embeddings.clusters
+    n_dims: 8
+    users:
+      _base_: embeddings.clusters
+      n_clusters: 10
+      intra_cluster_noise_scale: 0.15
+      min_l2_dist: 0.3
+    items:
+      _base_: embeddings.clusters
+      n_clusters: 10
+      cluster_sampling_weight:
+        0: 1
+      intra_cluster_noise_scale: 0.15
+      min_l2_dist: 0.
   user_state:
     base_satiation: 0.15
-    base_satiation_speed: [0.2, .4]
+    base_satiation_speed: [0.04, .4]
     similarity_metric: l2
+    item_to_cluster_classification: softmax
     relevance_boosting: [0.2, 4.0]
     boosting_softness: [2.0, 2.0]
     discrete_actions:
-      - [0.15, 0.05]
-      - [0.35, 0.05]
-      - [0.55, 0.03]
+      - [0.2, 0.08]
+      - [0.37, 0.05]
+      - [0.58, 0.03]
       - [0.75, 0.1]
 
 zoya_settings:
@@ -146,9 +159,9 @@ embeddings:
     _type_: embeddings.clusters
     seed: ???
     n_dims: ???
-    n_clusters: [2, 1, 4, 1, 2]
+    n_clusters: 4
     intra_cluster_noise_scale: 0.05
     n_dissimilar_dims_required: 3
     min_dim_delta: 0.3
     min_l2_dist: 0.1
-    max_generation_tries: 10000
+    max_generation_tries: 20000
