@@ -17,6 +17,8 @@ def split_by_time(user_log: pd.DataFrame, col_mapping: dict, threshold_minutes: 
     :return: indices of transitions to a new episode
     """
     def pause_condition(col: pd.Series):
+        # TODO: where shuld be translation to datetime ?
+        col = pd.to_datetime(col)
         pause_minutes = col.diff(1).dt.total_seconds().div(60).values
 
         # NB: [0] element is NaN
