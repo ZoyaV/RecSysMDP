@@ -3,6 +3,7 @@ import os
 import pickle
 from itertools import count
 from pathlib import Path
+import random
 
 import numpy as np
 import pandas as pd
@@ -24,20 +25,37 @@ wandb = lazy_import('wandb')
 
 
 def generate_episode(
-        env, model, framestack_size=10, user_id = None, log_sat=False, logger=None
+        env, model, framestack_size=10, user_id = None, log_sat=False, logger=None, get_best_for_start = True, use_best = False
 ):
     orig_user_id = user_id
     user_id = env.reset(user_id=user_id)
     trajectory = []
 
-    # [N last item_ids] + [user_id]
-    fake_obs = np.random.randint(0, env.n_items, framestack_size).tolist() + [user_id]
+    # Get random items from best for framestack
+    # TODO: How it will affect to episode lenghts?
+    # TODO: Make framestack making as function
+
+    if get_best_for_start:
+        top_framestack = []
+        for i in range(framestack_size):
+            items_top = env.state.ranked_items(with_satiation=True, discrete=True)
+            item_id = random.choice(items_top[:10])
+            top_framestack.append(item_id)
+            _, _ = env.step(item_id)
+        # [N last item_ids] + [user_id]
+        fake_obs =top_framestack + [user_id]
+    else:
+        # [N last item_ids] + [user_id]
+        fake_obs = np.random.randint(0, env.n_items, framestack_size).tolist() + [user_id]
     obs = np.asarray(fake_obs)
+    item_id = 0
+    # episode generation
     while True:
-        try:
-            item_id = model.predict(obs.reshape(1, -1))[0]
-        except:
-            item_id = model.predict(obs[:framestack_size].reshape(1, -1))[0]
+        if not use_best:
+            try:
+                item_id = model.predict(obs.reshape(1, -1))[0]
+            except:
+                item_id = model.predict(obs[:framestack_size].reshape(1, -1))[0]
 
         obs[:framestack_size - 1] = obs[1:framestack_size]
         obs[-2] = item_id
@@ -50,7 +68,9 @@ def generate_episode(
         relevance, terminated = env.step(item_id)
         continuous_relevance, discrete_relevance = relevance
         items_top = env.state.ranked_items(with_satiation=True, discrete=True)
-        # item_id = random.choice(items_top[:10])
+
+        if use_best:
+            item_id = random.choice(items_top[:10])
 
         trajectory.append((
             timestamp,
@@ -83,11 +103,11 @@ def poor_model_from_dataset(dataset_path):
     return model
 
 
-def generate_dataset(gen_conf, env, model):
+def generate_dataset(gen_conf, env, model, use_best = False):
     config = gen_conf
     samples = []
     for episode in count():
-        samples.extend(generate_episode(env, model))
+        samples.extend(generate_episode(env, model, use_best = use_best))
         if config['episodes_per_epoch'] is not None and episode >= config['episodes_per_epoch']:
             break
         if config['samples_per_epoch'] is not None and len(samples) >= config['samples_per_epoch']:
@@ -224,18 +244,39 @@ def main():
         os.makedirs(directory)
 
     gen_conf, env, model = make_env_setting(config_path=args.config, env_name=args.env_name, dataset_path=args.base_data)
-    trajectories = generate_dataset(gen_conf, env, model)
+    use_best = 'best' in args.env_name
+    trajectories = generate_dataset(gen_conf, env, model, use_best=use_best)
 
     # Define the column names
     column_names = ['timestamp', 'user_idx', 'item_idx', 'relevance_cont', 'relevance_int', 'terminated', 'true_top']
 
     # Create a DataFrame from the list of tuples
     df = pd.DataFrame(trajectories, columns=column_names)
-    file_name = f"{directory}/{args.env_name}.csv"
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+   # df['timestamp'] = pd.to_datetime(timestamp).astype(int) // 10 ** 9
 
+    file_name = f"{directory}/{args.env_name}.csv"
     # Save the DataFrame to a CSV file
     print(f"Data generated to {file_name}: {df.shape}")
     df.to_csv(file_name, index=False)
+
+
+
+    # Установка временной метки, по которой будет производиться разделение (например, 70% для тренировочного набора)
+    split_timestamp = df['timestamp'].quantile(0.7)
+
+    # Разделение на тренировочный и тестовый наборы
+    train_data = df[df['timestamp'] <= split_timestamp]
+    test_data = df[df['timestamp'] > split_timestamp]
+
+    # Сохранение тренировочного набора в файл
+    train_data.to_csv(f'{directory}/train_data.csv', index=False)
+
+    # Сохранение тестового набора в файл
+    test_data.to_csv(f'{directory}/test_data.csv', index=False)
+    print("Save train and test.")
+
+
 
 
 if __name__ == "__main__":
