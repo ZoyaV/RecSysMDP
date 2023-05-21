@@ -168,6 +168,10 @@ def main():
 
     top_k = experiment['top_k']
     framestack_size = experiment['mdp_settings']['framestack_size']
+
+    if args.experiment_name:
+        config['name'] = args.experiment_name
+
     if checkpoints_name is None:
         model_name = f"{args.experiment_name}_top_k_{top_k}_framestack_size_{framestack_size}"
     else:
