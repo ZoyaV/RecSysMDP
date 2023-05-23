@@ -1,9 +1,49 @@
+from __future__ import annotations
+
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 
 
-def load_data(data_path, return_values, col_mapping):
-    data = pd.read_csv(data_path)#, sep = "\t")
+def save_data(
+        data: list[tuple], columns: list[str], save_dir: str | Path, dataset_name: str,
+        train_test_split: float | None = 0.7
+):
+    # Create a DataFrame from the list of tuples
+    df = pd.DataFrame(data, columns=columns)
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+    if isinstance(save_dir, str):
+        save_dir = Path(save_dir)
+
+    save_dir.mkdir(exist_ok=True)
+    filepath = save_dir / f'{dataset_name}.csv'
+    # Save the DataFrame to a CSV file
+    print(f"Data generated to {filepath}: {df.shape}")
+    df.to_csv(filepath, index=False)
+
+    if train_test_split is not None:
+        # calc timestamp for time split
+        split_timestamp = df['timestamp'].quantile(train_test_split)
+
+        # train/test split
+        train_data = df[df['timestamp'] <= split_timestamp]
+        test_data = df[df['timestamp'] > split_timestamp]
+
+        # save train/test parts of the entire dataset
+        train_data.to_csv(save_dir/'train_data.csv', index=False)
+        test_data.to_csv(save_dir/'test_data.csv', index=False)
+        print("Save train/test splits.")
+
+
+def load_data(data_path, return_values, col_mapping: dict[str, str] = None):
+    data = pd.read_csv(data_path)
+    if col_mapping is not None:
+        if set(col_mapping.keys()) & set(data.columns):
+            data.rename(col_mapping)
+            data.to_csv(data_path, index=False)
+
     data = data.sort_values(col_mapping['timestamp_col_name'])
     if return_values:
         full_users = data[col_mapping['user_col_name']].values

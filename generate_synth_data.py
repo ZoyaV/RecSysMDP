@@ -11,6 +11,7 @@ import yaml
 from d3rlpy.base import LearnableBase
 
 from als_model import ALSRecommender
+from constructors.mdp_constructor import save_data
 from recsys_mdp.generators.datasets.synthetic.relevance import similarity
 from recsys_mdp.generators.scenarios.mdp_next_item_integration import (
     NextItemEnvironment,
@@ -253,44 +254,24 @@ def main():
     if args.config is None:
         args.config = "recsys_mdp/generators/configs/mdp_next_item_integration.yaml"
 
-    directory = f'environments/{args.env_name}'
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    gen_conf, env, model = make_env_setting(config_path=args.config, env_name=args.env_name, dataset_path=args.base_data)
+    gen_conf, env, model = make_env_setting(
+        config_path=args.config, env_name=args.env_name, dataset_path=args.base_data
+    )
     use_best = 'best' in args.env_name
     trajectories = generate_dataset(gen_conf, env, model, use_best=use_best)
 
-    # Define the column names
-    column_names = ['timestamp', 'user_idx', 'item_idx', 'relevance_cont', 'relevance_int', 'terminated', 'true_top']
-
-    # Create a DataFrame from the list of tuples
-    df = pd.DataFrame(trajectories, columns=column_names)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-   # df['timestamp'] = pd.to_datetime(timestamp).astype(int) // 10 ** 9
-
-    file_name = f"{directory}/{args.env_name}.csv"
-    # Save the DataFrame to a CSV file
-    print(f"Data generated to {file_name}: {df.shape}")
-    df.to_csv(file_name, index=False)
-
-
-
-    # Установка временной метки, по которой будет производиться разделение (например, 70% для тренировочного набора)
-    split_timestamp = df['timestamp'].quantile(0.7)
-
-    # Разделение на тренировочный и тестовый наборы
-    train_data = df[df['timestamp'] <= split_timestamp]
-    test_data = df[df['timestamp'] > split_timestamp]
-
-    # Сохранение тренировочного набора в файл
-    train_data.to_csv(f'{directory}/train_data.csv', index=False)
-
-    # Сохранение тестового набора в файл
-    test_data.to_csv(f'{directory}/test_data.csv', index=False)
-    print("Save train and test.")
-
-
+    column_names = [
+        'timestamp', 'user_idx', 'item_idx',
+        'relevance_cont', 'relevance_int',
+        'terminated', 'true_top'
+    ]
+    save_data(
+        data=trajectories,
+        columns=column_names,
+        save_dir=Path('./environments') / args.env_name,
+        dataset_name=args.env_name,
+        train_test_split=.7
+    )
 
 
 if __name__ == "__main__":
