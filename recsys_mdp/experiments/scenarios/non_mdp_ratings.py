@@ -20,11 +20,11 @@ from recsys_mdp.generators.datasets.synthetic.embeddings import (
 from recsys_mdp.generators.datasets.synthetic.log import RandomLogGenerator
 from recsys_mdp.generators.mdp.ratings import MdpDatasetBuilder
 
-from recsys_mdp.generators.run.wandb import get_logger
-from recsys_mdp.generators.utils.config import (
+from recsys_mdp.experiments.run.wandb import get_logger
+from recsys_mdp.experiments.run.config import (
     TConfig, GlobalConfig, LazyTypeResolver
 )
-from recsys_mdp.generators.utils.timer import timer, print_with_timestamp
+from recsys_mdp.experiments.run.timer import timer, print_with_timestamp
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run

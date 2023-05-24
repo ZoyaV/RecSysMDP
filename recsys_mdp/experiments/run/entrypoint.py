@@ -5,9 +5,9 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
 
-from recsys_mdp.generators.run.argparse import parse_arg_list
-from recsys_mdp.generators.run.wandb import set_wandb_entity
-from recsys_mdp.generators.utils.config import (
+from recsys_mdp.experiments.run.argparse import parse_arg_list
+from recsys_mdp.experiments.run.wandb import set_wandb_entity
+from recsys_mdp.experiments.run.config import (
     TConfig, TKeyPathValue, TTypeResolver,
     read_config, GlobalConfig, override_config
 )
@@ -54,7 +54,7 @@ def run_experiment(
     )
 
     if args.wandb_sweep:
-        from recsys_mdp.generators.run.sweep import run_sweep
+        from recsys_mdp.experiments.run.sweep import run_sweep
         run_sweep(
             sweep_id=args.wandb_sweep_id,
             n_agents=args.n_sweep_agents,

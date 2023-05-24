@@ -12,16 +12,14 @@ from numpy.random import Generator
 from recsys_mdp.generators.datasets.synthetic.dataset import ToyRatingsDataset
 from recsys_mdp.generators.datasets.synthetic.relevance import similarity
 from recsys_mdp.generators.mdp.ratings import MdpDatasetBuilder
-from recsys_mdp.generators.run.wandb import get_logger
-from recsys_mdp.generators.utils.config import (
+from recsys_mdp.experiments.run.wandb import get_logger
+from recsys_mdp.experiments.run.config import (
     TConfig, GlobalConfig, LazyTypeResolver
 )
-from recsys_mdp.generators.utils.timer import timer, print_with_timestamp
+from recsys_mdp.experiments.run.timer import timer, print_with_timestamp
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
-    from d3rlpy.algos import AlgoBase
-    from d3rlpy.dataset import MDPDataset
 
 
 def boosting(relative_value: float | np.ndarray, k: float, softness: float = 1.5) -> float:
@@ -401,7 +399,7 @@ class TypesResolver(LazyTypeResolver):
                 RandomClustersEmbeddingsGenerator
             return RandomClustersEmbeddingsGenerator
         if type_name == 'model.random':
-            from recsys_mdp.generators.random_recommender import RandomRecommender
+            from recsys_mdp.generators.utils.random_recommender import RandomRecommender
             return RandomRecommender
         if type_name == 'd3rlpy.cql':
             from d3rlpy.algos import CQL

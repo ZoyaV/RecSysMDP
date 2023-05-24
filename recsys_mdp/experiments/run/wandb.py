@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
-from recsys_mdp.generators.utils.config import TConfig
+from recsys_mdp.experiments.run.config import TConfig
 from recsys_mdp.generators.utils.lazy_imports import lazy_import
 
 wandb = lazy_import('wandb')

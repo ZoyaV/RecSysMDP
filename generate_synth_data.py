@@ -1,5 +1,4 @@
 import argparse
-import os
 import pickle
 from itertools import count
 from pathlib import Path
@@ -13,11 +12,11 @@ from d3rlpy.base import LearnableBase
 from als_model import ALSRecommender
 from constructors.mdp_constructor import save_data
 from recsys_mdp.generators.datasets.synthetic.relevance import similarity
-from recsys_mdp.generators.scenarios.mdp_next_item_integration import (
+from recsys_mdp.experiments.scenarios import (
     NextItemEnvironment,
     TypesResolver
 )
-from recsys_mdp.generators.utils.config import (
+from recsys_mdp.experiments.run.config import (
     GlobalConfig
 )
 from recsys_mdp.generators.utils.lazy_imports import lazy_import
