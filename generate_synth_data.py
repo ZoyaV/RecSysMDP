@@ -11,7 +11,7 @@ from d3rlpy.base import LearnableBase
 
 from als_model import ALSRecommender
 from constructors.mdp_constructor import save_data
-from recsys_mdp.generators.datasets.synthetic.relevance import similarity
+from recsys_mdp.generators.synthetic.relevance import similarity
 from recsys_mdp.experiments.scenarios import (
     NextItemEnvironment,
     TypesResolver
@@ -20,7 +20,7 @@ from recsys_mdp.experiments.run.config import (
     GlobalConfig
 )
 from recsys_mdp.generators.utils.lazy_imports import lazy_import
-from recsys_mdp.mdp_former.base import (
+from recsys_mdp.mdp.base import (
     TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
     RELEVANCE_INT_COL, TERMINATE_COL
 )

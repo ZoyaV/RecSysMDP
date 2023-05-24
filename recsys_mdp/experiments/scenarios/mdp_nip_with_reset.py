@@ -235,6 +235,13 @@ class NIP_with_reset:
             top_k: int,ratings_column,
             mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
     ):
+        from constructors.mdp_constructor import make_mdp
+        from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
+        from constructors.algorithm_constuctor import init_model
+        from constructors.algorithm_constuctor import init_algo
+        from constructors.scorers_constructor import init_scorers
+        from constructors.scorers_constructor import init_logger
+        from run_experiment import eval_algo
 
         log = pd.DataFrame(dataset, columns=[
             TIMESTAMP_COL,

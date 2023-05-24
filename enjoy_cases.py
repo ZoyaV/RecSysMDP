@@ -9,7 +9,7 @@ from constructors.mdp_constructor import load_data, make_mdp
 from generate_synth_data import generate_episode
 from recsys_mdp.experiments.run.config import read_config
 from recsys_mdp.generators.utils.lazy_imports import lazy_import
-from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
+from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
 
 wandb = lazy_import('wandb')
 

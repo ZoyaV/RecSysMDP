@@ -9,9 +9,9 @@ import numpy as np
 import pandas as pd
 from numpy.random import Generator
 
-from recsys_mdp.generators.datasets.synthetic.dataset import ToyRatingsDataset
-from recsys_mdp.generators.datasets.synthetic.relevance import similarity
-from recsys_mdp.generators.mdp.ratings import MdpDatasetBuilder
+from recsys_mdp.generators.synthetic.dataset import ToyRatingsDataset
+from recsys_mdp.generators.synthetic.relevance import similarity
+from recsys_mdp.generators.non_mdp.ratings import MdpDatasetBuilder
 from recsys_mdp.experiments.run.wandb import get_logger
 from recsys_mdp.experiments.run.config import (
     TConfig, GlobalConfig, LazyTypeResolver
@@ -384,18 +384,18 @@ class MdpNextItemExperiment:
 class TypesResolver(LazyTypeResolver):
     def resolve(self, type_name: str, **kwargs):
         if type_name == 'dataset.toy_ratings':
-            from recsys_mdp.generators.datasets.synthetic.dataset import \
+            from recsys_mdp.generators.synthetic.dataset import \
                 ToyRatingsDatasetBuilder
             return ToyRatingsDatasetBuilder
         if type_name == 'ds_source.random':
-            from recsys_mdp.generators.datasets.synthetic.log import RandomLogGenerator
+            from recsys_mdp.generators.synthetic.log import RandomLogGenerator
             return RandomLogGenerator
         if type_name == 'embeddings.random':
-            from recsys_mdp.generators.datasets.synthetic.embeddings import \
+            from recsys_mdp.generators.synthetic.embeddings import \
                 RandomEmbeddingsGenerator
             return RandomEmbeddingsGenerator
         if type_name == 'embeddings.clusters':
-            from recsys_mdp.generators.datasets.synthetic.embeddings import \
+            from recsys_mdp.generators.synthetic.embeddings import \
                 RandomClustersEmbeddingsGenerator
             return RandomClustersEmbeddingsGenerator
         if type_name == 'model.random':

@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from numpy.random import Generator
 
-from recsys_mdp.generators.datasets.synthetic.clusters import generate_clusters
+from recsys_mdp.generators.synthetic.clusters import generate_clusters
 
 
 class RandomEmbeddingsGenerator:

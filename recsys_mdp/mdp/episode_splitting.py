@@ -5,7 +5,7 @@ from typing import Callable, Iterable
 import numpy as np
 import pandas as pd
 
-from recsys_mdp.mdp_former.base import TERMINATE_COL, TIMESTAMP_COL
+from recsys_mdp.mdp.base import TERMINATE_COL, TIMESTAMP_COL
 
 
 def split_by_time(user_log: pd.DataFrame, threshold_minutes: int = 20):

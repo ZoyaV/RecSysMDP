@@ -1,6 +1,6 @@
 import numpy as np
 
-from recsys_mdp.mdp_former.base import RATING_COL, ITEM_ID_COL
+from recsys_mdp.mdp.base import RATING_COL, ITEM_ID_COL
 
 
 def discrete_relevance_action(df):

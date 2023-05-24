@@ -9,16 +9,16 @@ import pandas as pd
 from d3rlpy.algos import AlgoBase
 from d3rlpy.dataset import MDPDataset
 
-from recsys_mdp.generators.datasets.synthetic.dataset import (
+from recsys_mdp.generators.synthetic.dataset import (
     ToyRatingsDataset,
     ToyRatingsDatasetBuilder
 )
-from recsys_mdp.generators.datasets.synthetic.embeddings import (
+from recsys_mdp.generators.synthetic.embeddings import (
     RandomEmbeddingsGenerator,
     RandomClustersEmbeddingsGenerator
 )
-from recsys_mdp.generators.datasets.synthetic.log import RandomLogGenerator
-from recsys_mdp.generators.mdp.ratings import MdpDatasetBuilder
+from recsys_mdp.generators.synthetic.log import RandomLogGenerator
+from recsys_mdp.generators.non_mdp.ratings import MdpDatasetBuilder
 
 from recsys_mdp.experiments.run.wandb import get_logger
 from recsys_mdp.experiments.run.config import (

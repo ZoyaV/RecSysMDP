@@ -3,11 +3,11 @@ import pickle
 import numpy as np
 import pandas as pd
 
-from recsys_mdp.mdp_former.acting import continuous_relevance_action
-from recsys_mdp.mdp_former.base import USER_ID_COL, TIMESTAMP_COL, ITEM_ID_COL, RATING_COL
-from recsys_mdp.mdp_former.episode_splitting import split_by_time, to_episode_ranges
-from recsys_mdp.mdp_former.rewarding import monotony_reward
-from recsys_mdp.mdp_former.utils import isnone
+from recsys_mdp.mdp.acting import continuous_relevance_action
+from recsys_mdp.mdp.base import USER_ID_COL, TIMESTAMP_COL, ITEM_ID_COL, RATING_COL
+from recsys_mdp.mdp.episode_splitting import split_by_time, to_episode_ranges
+from recsys_mdp.mdp.rewarding import monotony_reward
+from recsys_mdp.mdp.utils import isnone
 
 
 

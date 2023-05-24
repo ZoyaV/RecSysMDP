@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from recsys_mdp.mdp_former.base import (
+from recsys_mdp.mdp.base import (
     TIMESTAMP_COL, RATING_COL, USER_ID_COL, ITEM_ID_COL,
     RELEVANCE_INT_COL
 )
@@ -63,13 +63,13 @@ def load_data(filepath, relevance_ratings_column: str = None):
 def load_reward_function(func_name):
     # Load reward function
     if func_name == 'condition_reward':
-        from recsys_mdp.mdp_former.rewarding import condition_reward
+        from recsys_mdp.mdp.rewarding import condition_reward
         return condition_reward
     elif func_name == 'relevance_based_reward':
-        from recsys_mdp.mdp_former.rewarding import relevance_based_reward
+        from recsys_mdp.mdp.rewarding import relevance_based_reward
         return relevance_based_reward
     elif func_name == 'monotony_reward':
-        from recsys_mdp.mdp_former.rewarding import monotony_reward
+        from recsys_mdp.mdp.rewarding import monotony_reward
         return monotony_reward
     else:
         raise ValueError(f'Unknown reward func name {func_name}')
@@ -78,13 +78,13 @@ def load_reward_function(func_name):
 def load_action_function(func_name):
     # Load action function
     if func_name == 'next_item_action':
-        from recsys_mdp.mdp_former.acting import next_item_action
+        from recsys_mdp.mdp.acting import next_item_action
         return next_item_action
     elif func_name == 'continuous_relevance_action':
-        from recsys_mdp.mdp_former.acting import continuous_relevance_action
+        from recsys_mdp.mdp.acting import continuous_relevance_action
         return continuous_relevance_action
     elif func_name == 'discrete_relevance_action':
-        from recsys_mdp.mdp_former.acting import discrete_relevance_action
+        from recsys_mdp.mdp.acting import discrete_relevance_action
         return discrete_relevance_action
     else:
         raise ValueError(f'Unknown action func name {func_name}')
@@ -93,10 +93,10 @@ def load_action_function(func_name):
 def load_episode_splitter(splitter_name):
     # Load action function
     if splitter_name == 'interaction_interruption':
-        from recsys_mdp.mdp_former.episode_splitting import split_by_time
+        from recsys_mdp.mdp.episode_splitting import split_by_time
         return split_by_time
     elif splitter_name == 'full_user_interaction':
-        from recsys_mdp.mdp_former.episode_splitting import split_by_user
+        from recsys_mdp.mdp.episode_splitting import split_by_user
         return split_by_user
     else:
         raise ValueError(f'Unknown episode splitter name {splitter_name}')
@@ -110,7 +110,7 @@ def make_mdp(
     action_function = load_action_function(action_function_name)
     episode_splitter = load_episode_splitter(episode_splitter_name)
 
-    from recsys_mdp.mdp_former.mdp_former import MDPFormer
+    from recsys_mdp.mdp.mdp_former import MDPFormer
     mdp_preparator_class = MDPFormer(
         load_from_file=False, dataframe=data,
         framestack=framestack_size,

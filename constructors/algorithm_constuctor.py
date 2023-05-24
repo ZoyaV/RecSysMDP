@@ -1,6 +1,6 @@
 import torch
 
-from recsys_mdp.mdp_former.base import USER_ID_COL, ITEM_ID_COL, RATING_COL
+from recsys_mdp.mdp.base import USER_ID_COL, ITEM_ID_COL, RATING_COL
 from recsys_mdp.models.embedddings import als_embeddings
 
 

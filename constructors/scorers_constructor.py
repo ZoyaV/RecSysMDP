@@ -1,10 +1,10 @@
 import numpy as np
 
-from recsys_mdp.mdp_former.base import ITEM_ID_COL, USER_ID_COL
-from recsys_mdp.metrics.d3rlpy_loggers import base_ndcg, tsne_embeddings, episode_hit_rate, tsne_encoder
-from recsys_mdp.metrics.logger import Logger
+from recsys_mdp.mdp.base import ITEM_ID_COL, USER_ID_COL
+from recsys_mdp.experiments.logging.d3rlpy_loggers import base_ndcg, tsne_embeddings, episode_hit_rate, tsne_encoder
+from recsys_mdp.experiments.logging.logger import Logger
 from recsys_mdp.metrics.scorers import log_covarage, total_ndcg, interactive_hit_rates, static_hit_rates, preference_correlation
-from recsys_mdp.metrics.visual_logger import tsne, items_distribution
+from recsys_mdp.experiments.logging.visual_logger import tsne, items_distribution
 
 def init_tsne_vis(test_users, test_items):
     scorer = tsne_embeddings(test_users, test_items)
