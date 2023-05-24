@@ -37,7 +37,7 @@ experiment:
       use_als: false
       user_num: 100
       item_num: 100
-      emb_dim: 5
+      emb_dim: 16
       hid_dim: 256
       memory_size: 10
       feature_size: 512
