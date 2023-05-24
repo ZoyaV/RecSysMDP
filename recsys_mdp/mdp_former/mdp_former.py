@@ -131,8 +131,6 @@ class MDPFormer:
         obs_prev += framestack_queue.copy() #items history
         obs_prev += scorers_queue.copy() #scorers history
         obs_prev += user_df[:1][self.user_col_name].values.tolist()  # user id
-        print("---------------")
-        print(obs_prev)
         for index, row in user_df.iterrows():
             t += 1
             if t < self.framestack: continue
@@ -144,10 +142,6 @@ class MDPFormer:
 
             interaction, obs_prev = self.make_interaction(relevance, user,
                                                           item, ts, obs_prev)
-
-            print("---------------")
-            print(obs_prev)
-
             interactions.append(interaction)
 
         df = pd.DataFrame(interactions)
