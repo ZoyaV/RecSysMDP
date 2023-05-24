@@ -19,6 +19,10 @@ from recsys_mdp.generators.utils.config import (
     TConfig, GlobalConfig, LazyTypeResolver
 )
 from recsys_mdp.generators.utils.timer import timer, print_with_timestamp
+from recsys_mdp.mdp_former.base import (
+    TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
+    RELEVANCE_INT_COL, TERMINATE_COL, RATING_COL
+)
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
@@ -518,31 +522,25 @@ class MdpNextItemExperiment:
 
     def _learn_on_dataset(
             self, total_epoch: int, dataset: list[tuple],
-            top_k: int,
+            top_k: int, ratings_column,
             mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
     ):
         from constructors.mdp_constructor import make_mdp
         from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
         from constructors.algorithm_constuctor import init_model
         from constructors.algorithm_constuctor import init_algo
-        from constructors.scorers_constructor import init_scorers
         from constructors.scorers_constructor import init_logger
         from run_experiment import eval_algo
 
         log = pd.DataFrame(dataset, columns=[
-            'timestamp',
-            'user_id', 'item_id',
-            'continuous_rating', 'discrete_rating',
-            'terminal'
+            TIMESTAMP_COL,
+            USER_ID_COL, ITEM_ID_COL,
+            RELEVANCE_CONT_COL, RELEVANCE_INT_COL,
+            TERMINATE_COL
         ])
-        data_mapping = dict(
-            user_col_name='user_id',
-            item_col_name='item_id',
-            reward_col_name='discrete_rating',
-            timestamp_col_name='timestamp'
-        )
-        train_values = get_values_fixme(log, data_mapping)
-        mdp_preparator = make_mdp(data=log, data_mapping=data_mapping, **mdp_settings)
+        log[RATING_COL] = log[ratings_column]
+
+        mdp_preparator = make_mdp(data=log, **mdp_settings)
         states, rewards, actions, terminations, state_tail = mdp_preparator.create_mdp()
         train_mdp = to_d3rlpy_form_ND(
             states, rewards, actions, terminations,
@@ -551,55 +549,30 @@ class MdpNextItemExperiment:
 
         # Init RL algorithm
         if not self.learnable_model:
-            model = init_model(train_values, **algo_settings['model_parameters'])
+            model = init_model(data=log, **algo_settings['model_parameters'])
             algo = init_algo(model, **algo_settings['general_parameters'])
             self.model = algo
             self.learnable_model = True
 
         # Init scorer
-        scorers = init_scorers(state_tail, train_values, top_k, **scorer)
         logger = init_logger(
-            train_mdp, state_tail, train_values, top_k, wandb_logger=self.logger, **scorer
+            train_mdp, state_tail, log, top_k, wandb_logger=self.logger, **scorer
         )
 
         # Run experiment
         config = self.learning_config
         fitter = self.model.fitter(
-            dataset=train_mdp,
-            n_epochs=config.epochs,
-            eval_episodes=train_mdp,
-            scorers=scorers,
+            dataset=train_mdp, n_epochs=config.epochs,
             verbose=False, save_metrics=False, show_progress=False,
         )
         for epoch, metrics in fitter:
             if epoch == 1 or epoch % config.eval_schedule == 0:
-                eval_algo(self.model, logger)
-                # self._eval_and_log(total_epoch)
+                eval_algo(
+                    self.model, logger, train_logger=logger, env=self.env,
+                    looking_for=[0, 1, 6]
+                )
             total_epoch += 1
         return total_epoch
-
-    def _eval_and_log(self, epoch):
-        metrics = self._eval_returns()
-
-        self.print_with_timestamp(
-            f'Epoch {epoch:03}: '
-            f'ContRet {metrics["continuous_return"]:.3f} '
-            f'| DiscRet {metrics["discrete_return"]:.3f}'
-        )
-        if self.logger:
-            metrics |= dict(epoch=epoch)
-            self.logger.log(metrics)
-
-    def _eval_returns(self):
-        cont_returns, disc_returns = [], []
-        for ep in range(self.learning_config.eval_episodes):
-            trajectory = self._generate_episode()
-            cont_returns.append(np.sum([step[2] for step in trajectory]))
-            disc_returns.append(np.sum([step[3] for step in trajectory]))
-        return {
-            'continuous_return': np.mean(cont_returns),
-            'discrete_return': np.mean(disc_returns),
-        }
 
     def print_with_timestamp(self, text: str):
         print_with_timestamp(text, self.init_time)
@@ -654,23 +627,6 @@ class TypesResolver(LazyTypeResolver):
             from d3rlpy.algos.bc import BC
             return BC
         raise ValueError(f'Unknown type: {type_name}')
-
-
-def get_values_fixme(data, col_mapping):
-    full_users = data[col_mapping['user_col_name']].values
-    full_items = data[col_mapping['item_col_name']].values
-
-    users_unique = np.unique(data[col_mapping['user_col_name']].values)
-    items_unique = np.unique(data[col_mapping['item_col_name']].values)
-
-    rating = data[col_mapping['reward_col_name']].values
-    return {
-        'users_unique': users_unique,
-        'items_unique': items_unique,
-        'full_users': full_users,
-        'full_items': full_items,
-        'rating': rating
-    }
 
 
 def random_datetime(

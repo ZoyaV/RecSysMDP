@@ -59,12 +59,7 @@ def fit(
         algo, n_epochs, train_mdp, test_mdp, train_logger, test_logger,
         model_name, eval_schedule=5, env = None, looking_for=None
 ):
-    fitter = algo.fitter(
-        train_mdp, n_epochs=n_epochs,
-        save_metrics=False,
-        scorers={},
-        eval_episodes=test_mdp
-    )
+    fitter = algo.fitter(train_mdp, n_epochs=n_epochs, save_metrics=False,)
 
     for epoch, metrics in fitter:
         if epoch % eval_schedule == 0:
@@ -188,7 +183,7 @@ def main():
         prm = [int(p) for p in args.model_parametrs]
         experiment['algo_settings']['model_parametrs']['user_num'] = prm[0]
         experiment['algo_settings']['model_parametrs']['item_num'] = prm[1]
-        experiment['algo_settings']['model_parametrs']['emb_dim'] = 8
+        experiment['algo_settings']['model_parametrs']['emb_dim'] = prm[2]
         experiment['algo_settings']['model_parametrs']['hid_dim'] = prm[3]
         experiment['algo_settings']['model_parametrs']['memory_size'] = prm[4]
         experiment['algo_settings']['model_parametrs']['feature_size'] = prm[5]

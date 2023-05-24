@@ -57,6 +57,7 @@ env:
 
 zoya_settings:
   top_k: 10
+  ratings_column: relevance_int
   mdp_settings:
     framestack_size: 10
     reward_function_name: "relevance_based_reward"
