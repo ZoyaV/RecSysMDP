@@ -16,7 +16,15 @@ from constructors.scorers_constructor import init_scorers, init_logger
 
 wandb = lazy_import('wandb')
 
-
+def episode_statistics(states):
+    sizes = []
+    for state in states:
+        sizes.append(len(state))
+    print("Mean: ", np.mean(sizes))
+    print("Median: ", np.median(sizes))
+    print("Max: ", np.max(sizes))
+    print("Min: ", np.min(sizes))
+    print("STD: ", np.std(sizes))
 def eval_algo(algo, logger, train_logger, env = None, looking_for = None):
     if env:
         env.hard_reset(mode=USER_RESET_MODE_INIT)
@@ -29,6 +37,7 @@ def eval_algo(algo, logger, train_logger, env = None, looking_for = None):
             )
     else:
         online_res =None
+    print("END")
    # print(online_res)
     logger.visual_log(algo, {
         "STAT": logger.static_log(algo),
@@ -82,6 +91,8 @@ def run_experiment(
         data=data, data_mapping=data_mapping, **mdp_settings
     )
     states, rewards, actions, terminations, state_tail = mdp_preparator.create_mdp()
+    print("Train episode-statistics")
+    episode_statistics(states)
   #  print(states)
     train_mdp = to_d3rlpy_form_ND(states, rewards, actions, terminations, discrete=prediction_type)
 
@@ -92,12 +103,15 @@ def run_experiment(
         col_mapping=col_mapping
     )
 
+
     mdp_settings['episode_splitter_name'] = "interaction_interruption"
     test_mdp_preparator = make_mdp(
         data=test_data, data_mapping=data_mapping, **mdp_settings
     )
     states, rewards, actions, terminations, _ = test_mdp_preparator.create_mdp()
-
+    print("Test episode-statistics")
+    episode_statistics(states)
+  #  exit()
     test_mdp = to_d3rlpy_form_ND(states, rewards, actions, terminations, discrete=prediction_type)
 
     # Init RL algorithm
@@ -189,7 +203,7 @@ def main():
         prm = [int(p) for p in args.model_parametrs]
         experiment['algo_settings']['model_parametrs']['user_num'] = prm[0]
         experiment['algo_settings']['model_parametrs']['item_num'] = prm[1]
-        experiment['algo_settings']['model_parametrs']['emb_dim'] = prm[2]
+        experiment['algo_settings']['model_parametrs']['emb_dim'] = 8
         experiment['algo_settings']['model_parametrs']['hid_dim'] = prm[3]
         experiment['algo_settings']['model_parametrs']['memory_size'] = prm[4]
         experiment['algo_settings']['model_parametrs']['feature_size'] = prm[5]
