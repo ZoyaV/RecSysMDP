@@ -37,13 +37,16 @@ def generate_episode(
 
     if get_best_for_start:
         top_framestack = []
+
         for i in range(framestack_size):
             items_top = env.state.ranked_items(with_satiation=True, discrete=True)
             item_id = random.choice(items_top[:10])
             top_framestack.append(item_id)
             _, _ = env.step(item_id)
-        # [N last item_ids] + [user_id]
-        fake_obs =top_framestack + [user_id]
+        #add scores as all is best
+        # [N last item_ids] + [[5] * N] +  [user_id]
+        fake_obs =top_framestack + [5]*framestack_size + [user_id]
+
     else:
         # [N last item_ids] + [user_id]
         fake_obs = np.random.randint(0, env.n_items, framestack_size).tolist() + [user_id]
@@ -57,8 +60,7 @@ def generate_episode(
             except:
                 item_id = model.predict(obs[:framestack_size].reshape(1, -1))[0]
 
-        obs[:framestack_size - 1] = obs[1:framestack_size]
-        obs[-2] = item_id
+
 
         timestamp = env.timestamp
         # log satiation histogram
@@ -66,7 +68,19 @@ def generate_episode(
             log_satiation(logger, env.state.satiation, orig_user_id)
 
         relevance, terminated = env.step(item_id)
+
         continuous_relevance, discrete_relevance = relevance
+
+        #TODO: add addtional function for framestack support
+
+        obs[:framestack_size - 1] = obs[1:framestack_size]
+        obs[framestack_size - 1] = item_id
+      #  print(obs[:framestack_size])
+        obs[framestack_size:framestack_size * 2 - 1] = obs[framestack_size + 1:framestack_size * 2]
+        obs[framestack_size * 2 - 1] = discrete_relevance
+
+       # print(obs)
+     #   print(obs[framestack_size:framestack_size * 2])
         items_top = env.state.ranked_items(with_satiation=True, discrete=True)
 
         if use_best:
