@@ -87,8 +87,15 @@ class Logger():
                 interactive_items.append(new_item)
 
                 new_obs = obs.copy()
-                new_obs[:-3] = new_obs[1:-2]
-                new_obs[-2] = new_item
+                framestack_size = (len(obs) - 1)//2
+
+                new_obs[:framestack_size - 1] = new_obs[1:framestack_size]
+                new_obs[framestack_size - 1] = new_item
+                #  print(obs[:framestack_size])
+                new_obs[framestack_size:framestack_size * 2 - 1] = new_obs[framestack_size + 1:framestack_size * 2]
+                #TODO: sophisticated question, what relevance shulf it be
+                new_obs[framestack_size * 2 - 1] = 5
+
                 obs = new_obs.copy()
 
 
