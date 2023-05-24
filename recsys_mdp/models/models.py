@@ -32,7 +32,7 @@ class ActorEncoder(nn.Module):
                 memory_size, freeze_emb, use_als, user_emb, item_emb
             )
         self.feature_size = feature_size
-
+        self.memory_size = memory_size
         self.layers = nn.Sequential(
             nn.Linear(embedding_dim * self.state_repr.out_embeddings, hidden_dim),
             nn.LayerNorm(hidden_dim),
@@ -55,9 +55,22 @@ class ActorEncoder(nn.Module):
         :param memory: memory batch
         :return: output, vector of the size `feature_size`
         """
+
+        # TODO: how to check is user in x or score in x?
         user = x[:,-1]
-        memory = x[:, :-1]
-        state = self.state_repr(user, memory)
+        memory = x[:, :self.memory_size]
+        score = x[:, self.memory_size:-1]
+      #  print(user)
+       # exit()
+        try:
+            state = self.state_repr(user, memory, score)
+        except Exception as e:
+            print(e)
+            print(user)
+            print(memory)
+            print(score)
+            print(x)
+            exit()
         return torch.relu(self.layers(state))
 
     def get_feature_size(self):

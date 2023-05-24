@@ -192,6 +192,11 @@ class FullHistory(nn.Module):
         self.item_embeddings = nn.Embedding(
             item_num + 1, embedding_dim, padding_idx=int(item_num)
         )
+
+        #TODO: co-style, make size of score emb flexible
+        self.score_embeddings = nn.Embedding(
+            6, 1
+        )
         self.drr_ave = torch.nn.Conv1d(
             in_channels=memory_size, out_channels=1, kernel_size=1
         )
@@ -219,7 +224,7 @@ class FullHistory(nn.Module):
             self.item_embeddings.weight.requires_grad = False
             self.user_embeddings.weight.requires_grad = False
 
-    def forward(self, user, memory):
+    def forward(self, user, memory, scorers = None):
         """
         :param user: user batch
         :param memory: memory batch
@@ -228,7 +233,13 @@ class FullHistory(nn.Module):
         # user_embedding = self.user_embeddings()
 
         item_embeddings = self.item_embeddings(memory.long())
-        drr_ave = self.drr_ave(item_embeddings).squeeze(1)
+        #TODO: add scorers check
+        # TODO: fix dtype transform of scorers
+        #if scorers:
+       # print(scorers.long())
+
+        scorers_embeddings = self.score_embeddings(scorers.long())
+        item_embeddings = item_embeddings * scorers_embeddings
 
         batch, i, j = item_embeddings.shape
         # print(item_embeddings.reshape(-1,i*j).shape)

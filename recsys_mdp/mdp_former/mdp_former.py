@@ -83,29 +83,40 @@ class MDPFormer:
         """
         interactions = []
         framestack_queue = []
+        scorers_queue = []
 
         # Fill first framestack_size items to history
         for index, row in user_df.iterrows():
             framestack_queue.append(row[self.item_col_name])
+            scorers_queue.append(row[self.reward_col_name])
             if len(framestack_queue) >= self.framestack:
                 break
         # Make interaction history for each user-item interaction
         t = 0
+        self.history_keys.append('score')
         for index, row in user_df.iterrows():
             t += 1
             if t < self.framestack: continue
             history = []
             if 'framestack' in self.history_keys:
                 history += framestack_queue.copy()
+            if 'score' in self.history_keys:
+                history += scorers_queue.copy()
             if 'user_id' in self.history_keys:
                 history += [row[self.user_col_name]]
+
             interaction = {self.user_col_name: row[self.user_col_name],
                            'history': history,
                            self.reward_col_name: row[self.reward_col_name],
                            self.item_col_name: row[self.item_col_name],
                            self.timestamp_col_name: row[self.timestamp_col_name]}
+
             framestack_queue.append(row[self.item_col_name])
+            scorers_queue.append(row[self.reward_col_name])
+
             framestack_queue.pop(0)
+            scorers_queue.pop(0)
+
             interactions.append(interaction)
 
         df = pd.DataFrame(interactions)
