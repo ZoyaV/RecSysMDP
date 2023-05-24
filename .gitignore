@@ -5,6 +5,8 @@ d3rlpy_logs/
 *.csv
 # Pickle data files
 *.pkl
+# Mac OS files
+.DS_Store
 
 ### ================ DEFAULT PYTHON IGNORES ====================
 
