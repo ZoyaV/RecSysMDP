@@ -1,19 +1,26 @@
 import torch
+
+from recsys_mdp.mdp_former.base import USER_ID_COL, ITEM_ID_COL, RATING_COL
 from recsys_mdp.models.embedddings import als_embeddings
-def init_embedings(values, emb_dim):
-    users, items = values['full_users'], values['full_items']
-    rating = values['rating']
+
+
+def init_embeddings(data, emb_dim):
+    users, items = data[USER_ID_COL].values, data[ITEM_ID_COL].values
+    rating = data[RATING_COL].values
     users_emb, items_emb = als_embeddings(users, items, rating, emb_dim)
     return users_emb, items_emb
 
-def init_model(values, use_als, user_num, item_num, emb_dim,
-               hid_dim, memory_size, feature_size, state_repr_name,
-               freeze_emb, attention_hidden_size):
+
+def init_model(
+        data, use_als, user_num, item_num, emb_dim,
+        hid_dim, memory_size, feature_size, state_repr_name,
+        freeze_emb, attention_hidden_size
+):
     from recsys_mdp.models.models import ActorEncoderFactory
     model_params = [user_num, item_num, emb_dim, hid_dim, memory_size,
                     feature_size, state_repr_name, freeze_emb, attention_hidden_size]
     if use_als:
-        users_emb, items_emb = init_embedings(values, emb_dim)
+        users_emb, items_emb = init_embeddings(data, emb_dim)
         users_emb = torch.from_numpy(users_emb)
         items_emb = torch.from_numpy(items_emb)
         model_params.append(True)
@@ -25,6 +32,7 @@ def init_model(values, use_als, user_num, item_num, emb_dim,
     )
     return actor_encoder_factory
 
+
 def init_algo(actor_encoder_factory, use_gpu, batch_size, algo):
 
     if algo == 'CQL':
@@ -33,7 +41,9 @@ def init_algo(actor_encoder_factory, use_gpu, batch_size, algo):
 
     if algo == 'DCQL':
         from d3rlpy.algos import DiscreteCQL
-        algo = DiscreteCQL(use_gpu=use_gpu, encoder_factory=actor_encoder_factory, batch_size=batch_size)
+        algo = DiscreteCQL(
+            use_gpu=use_gpu, encoder_factory=actor_encoder_factory, batch_size=batch_size
+        )
 
     if algo == 'DBC':
         from d3rlpy.algos import DiscreteBC

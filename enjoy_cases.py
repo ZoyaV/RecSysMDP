@@ -7,6 +7,7 @@ import yaml
 from constructors.algorithm_constuctor import init_algo, init_model
 from constructors.mdp_constructor import load_data, make_mdp
 from generate_synth_data import generate_episode
+from recsys_mdp.generators.utils.config import read_config
 from recsys_mdp.generators.utils.lazy_imports import lazy_import
 from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
 
@@ -20,18 +21,17 @@ def load_pretrained_model(conf_name, step = -1):
     prediction_type = config['experiment']['scorer']['prediction_type'] == "discrete"
 
     # Load train data
-    data, data_mapping, train_values = load_data(
-        data_path=config['experiment']['data_path'],
-        return_values=True,
-        col_mapping=config['experiment']['col_mapping']
+    data = load_data(
+        filepath=config['experiment']['data_path'],
+        relevance_ratings_column=config['experiment']['ratings_column'],
     )
     mdp_preparator = make_mdp(
-        data=data, data_mapping=data_mapping, **config['experiment']['mdp_settings']
+        data=data, **config['experiment']['mdp_settings']
     )
     states, rewards, actions, termations, state_tail = mdp_preparator.create_mdp()
     train_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations, discrete=prediction_type)
 
-    model = init_model(train_values, **config['experiment']['algo_settings']['model_parametrs'])
+    model = init_model(data, **config['experiment']['algo_settings']['model_parametrs'])
     algo = init_algo(model, **config['experiment']['algo_settings']['general_parametrs'])
     algo.build_with_dataset(train_mdp)
     if step == -1:
@@ -42,8 +42,7 @@ def load_pretrained_model(conf_name, step = -1):
 
 
 def get_enjoy_setting(pretrain_conf, env_path, config_path, model_epoch = -1):
-    with open(config_path) as f:
-        config = yaml.load(f, Loader=yaml.Loader)
+    config = read_config(config_path)
     # Unpickle the object
     with open(f'{env_path}/env.pkl', 'rb') as f:
         env = pickle.load(f)

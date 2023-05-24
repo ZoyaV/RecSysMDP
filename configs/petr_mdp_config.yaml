@@ -10,11 +10,7 @@ experiment:
   top_k: 10
   data_path: environments/general_env/train_data.csv
   test_data_path: environments/general_env/test_data.csv
-  col_mapping:
-    user_col_name: user_idx
-    item_col_name: item_idx
-    reward_col_name: relevance_int
-    timestamp_col_name: timestamp
+  ratings_column: relevance_int
   mdp_settings:
     framestack_size: 10
     reward_function_name: relevance_based_reward

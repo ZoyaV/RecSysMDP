@@ -3,7 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
+
+from recsys_mdp.mdp_former.base import (
+    TIMESTAMP_COL, RATING_COL, USER_ID_COL, ITEM_ID_COL,
+    RELEVANCE_INT_COL
+)
 
 
 def save_data(
@@ -12,7 +16,7 @@ def save_data(
 ):
     # Create a DataFrame from the list of tuples
     df = pd.DataFrame(data, columns=columns)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df[TIMESTAMP_COL] = pd.to_datetime(df[TIMESTAMP_COL])
 
     if isinstance(save_dir, str):
         save_dir = Path(save_dir)
@@ -25,11 +29,11 @@ def save_data(
 
     if train_test_split is not None:
         # calc timestamp for time split
-        split_timestamp = df['timestamp'].quantile(train_test_split)
+        split_timestamp = df[TIMESTAMP_COL].quantile(train_test_split)
 
         # train/test split
-        train_data = df[df['timestamp'] <= split_timestamp]
-        test_data = df[df['timestamp'] > split_timestamp]
+        train_data = df[df[TIMESTAMP_COL] <= split_timestamp]
+        test_data = df[df[TIMESTAMP_COL] > split_timestamp]
 
         # save train/test parts of the entire dataset
         train_data.to_csv(save_dir/'train_data.csv', index=False)
@@ -37,31 +41,23 @@ def save_data(
         print("Save train/test splits.")
 
 
-def load_data(data_path, return_values, col_mapping: dict[str, str] = None):
-    data = pd.read_csv(data_path)
-    if col_mapping is not None:
-        if set(col_mapping.keys()) & set(data.columns):
-            data.rename(col_mapping)
-            data.to_csv(data_path, index=False)
+def load_data(filepath, relevance_ratings_column: str = None):
+    data = pd.read_csv(filepath)
 
-    data = data.sort_values(col_mapping['timestamp_col_name'])
-    if return_values:
-        full_users = data[col_mapping['user_col_name']].values
-        full_items = data[col_mapping['item_col_name']].values
+    # ensure correct column types
+    data[TIMESTAMP_COL] = pd.to_datetime(data[TIMESTAMP_COL])
+    data[USER_ID_COL] = data[USER_ID_COL].astype(int)
+    data[ITEM_ID_COL] = data[ITEM_ID_COL].astype(int)
+    data[RELEVANCE_INT_COL] = data[RELEVANCE_INT_COL].astype(int)
 
-        users_unique = np.unique(data[col_mapping['user_col_name']].values)
-        items_unique = np.unique(data[col_mapping['item_col_name']].values)
+    # ensure correct time-based sorting
+    data = data.sort_values(TIMESTAMP_COL)
 
-        rating = data[col_mapping['reward_col_name']].values
+    # add column with user ratings based on one of the relevance columns
+    if relevance_ratings_column is not None:
+        data[RATING_COL] = data[relevance_ratings_column]
 
-        values = {'users_unique': users_unique, 'items_unique':items_unique,
-                  'full_users': full_users, 'full_items':full_items, 'rating':rating}
-        print("////////////////")
-        print(values)
-        return data, col_mapping, values
-    print("////////////////")
-    print(data)
-    return data, col_mapping
+    return data
 
 
 def load_reward_function(func_name):
@@ -107,7 +103,7 @@ def load_episode_splitter(splitter_name):
 
 
 def make_mdp(
-        data, data_mapping, framestack_size, history_keys,
+        data, framestack_size, history_keys,
         action_function_name, reward_function_name, episode_splitter_name
 ):
     reward_function = load_reward_function(reward_function_name)
@@ -117,10 +113,10 @@ def make_mdp(
     from recsys_mdp.mdp_former.mdp_former import MDPFormer
     mdp_preparator_class = MDPFormer(
         load_from_file=False, dataframe=data,
-        data_mapping=data_mapping, framestack=framestack_size,
+        framestack=framestack_size,
         history_keys=history_keys,
         reward_function=reward_function,
         action_function=action_function,
-        episode_splitter=episode_splitter
+        episode_splitter=episode_splitter,
     )
     return mdp_preparator_class
