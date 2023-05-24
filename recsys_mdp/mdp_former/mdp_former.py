@@ -76,6 +76,38 @@ class MDPFormer:
 
         return states, rewards, actions, terminations
 
+    def make_interaction(self, relevance, user, item, ts, obs_prev, relevance2reward = False):
+        """
+
+        :param reward: reward for predictef item
+        :param user: current user
+        :param item: predicted item
+        :param ts: timestamp
+        :param obs_prev: last framestack
+        :return:
+        """
+
+        history = []
+        history_size = (len(obs_prev) - 1) //2 # len(items stack) + len(scorers stack) + 1(item)
+        history += obs_prev[:history_size].copy()  # items history
+        history += obs_prev[history_size:history_size*2].copy()  # scorers history
+        history += [obs_prev[-1]]  # user id
+        if not relevance2reward:
+            rewards_df = pd.DataFrame({self.data_mapping['reward_col_name']: [relevance]})
+            relevance = self.reward_function(rewards_df, self.data_mapping)[0]
+        interaction = {self.user_col_name: user,
+                       'history': history,
+                       self.reward_col_name: relevance,
+                       self.item_col_name: item,
+                       self.timestamp_col_name: ts}
+
+        obs_prev[:history_size - 1] = obs_prev[1:history_size]
+        obs_prev[history_size - 1] = item
+        #  print(obs[:framestack_size])
+        obs_prev[history_size:history_size * 2 - 1] = obs_prev[history_size + 1:history_size * 2]
+        obs_prev[history_size * 2 - 1] = relevance
+
+        return interaction, obs_prev
     def _interaction_history(self, user_df):
         """
         :param user_df:
@@ -93,29 +125,28 @@ class MDPFormer:
                 break
         # Make interaction history for each user-item interaction
         t = 0
-        self.history_keys.append('score')
+
+        obs_prev = []
+
+        obs_prev += framestack_queue.copy() #items history
+        obs_prev += scorers_queue.copy() #scorers history
+        obs_prev += user_df[:1][self.user_col_name].values.tolist()  # user id
+        print("---------------")
+        print(obs_prev)
         for index, row in user_df.iterrows():
             t += 1
             if t < self.framestack: continue
-            history = []
-            if 'framestack' in self.history_keys:
-                history += framestack_queue.copy()
-            if 'score' in self.history_keys:
-                history += scorers_queue.copy()
-            if 'user_id' in self.history_keys:
-                history += [row[self.user_col_name]]
 
-            interaction = {self.user_col_name: row[self.user_col_name],
-                           'history': history,
-                           self.reward_col_name: row[self.reward_col_name],
-                           self.item_col_name: row[self.item_col_name],
-                           self.timestamp_col_name: row[self.timestamp_col_name]}
+            user = row[self.user_col_name]
+            relevance = row[self.reward_col_name]
+            item = row[self.item_col_name]
+            ts = row[self.timestamp_col_name]
 
-            framestack_queue.append(row[self.item_col_name])
-            scorers_queue.append(row[self.reward_col_name])
+            interaction, obs_prev = self.make_interaction(relevance, user,
+                                                          item, ts, obs_prev)
 
-            framestack_queue.pop(0)
-            scorers_queue.pop(0)
+            print("---------------")
+            print(obs_prev)
 
             interactions.append(interaction)
 
