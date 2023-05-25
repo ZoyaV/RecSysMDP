@@ -1,5 +1,7 @@
-from recsys_mdp.experiments.run.entrypoint import run_experiment, default_run_arg_parser
 from recsys_mdp.experiments.run.config import LazyTypeResolver
+from recsys_mdp.experiments.run.entrypoint import (
+    run_experiment, default_run_arg_parser
+)
 
 
 class RunnerRegistry(LazyTypeResolver):
