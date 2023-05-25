@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+from recsys_mdp.mdp.utils import isnone
 from recsys_mdp.utils.run.config import TConfig
 from recsys_mdp.utils.lazy_imports import lazy_import
 
@@ -43,7 +44,9 @@ class DryWandbLogger:
         pass
 
 
-def get_logger(config: TConfig, log: bool | str | None, project: str = None) -> Run | None:
+def get_logger(
+        config: TConfig, log: bool | str | None, project: str = None, wandb_init: TConfig = None
+) -> Run | None:
     if log is None or not log:
         return None
 
@@ -51,7 +54,8 @@ def get_logger(config: TConfig, log: bool | str | None, project: str = None) -> 
         # imitate wandb logger, but do nothing => useful for debugging
         return DryWandbLogger()
 
-    logger = wandb.init(project=project)
+    wandb_init = isnone(wandb_init, {})
+    logger = wandb.init(project=project, **wandb_init)
 
     # we have to pass the config with update instead of init because for sweep runs
     # it is already initialized with the sweep run config

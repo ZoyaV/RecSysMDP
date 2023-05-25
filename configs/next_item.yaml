@@ -168,3 +168,8 @@ embeddings:
     min_dim_delta: 0.3
     min_l2_dist: 0.1
     max_generation_tries: 20000
+
+# additional params for wandb.init
+wandb_init:
+  name: ...
+  group: ...

@@ -5,13 +5,6 @@ from recsys_mdp.utils.run.config import LazyTypeResolver
 
 class TypesResolver(LazyTypeResolver):
     def resolve(self, type_name: str, **kwargs):
-        if type_name == 'dataset.toy_ratings':
-            from recsys_mdp.simulator.dataset import \
-                ToyRatingsDatasetBuilder
-            return ToyRatingsDatasetBuilder
-        if type_name == 'ds_source.random':
-            from recsys_mdp.simulator.log import RandomLogGenerator
-            return RandomLogGenerator
         if type_name == 'embeddings.random':
             from recsys_mdp.simulator.embeddings import \
                 RandomEmbeddingsGenerator

@@ -65,13 +65,13 @@ class NextItemExperiment:
             zoya_settings: TConfig,
             model: TConfig, env: TConfig,
             log: bool, cuda_device: bool | int | None,
-            project: str = None,
+            project: str = None, wandb_init: TConfig = None,
             **_
     ):
         self.config = GlobalConfig(
             config=config, config_path=config_path, type_resolver=TypesResolver()
         )
-        self.logger = get_logger(config, log=log, project=project)
+        self.logger = get_logger(config, log=log, project=project, wandb_init=wandb_init)
 
         self.init_time = timer()
         self.print_with_timestamp('==> Init')
@@ -251,18 +251,6 @@ class NextItemExperiment:
             verbose=False, save_metrics=False, show_progress=False,
         )
         return fitter
-
-    def _eval_and_log(self, epoch):
-        metrics = self._eval_returns()
-
-        self.print_with_timestamp(
-            f'Epoch {epoch:03}: '
-            f'ContRet {metrics["continuous_return"]:.3f} '
-            f'| DiscRet {metrics["discrete_return"]:.3f}'
-        )
-        if self.logger:
-            metrics |= dict(epoch=epoch)
-            self.logger.log(metrics)
 
     def _eval_returns(self):
         cont_returns, disc_returns = [], []
