@@ -63,11 +63,10 @@ zoya_settings:
     reward_function_name: "relevance_based_reward"
     action_function_name: "next_item_action"
     episode_splitter_name: "interaction_interruption"
-    history_keys: ['framestack', 'user_id']
 
 
   scorer:
-    metrics: ['ndcg', 'stat_hitrate']
+    metrics: ['ndcg', 'stat_hitrate', 'PC', 'ihitrate']
     tresh: [0.7, 0.5, 0.9]
     prediction_type: "discrete"
 
@@ -88,6 +87,7 @@ zoya_settings:
       state_repr_name: "full_history" #drr adrr
       freeze_emb: False
       attention_hidden_size: 32
+      state_keys: ['user','item'] #['user','item','score']
 
 model:
   _base_: models.random
