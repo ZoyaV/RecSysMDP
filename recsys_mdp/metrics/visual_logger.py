@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.manifold import TSNE
 
-from recsys_mdp.generators.utils.lazy_imports import lazy_import
+from recsys_mdp.utils.lazy_imports import lazy_import
 
 wandb = lazy_import('wandb')
 

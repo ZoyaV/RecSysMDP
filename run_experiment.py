@@ -11,7 +11,7 @@ from constructors.mdp_constructor import load_data, make_mdp
 from constructors.scorers_constructor import init_logger
 from enjoy_cases import eval_returns
 from recsys_mdp.experiments.scenarios.mdp_next_item import USER_RESET_MODE_INIT
-from recsys_mdp.generators.utils.lazy_imports import lazy_import
+from recsys_mdp.utils.lazy_imports import lazy_import
 from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
 
 wandb = lazy_import('wandb')

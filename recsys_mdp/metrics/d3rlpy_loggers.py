@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from sklearn.manifold import TSNE
 
-from recsys_mdp.generators.utils.lazy_imports import lazy_import
+from recsys_mdp.utils.lazy_imports import lazy_import
 from recsys_mdp.metrics.metrics import ndcg, hit_rate
 
 wandb = lazy_import('wandb')

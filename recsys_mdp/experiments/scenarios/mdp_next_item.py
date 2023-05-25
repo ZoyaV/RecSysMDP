@@ -14,7 +14,7 @@ from numpy.random import Generator
 from recsys_mdp.generators.mdp.utils import boosting
 from recsys_mdp.generators.synthetic.relevance import similarity
 from recsys_mdp.experiments.run.wandb import get_logger
-from recsys_mdp.generators.utils.base import sample_rng, sample_int, lin_sum, update_exp_trace
+from recsys_mdp.utils.base import sample_rng, sample_int, lin_sum, update_exp_trace
 from recsys_mdp.experiments.run.config import (
     TConfig, GlobalConfig, LazyTypeResolver
 )
@@ -603,7 +603,7 @@ class TypesResolver(LazyTypeResolver):
                 RandomClustersEmbeddingsGenerator
             return RandomClustersEmbeddingsGenerator
         if type_name == 'model.random':
-            from recsys_mdp.generators.utils.random_recommender import RandomRecommender
+            from recsys_mdp.utils.random_recommender import RandomRecommender
             return RandomRecommender
         if type_name == 'd3rlpy.cql':
             from d3rlpy.algos import CQL
