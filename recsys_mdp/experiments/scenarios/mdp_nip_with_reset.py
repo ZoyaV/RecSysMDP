@@ -16,20 +16,20 @@ from recsys_mdp.utils.run.config import (
 )
 from recsys_mdp.utils.run.timer import timer, print_with_timestamp
 
-from recsys_mdp.generators.scenarios.mdp_next_item import (
+from recsys_mdp.experiments.scenarios.mdp_next_item import (
     MdpGenerationProcessParameters, LearningProcessParameters,
     TypesResolver, NextItemEnvironment, get_cuda_device
 )
 ### Rewrrite eval as part of Experiment class
 from run_experiment import eval_algo
 
-from recsys_mdp.mdp_former.base import (
+from recsys_mdp.mdp.base import (
     TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
     RELEVANCE_INT_COL, TERMINATE_COL, RATING_COL
 )
 
 from constructors.mdp_constructor import make_mdp
-from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
+from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
 from constructors.algorithm_constuctor import init_model
 from constructors.algorithm_constuctor import init_algo
 from constructors.scorers_constructor import init_scorers

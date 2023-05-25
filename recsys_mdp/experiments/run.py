@@ -12,7 +12,7 @@ class RunnerRegistry(LazyTypeResolver):
             )
             return MdpNextItemExperiment
         if name == 'test.mdp_nip_reset':
-            from recsys_mdp.generators.scenarios.mdp_nip_with_reset import (
+            from recsys_mdp.experiments.scenarios.mdp_nip_with_reset import (
                 NIP_with_reset
             )
             return NIP_with_reset
