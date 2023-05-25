@@ -32,6 +32,13 @@ from recsys_mdp.mdp_former.base import (
     RELEVANCE_INT_COL, TERMINATE_COL, RATING_COL
 )
 
+from constructors.mdp_constructor import make_mdp
+from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
+from constructors.algorithm_constuctor import init_model
+from constructors.algorithm_constuctor import init_algo
+from constructors.scorers_constructor import init_scorers
+from constructors.scorers_constructor import init_logger
+
 
 import wandb
 
@@ -105,7 +112,7 @@ class NIP_with_reset:
             n_actions=self.env.n_items
         )
         self.learnable_model = False
-        self.mdp_preparator = None
+        self.preparator = None
 
     def run(self):
         logging.disable(logging.DEBUG)
@@ -182,8 +189,8 @@ class NIP_with_reset:
             timestamp = env.timestamp
             if not first_run:
             #generate new observation with framestack
-                _, obs = self.mdp_preparator.make_interaction(relevance=discrete_relevance, user=user_id, item=item_id,
-                                                     ts=timestamp,obs_prev=obs,relevance2reward=False)
+                _, obs = self.preparator.make_interaction(relevance=discrete_relevance, user=user_id, item=item_id,
+                                                          ts=timestamp, obs_prev=obs, relevance2reward=False)
 
             items_top = env.state.ranked_items(with_satiation=True, discrete=True)
             if use_env_actions:
@@ -207,39 +214,46 @@ class NIP_with_reset:
         for epoch, metrics in fitter:
             if epoch == 1 or epoch %  self.learning_config.eval_schedule == 0:
                 eval_algo(
-                    self.model, self.algo_logger, train_logger=self.algo_logger, env=self.env,
+                    self.model, self.algo_test_logger, train_logger=self.algo_logger, env=self.env,
                     looking_for=[0, 1, 6]
                 )
             total_epoch += 1
         return total_epoch
+
+    def data2mdp(self, log, top_k, mdp_settings, scorer):
+        # TODO: one preparator shuld transform different datasets?
+        preparator = make_mdp(data=log, **mdp_settings)
+        states, rewards, actions, terminations, state_tail = preparator.create_mdp()
+        mdp = to_d3rlpy_form_ND(
+            states, rewards, actions, terminations,
+            discrete=scorer['prediction_type'] == "discrete"
+        )
+        algo_logger = init_logger(
+            mdp, state_tail, log, top_k, wandb_logger=self.logger, **scorer
+        )
+        return preparator,mdp, algo_logger
+
+
     def _init_rl_setting(
             self, dataset: list[tuple],
             top_k: int,ratings_column,
             mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
     ):
-        from constructors.mdp_constructor import make_mdp
-        from recsys_mdp.mdp_former.utils import to_d3rlpy_form_ND
-        from constructors.algorithm_constuctor import init_model
-        from constructors.algorithm_constuctor import init_algo
-        from constructors.scorers_constructor import init_scorers
-        from constructors.scorers_constructor import init_logger
 
         log = pd.DataFrame(dataset, columns=[
             TIMESTAMP_COL,
             USER_ID_COL, ITEM_ID_COL,
             RELEVANCE_CONT_COL, RELEVANCE_INT_COL,
-            TERMINATE_COL
+            TERMINATE_COL, "best_from_env"
         ])
         log[RATING_COL] = log[ratings_column]
 
+        mdp_prep, train_mdp, algo_logger = self.data2mdp(log, top_k, mdp_settings, scorer)
+        _, _, algo_test_logger = self.data2mdp(log, top_k, mdp_settings, scorer)
 
-      #  train_values = get_values_fixme(log, data_mapping)
-        self.mdp_preparator = make_mdp(data=log, **mdp_settings)
-        states, rewards, actions, terminations, state_tail = self.mdp_preparator.create_mdp()
-        train_mdp = to_d3rlpy_form_ND(
-            states, rewards, actions, terminations,
-            discrete=scorer['prediction_type'] == "discrete"
-        )
+        self.mdp_prep = mdp_prep
+        self.algo_logger = algo_logger
+        self.algo_test_logger = algo_test_logger
 
         # Init RL algorithm
         if not self.learnable_model:
@@ -247,12 +261,6 @@ class NIP_with_reset:
             algo = init_algo(model, **algo_settings['general_parameters'])
             self.model = algo
             self.learnable_model = True
-
-        # Init scorer
-       # scorers = init_scorers(state_tail, train_values, top_k, **scorer)
-        self.algo_logger = init_logger(
-            train_mdp, state_tail, log, top_k, wandb_logger=self.logger, **scorer
-        )
 
         # Run experiment
         config = self.learning_config
