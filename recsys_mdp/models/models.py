@@ -35,8 +35,12 @@ class ActorEncoder(nn.Module):
             )
         self.feature_size = feature_size
         self.memory_size = memory_size
+
+        state_repr_size = embedding_dim * self.state_repr.out_embeddings
+        if 'score' in self.state_keys:
+            state_repr_size += self.memory_size
         self.layers = nn.Sequential(
-            nn.Linear(embedding_dim * self.state_repr.out_embeddings, hidden_dim),
+            nn.Linear( state_repr_size, hidden_dim),
             nn.LayerNorm(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, feature_size),

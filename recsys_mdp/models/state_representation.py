@@ -245,11 +245,17 @@ class FullHistory(nn.Module):
 
         if 'score' in self.state_keys:
             scorers_embeddings = self.score_embeddings(scorers.long())
-            item_embeddings = item_embeddings * scorers_embeddings
+          #  item_embeddings = item_embeddings * scorers_embeddings
 
         if 'user' in self.state_keys:
             user_embedding = self.user_embeddings(user.long())[:,None,:]
             item_embeddings = torch.cat((item_embeddings, user_embedding), axis = 1)
 
         batch, i, j = item_embeddings.shape
-        return item_embeddings.reshape(-1, i * j)
+        out =  item_embeddings.reshape(-1, i * j)
+        if 'score' in self.state_keys:
+            batch, i, j = scorers_embeddings.shape
+           # print(batch, i, j)
+            score = scorers_embeddings.reshape(batch, i * j)
+            out = torch.cat((out, score), axis = 1)
+        return out
