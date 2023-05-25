@@ -20,15 +20,50 @@ from recsys_mdp.generators.utils.config import (
 )
 from recsys_mdp.generators.utils.timer import timer, print_with_timestamp
 
-from mdp_next_item_integration import (
+from  recsys_mdp.generators.scenarios.mdp_next_item_integration import (
     MdpGenerationProcessParameters, LearningProcessParameters,
     TypesResolver, NextItemEnvironment, get_cuda_device
 )
+### Rewrrite eval as part of Experiment class
+from run_experiment import eval_algo
+
+from recsys_mdp.mdp_former.base import (
+    TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
+    RELEVANCE_INT_COL, TERMINATE_COL, RATING_COL
+)
+
+
+import wandb
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
 
-class MdpNextItemExperiment:
+def log_satiation(logger, satiation, user_id):
+    if logger is None:
+        return
+    hist = (satiation, np.arange(len(satiation)+1))
+    histogram = logger.Histogram(np_histogram=hist)
+    logger.log({f'user_{user_id}_satiation': histogram})
+
+def get_values_fixme(data, col_mapping):
+    full_users = data[col_mapping['user_col_name']].values
+    full_items = data[col_mapping['item_col_name']].values
+
+    users_unique = np.unique(data[col_mapping['user_col_name']].values)
+    items_unique = np.unique(data[col_mapping['item_col_name']].values)
+
+    rating = data[col_mapping['reward_col_name']].values
+    return {
+        'users_unique': users_unique,
+        'items_unique': items_unique,
+        'full_users': full_users,
+        'full_items': full_items,
+        'rating': rating
+    }
+
+
+
+class NIP_with_reset:
     config: GlobalConfig
     logger: Run | None
 
@@ -70,6 +105,7 @@ class MdpNextItemExperiment:
             n_actions=self.env.n_items
         )
         self.learnable_model = False
+        self.mdp_preparator = None
 
     def run(self):
         logging.disable(logging.DEBUG)
@@ -77,13 +113,16 @@ class MdpNextItemExperiment:
 
         self.print_with_timestamp('==> Run')
         total_epoch = 0
+        self.print_with_timestamp(f'Generate dataset')
+        dataset = self._generate_dataset()
+        fitter = self._init_rl_setting(
+             dataset,
+            **self.zoya_settings
+        )
         for generation_epoch in range(self.generation_config.epochs):
-            self.print_with_timestamp(f'Epoch: {generation_epoch} ==> generation')
-            dataset = self._generate_dataset()
             self.print_with_timestamp(f'Epoch: {generation_epoch} ==> learning')
             total_epoch += self._learn_on_dataset(
-                total_epoch, dataset,
-                **self.zoya_settings
+                total_epoch, fitter
             )
 
         self.print_with_timestamp('<==')
@@ -92,7 +131,7 @@ class MdpNextItemExperiment:
         config = self.generation_config
         samples = []
         for episode in count():
-            samples.extend(self._generate_episode())
+            samples.extend(self._generate_episode(first_run=True, use_env_actions=True))
 
             if config.episodes_per_epoch is not None and episode >= config.episodes_per_epoch:
                 break
@@ -101,42 +140,81 @@ class MdpNextItemExperiment:
 
         return samples
 
-    def _generate_episode(self):
+    def _framestack_from_last_best(self, user_id, N = 10):
+        top_framestack = []
+        framestack_size = self.zoya_settings['mdp_settings']['framestack_size']
+        for i in range(framestack_size):
+            items_top = self.env.state.ranked_items(with_satiation=True, discrete=True)
+            item_id = self.rng.choice(items_top[:N])
+            top_framestack.append(item_id)
+            _, _ = self.env.step(item_id)
+        # add scores as all is best
+        obs = top_framestack + [5] * framestack_size + [user_id]
+        return obs
+
+    def _framestack_random_act(self, user_id):
+        framestack_size = self.zoya_settings['mdp_settings']['framestack_size']
+        obs = np.random.randint(0, self.env.n_items, framestack_size).tolist() + [user_id]
+        return obs
+    def _generate_episode(self, cold_start = False, user_id = None,
+                          use_env_actions = False, log_sat = False, first_run = False):
         env, model = self.env, self.model
-        user_id = env.reset()
+        orig_user_id = user_id
+        user_id = env.reset(user_id=user_id)
         trajectory = []
-        # FIXME: set special item_id for EMPTY_ITEM token
-        # [10 last item_ids] + [user_id]
-        fake_obs = np.random.randint(0, 3521, 10).tolist() + [user_id]
+        N_BEST_ITEMS = 10
+        # Get random items from best for framestack
+        # TODO: How it will affect to episode lenghts?
+        # TODO: Make framestack making as function
+        if not cold_start:
+            fake_obs = self._framestack_from_last_best(user_id, N_BEST_ITEMS)
+        else:
+            fake_obs = self._framestack_random_act(user_id)
+
         obs = np.asarray(fake_obs)
-
+        item_id = 0
+        # episode generation
         while True:
-            # FIXME: separate
-            # TODO: batched observations vs item_id as obs with env wrapper
-            try:
+            if not use_env_actions:
                 item_id = model.predict(obs.reshape(1, -1))[0]
-            except:
-                item_id = model.predict(obs[:10].reshape(1, -1))[0]
-            obs[:9] = obs[1:10]
-            obs[-2] = item_id
-
-            timestamp = env.timestamp
-
             relevance, terminated = env.step(item_id)
             continuous_relevance, discrete_relevance = relevance
+            timestamp = env.timestamp
+            if not first_run:
+            #generate new observation with framestack
+                _, obs = self.mdp_preparator.make_interaction(relevance=discrete_relevance, user=user_id, item=item_id,
+                                                     ts=timestamp,obs_prev=obs,relevance2reward=False)
+
+            items_top = env.state.ranked_items(with_satiation=True, discrete=True)
+            if use_env_actions:
+                item_id =  self.rng.choice(items_top[:N_BEST_ITEMS])
             trajectory.append((
                 timestamp,
                 user_id, item_id,
                 continuous_relevance, discrete_relevance,
-                terminated
+                terminated,
+                items_top[:N_BEST_ITEMS]
             ))
             if terminated:
                 break
+
+
+            if env.timestep % 4 == 0 and log_sat:
+                log_satiation(self.logger, env.state.satiation, orig_user_id)
         return trajectory
 
-    def _learn_on_dataset(
-            self, total_epoch: int, dataset: list[tuple],
-            top_k: int,
+    def _learn_on_dataset(self, total_epoch, fitter):
+        for epoch, metrics in fitter:
+            if epoch == 1 or epoch %  self.learning_config.eval_schedule == 0:
+                eval_algo(
+                    self.model, self.algo_logger, train_logger=self.algo_logger, env=self.env,
+                    looking_for=[0, 1, 6]
+                )
+            total_epoch += 1
+        return total_epoch
+    def _init_rl_setting(
+            self, dataset: list[tuple],
+            top_k: int,ratings_column,
             mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
     ):
         from constructors.mdp_constructor import make_mdp
@@ -145,23 +223,19 @@ class MdpNextItemExperiment:
         from constructors.algorithm_constuctor import init_algo
         from constructors.scorers_constructor import init_scorers
         from constructors.scorers_constructor import init_logger
-        from run_experiment import eval_algo
 
         log = pd.DataFrame(dataset, columns=[
-            'timestamp',
-            'user_id', 'item_id',
-            'continuous_rating', 'discrete_rating',
-            'terminal'
+            TIMESTAMP_COL,
+            USER_ID_COL, ITEM_ID_COL,
+            RELEVANCE_CONT_COL, RELEVANCE_INT_COL,
+            TERMINATE_COL
         ])
-        data_mapping = dict(
-            user_col_name='user_id',
-            item_col_name='item_id',
-            reward_col_name='discrete_rating',
-            timestamp_col_name='timestamp'
-        )
-        train_values = get_values_fixme(log, data_mapping)
-        mdp_preparator = make_mdp(data=log, data_mapping=data_mapping, **mdp_settings)
-        states, rewards, actions, terminations, state_tail = mdp_preparator.create_mdp()
+        log[RATING_COL] = log[ratings_column]
+
+
+      #  train_values = get_values_fixme(log, data_mapping)
+        self.mdp_preparator = make_mdp(data=log, **mdp_settings)
+        states, rewards, actions, terminations, state_tail = self.mdp_preparator.create_mdp()
         train_mdp = to_d3rlpy_form_ND(
             states, rewards, actions, terminations,
             discrete=scorer['prediction_type'] == "discrete"
@@ -169,32 +243,24 @@ class MdpNextItemExperiment:
 
         # Init RL algorithm
         if not self.learnable_model:
-            model = init_model(train_values, **algo_settings['model_parameters'])
+            model = init_model(data=log, **algo_settings['model_parameters'])
             algo = init_algo(model, **algo_settings['general_parameters'])
             self.model = algo
             self.learnable_model = True
 
         # Init scorer
-        scorers = init_scorers(state_tail, train_values, top_k, **scorer)
-        logger = init_logger(
-            train_mdp, state_tail, train_values, top_k, wandb_logger=self.logger, **scorer
+       # scorers = init_scorers(state_tail, train_values, top_k, **scorer)
+        self.algo_logger = init_logger(
+            train_mdp, state_tail, log, top_k, wandb_logger=self.logger, **scorer
         )
 
         # Run experiment
         config = self.learning_config
         fitter = self.model.fitter(
-            dataset=train_mdp,
-            n_epochs=config.epochs,
-            eval_episodes=train_mdp,
-            scorers=scorers,
+            dataset=train_mdp, n_epochs=config.epochs,
             verbose=False, save_metrics=False, show_progress=False,
         )
-        for epoch, metrics in fitter:
-            if epoch == 1 or epoch % config.eval_schedule == 0:
-                eval_algo(self.model, logger)
-                # self._eval_and_log(total_epoch)
-            total_epoch += 1
-        return total_epoch
+        return fitter
 
     def _eval_and_log(self, epoch):
         metrics = self._eval_returns()

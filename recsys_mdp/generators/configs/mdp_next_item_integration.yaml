@@ -1,5 +1,5 @@
 # runner type tag
-_type_: test.mdp_next_item
+_type_: test.mdp_nip_reset
 # wandb project
 project: recsys.synth.mdp.next_item
 # wandb logging
@@ -14,7 +14,7 @@ generation:
   samples_per_epoch: 10000
 
 learning:
-  epochs: 100
+  epochs: 500
   eval_schedule: 5
   eval_episodes: 20
 
@@ -79,8 +79,8 @@ zoya_settings:
 
     model_parameters:
       use_als: False
-      user_num: 2900
-      item_num: 3521
+      user_num: 100
+      item_num: 100
       emb_dim: 16
       hid_dim: 32
       memory_size: 10
