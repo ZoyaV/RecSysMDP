@@ -27,6 +27,12 @@ from  recsys_mdp.generators.scenarios.mdp_next_item_integration import (
 ### Rewrrite eval as part of Experiment class
 from run_experiment import eval_algo
 
+from recsys_mdp.mdp_former.base import (
+    TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
+    RELEVANCE_INT_COL, TERMINATE_COL, RATING_COL
+)
+
+
 import wandb
 
 if TYPE_CHECKING:
@@ -200,12 +206,15 @@ class NIP_with_reset:
     def _learn_on_dataset(self, total_epoch, fitter):
         for epoch, metrics in fitter:
             if epoch == 1 or epoch %  self.learning_config.eval_schedule == 0:
-                eval_algo(self.model, self.algo_logger, self.algo_logger, env = self.env, looking_for=[1,6])
+                eval_algo(
+                    self.model, self.algo_logger, train_logger=self.algo_logger, env=self.env,
+                    looking_for=[0, 1, 6]
+                )
             total_epoch += 1
         return total_epoch
     def _init_rl_setting(
             self, dataset: list[tuple],
-            top_k: int,
+            top_k: int,ratings_column,
             mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
     ):
         from constructors.mdp_constructor import make_mdp
@@ -215,22 +224,17 @@ class NIP_with_reset:
         from constructors.scorers_constructor import init_scorers
         from constructors.scorers_constructor import init_logger
 
-
         log = pd.DataFrame(dataset, columns=[
-            'timestamp',
-            'user_id', 'item_id',
-            'continuous_rating', 'discrete_rating',
-            'terminal',
-            'top_best'
+            TIMESTAMP_COL,
+            USER_ID_COL, ITEM_ID_COL,
+            RELEVANCE_CONT_COL, RELEVANCE_INT_COL,
+            TERMINATE_COL
         ])
-        data_mapping = dict(
-            user_col_name='user_id',
-            item_col_name='item_id',
-            reward_col_name='discrete_rating',
-            timestamp_col_name='timestamp'
-        )
-        train_values = get_values_fixme(log, data_mapping)
-        self.mdp_preparator = make_mdp(data=log, data_mapping=data_mapping, **mdp_settings)
+        log[RATING_COL] = log[ratings_column]
+
+
+      #  train_values = get_values_fixme(log, data_mapping)
+        self.mdp_preparator = make_mdp(data=log, **mdp_settings)
         states, rewards, actions, terminations, state_tail = self.mdp_preparator.create_mdp()
         train_mdp = to_d3rlpy_form_ND(
             states, rewards, actions, terminations,
@@ -239,24 +243,21 @@ class NIP_with_reset:
 
         # Init RL algorithm
         if not self.learnable_model:
-            model = init_model(train_values, **algo_settings['model_parameters'])
+            model = init_model(data=log, **algo_settings['model_parameters'])
             algo = init_algo(model, **algo_settings['general_parameters'])
             self.model = algo
             self.learnable_model = True
 
         # Init scorer
-        scorers = init_scorers(state_tail, train_values, top_k, **scorer)
+       # scorers = init_scorers(state_tail, train_values, top_k, **scorer)
         self.algo_logger = init_logger(
-            train_mdp, state_tail, train_values, top_k, wandb_logger=self.logger, **scorer
+            train_mdp, state_tail, log, top_k, wandb_logger=self.logger, **scorer
         )
 
         # Run experiment
         config = self.learning_config
         fitter = self.model.fitter(
-            dataset=train_mdp,
-            n_epochs=config.epochs,
-            eval_episodes=train_mdp,
-            scorers=scorers,
+            dataset=train_mdp, n_epochs=config.epochs,
             verbose=False, save_metrics=False, show_progress=False,
         )
         return fitter
