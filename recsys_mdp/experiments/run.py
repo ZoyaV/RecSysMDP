@@ -7,15 +7,15 @@ from recsys_mdp.utils.run.entrypoint import (
 class RunnerRegistry(LazyTypeResolver):
     def resolve(self, name: str):
         if name == 'test.mdp_next_item':
-            from recsys_mdp.experiments.scenarios.mdp_next_item import (
+            from recsys_mdp.experiments.scenarios.next_item_old import (
                 MdpNextItemExperiment
             )
             return MdpNextItemExperiment
         if name == 'test.mdp_nip_reset':
-            from recsys_mdp.experiments.scenarios.mdp_nip_with_reset import (
-                NIP_with_reset
+            from recsys_mdp.experiments.scenarios.next_item import (
+                NextItemExperiment
             )
-            return NIP_with_reset
+            return NextItemExperiment
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ from recsys_mdp.utils.run.config import (
 )
 from recsys_mdp.utils.run.timer import timer, print_with_timestamp
 
-from recsys_mdp.experiments.scenarios.mdp_next_item import (
+from recsys_mdp.experiments.scenarios.next_item_old import (
     MdpGenerationProcessParameters, LearningProcessParameters,
     TypesResolver, NextItemEnvironment, get_cuda_device
 )
@@ -65,8 +65,7 @@ def get_values_fixme(data, col_mapping):
     }
 
 
-
-class NIP_with_reset:
+class NextItemExperiment:
     config: GlobalConfig
     logger: Run | None
 
