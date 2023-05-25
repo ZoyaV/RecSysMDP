@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from recsys_mdp.mdp_former.acting import continuous_relevance_action
+from recsys_mdp.mdp_former.base import USER_ID_COL, TIMESTAMP_COL, ITEM_ID_COL, RATING_COL
 from recsys_mdp.mdp_former.episode_splitting import split_by_time, to_episode_ranges
 from recsys_mdp.mdp_former.rewarding import monotony_reward
 from recsys_mdp.mdp_former.utils import isnone
@@ -14,41 +15,33 @@ DEFAULT_HISTORY_KEYS = ['framestack', 'user_id']
 class MDPFormer:
     def __init__(
             self, load_from_file: bool = False, path: str = None,
-            dataframe=None, data_mapping=None,
-            framestack=5, reward_function=monotony_reward,
+            dataframe: pd.DataFrame = None,
+            framestack: int = 5,
+            history_keys=None,
+            reward_function=monotony_reward,
             action_function=continuous_relevance_action,
-            history_keys=None, episode_splitter=None
+            episode_splitter=None,
     ):
         self.framestack = framestack
+        self.history_keys = isnone(history_keys, DEFAULT_HISTORY_KEYS)
         self.reward_function = reward_function
         self.action_function = action_function
-        self.history_keys = isnone(history_keys, DEFAULT_HISTORY_KEYS)
-
-        self.condition = isnone(episode_splitter, split_by_time)
+        self.split_condition = isnone(episode_splitter, split_by_time)
 
         self.states = None
         self.rewards = None
         self.actions = None
         self.terminations = None
+        self.dataframe = dataframe
 
-        if not load_from_file:
-            # Pandas-DataFrame object
-            self.dataframe = dataframe
-            # Dict of keys for mdp {'reward':'score', 'user_col_name':...}
-            self.data_mapping = data_mapping
-
-            self.user_col_name = self.data_mapping['user_col_name']
-            self.item_col_name = self.data_mapping['item_col_name']
-            self.reward_col_name = self.data_mapping['reward_col_name']
-            self.timestamp_col_name = self.data_mapping['timestamp_col_name']
-        else:
+        if load_from_file:
             self.__load(path)
 
     def get_episode_action(self, df):
-        return self.action_function(df, self.data_mapping)
+        return self.action_function(df)
 
     def get_episode_reward(self, df):
-        return self.reward_function(df, self.data_mapping)
+        return self.reward_function(df)
 
     # noinspection PyMethodMayBeStatic
     def get_episode_terminates(self, df):
@@ -63,7 +56,7 @@ class MDPFormer:
         """
         states, rewards, actions, terminations = [], [], [], []
 
-        episode_split_indices = self.condition(user_log, self.data_mapping)
+        episode_split_indices = self.split_condition(user_log)
         for ep_start_ind, ep_end_ind in to_episode_ranges(user_log, episode_split_indices):
             episode = user_log.iloc[ep_start_ind:ep_end_ind]
             if len(episode) < self.framestack:
@@ -76,38 +69,34 @@ class MDPFormer:
 
         return states, rewards, actions, terminations
 
-    def make_interaction(self, relevance, user, item, ts, obs_prev, relevance2reward = False):
-        """
-
-        :param reward: reward for predictef item
-        :param user: current user
-        :param item: predicted item
-        :param ts: timestamp
-        :param obs_prev: last framestack
-        :return:
-        """
-
+    def make_interaction(self, rating, user, item, ts, obs_prev, relevance2reward=False):
         history = []
-        history_size = (len(obs_prev) - 1) //2 # len(items stack) + len(scorers stack) + 1(item)
+        history_size = (len(obs_prev) - 1) // 2 # len(items stack) + len(scorers stack) + 1(item)
         history += obs_prev[:history_size].copy()  # items history
         history += obs_prev[history_size:history_size*2].copy()  # scorers history
         history += [obs_prev[-1]]  # user id
         if relevance2reward:
-            rewards_df = pd.DataFrame({self.data_mapping['reward_col_name']: [relevance]})
-            relevance = self.reward_function(rewards_df, self.data_mapping)[0]
-        interaction = {self.user_col_name: user,
-                       'history': history,
-                       self.reward_col_name: relevance,
-                       self.item_col_name: item,
-                       self.timestamp_col_name: ts}
+            # FIXME: smells like kostyl'
+            ratings_df = pd.DataFrame({RATING_COL: [rating]})
+            reward = self.reward_function(ratings_df)[0]
+            rating = reward
+
+        interaction = {
+            USER_ID_COL: user,
+            RATING_COL: rating,
+            ITEM_ID_COL: item,
+            TIMESTAMP_COL: ts,
+            'history': history,
+        }
 
         obs_prev[:history_size - 1] = obs_prev[1:history_size]
         obs_prev[history_size - 1] = item
         #  print(obs[:framestack_size])
         obs_prev[history_size:history_size * 2 - 1] = obs_prev[history_size + 1:history_size * 2]
-        obs_prev[history_size * 2 - 1] = relevance
+        obs_prev[history_size * 2 - 1] = rating
 
         return interaction, obs_prev
+
     def _interaction_history(self, user_df):
         """
         :param user_df:
@@ -115,12 +104,12 @@ class MDPFormer:
         """
         interactions = []
         framestack_queue = []
-        scorers_queue = []
+        ratings_queue = []
 
         # Fill first framestack_size items to history
         for index, row in user_df.iterrows():
-            framestack_queue.append(row[self.item_col_name])
-            scorers_queue.append(row[self.reward_col_name])
+            framestack_queue.append(row[ITEM_ID_COL])
+            ratings_queue.append(row[RATING_COL])
             if len(framestack_queue) >= self.framestack:
                 break
         # Make interaction history for each user-item interaction
@@ -129,19 +118,17 @@ class MDPFormer:
         obs_prev = []
 
         obs_prev += framestack_queue.copy() #items history
-        obs_prev += scorers_queue.copy() #scorers history
-        obs_prev += user_df[:1][self.user_col_name].values.tolist()  # user id
+        obs_prev += ratings_queue.copy()
+        obs_prev += user_df.iloc[:1][USER_ID_COL].values.tolist()  # user id
         for index, row in user_df.iterrows():
             t += 1
-            if t < self.framestack: continue
+            if t < self.framestack:
+                continue
 
-            user = row[self.user_col_name]
-            relevance = row[self.reward_col_name]
-            item = row[self.item_col_name]
-            ts = row[self.timestamp_col_name]
-
-            interaction, obs_prev = self.make_interaction(relevance, user,
-                                                          item, ts, obs_prev)
+            interaction, obs_prev = self.make_interaction(
+                row[RATING_COL], row[USER_ID_COL],
+                row[ITEM_ID_COL], row[TIMESTAMP_COL], obs_prev
+            )
             interactions.append(interaction)
 
         df = pd.DataFrame(interactions)
@@ -152,24 +139,31 @@ class MDPFormer:
         convert dataset to MDP
         :return:
         """
-        users = list(set(self.dataframe[self.user_col_name]))
+        unique_users = self.dataframe[USER_ID_COL].unique()
         full_states, full_rewards, full_actions, full_terminates = [], [], [], []
         state_tale = []
-        for user in users:
-            user_df = self.dataframe[self.dataframe[self.user_col_name] == user].sort_values(
-                self.timestamp_col_name
+        for user_id in unique_users:
+            user_df = (
+                self
+                .dataframe[self.dataframe[USER_ID_COL] == user_id]
+                .sort_values(TIMESTAMP_COL)
             )
+
             if user_df.shape[0] < self.framestack:
+                # lack of interactions
                 continue
+
             interaction_history = self._interaction_history(user_df)
             states, rewards, actions, terminates = self._get_user_episodes(interaction_history)
             if len(states) < 1:
                 continue
+
             state_tale.append(states[-1][-1])
             full_states += states
             full_rewards += rewards
             full_actions += actions
             full_terminates += terminates
+
         self.states = full_states
         self.rewards = full_rewards
         self.actions = full_actions
@@ -192,9 +186,3 @@ class MDPFormer:
         with open(path + "_df.pkl", 'rb') as f:
             self.dataframe = pickle.load(f)
         print("Data loaded!")
-
-
-# Test classes
-if __name__ == "__main__":
-    pass
-

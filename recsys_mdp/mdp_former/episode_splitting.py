@@ -5,20 +5,19 @@ from typing import Callable, Iterable
 import numpy as np
 import pandas as pd
 
+from recsys_mdp.mdp_former.base import TERMINATE_COL, TIMESTAMP_COL
 
-def split_by_time(user_log: pd.DataFrame, col_mapping: dict, threshold_minutes: int = 20):
+
+def split_by_time(user_log: pd.DataFrame, threshold_minutes: int = 20):
     """
     Divides the user's log into separate episodes where the pause duration
     between two consecutive interactions in an episode is under the passed threshold.
 
     :param user_log: pandas array of a single user interaction history
-    :param col_mapping: dict with names of columns
     :param threshold_minutes: int with the pause in minutes required for a new episode starting
     :return: indices of transitions to a new episode
     """
     def pause_condition(col: pd.Series):
-        # TODO: where shuld be translation to datetime ?
-        col = pd.to_datetime(col)
         pause_minutes = col.diff(1).dt.total_seconds().div(60).values
 
         # NB: [0] element is NaN
@@ -27,37 +26,36 @@ def split_by_time(user_log: pd.DataFrame, col_mapping: dict, threshold_minutes: 
         return split_mask
 
     return split_by_column_condition(
-        user_log, col_name=col_mapping['timestamp_col_name'], condition=pause_condition
+        user_log, col_name=TIMESTAMP_COL, condition=pause_condition
     )
 
 
-def split_by_user(user_log: pd.DataFrame, col_mapping):
+def split_by_user(user_log: pd.DataFrame):
     """
     Divides story by episodes - entire user story = 1 episode
 
     :param user_log: pandas array of one user interaction history
-    :param col_mapping: dict with names of columns
     :return: indices of transitions to a new episode
     """
     return split_by_column_condition(
-        user_log, col_name=col_mapping['timestamp_col_name'], condition=no_split_const_condition
+        user_log, col_name=TIMESTAMP_COL, condition=no_split_const_condition
     )
 
 
-def split_by_generated_episodes(user_log: pd.DataFrame, col_mapping):
+def split_by_generated_episodes(user_log: pd.DataFrame):
     """Divides story into episodes as they were originally generated."""
-    terminal_col = 'terminal'
-    if terminal_col not in user_log.columns:
+    if TERMINATE_COL not in user_log.columns:
         # no split
         return split_by_column_condition(
-            user_log, col_name=col_mapping['timestamp_col_name'],
-            condition=no_split_const_condition
+            user_log, col_name=TIMESTAMP_COL, condition=no_split_const_condition
         )
 
-    def terminal_condition(col: pd.Series):
+    def terminate_condition(col: pd.Series):
         return col.values
 
-    return split_by_column_condition(user_log, col_name=terminal_col, condition=terminal_condition)
+    return split_by_column_condition(
+        user_log, col_name=TERMINATE_COL, condition=terminate_condition
+    )
 
 
 def no_split_const_condition(col: pd.Series):

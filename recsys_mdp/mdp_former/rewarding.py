@@ -1,23 +1,27 @@
-import pandas as pd
 import numpy as np
 
-def monotony_reward(df, key_mapping=None):
+from recsys_mdp.mdp_former.base import RATING_COL
+
+
+def monotony_reward(df):
     rewards = np.ones(df.shape[0])
     return rewards
-def condition_reward(df, key_mapping=None):
-    #TODO: condition shuld be customizable
+
+
+def condition_reward(df):
+    # TODO: condition should be customizable
     rewards = np.zeros(df.shape[0])
-    rewards[df[key_mapping['reward_col_name']] <= 3] = 1
-    rewards[df[key_mapping['reward_col_name']] > 3] = -0.1
+    rewards[df[RATING_COL] <= 3] = 1
+    rewards[df[RATING_COL] > 3] = -0.1
     return rewards
 
-def relevance_based_reward(df, key_mapping=None):
-    rewards = np.zeros(df.shape[0])
-    rewards[df[key_mapping['reward_col_name']] <= 3] = -1
-    rewards[df[key_mapping['reward_col_name']] > 3] = 1
-    rewards[df[key_mapping['reward_col_name']] == 5] = 2
 
+def relevance_based_reward(df):
+    rewards = np.zeros(df.shape[0])
+    rewards[df[RATING_COL] <= 3] = -1
+    rewards[df[RATING_COL] > 3] = 1
+    rewards[df[RATING_COL] == 5] = 2
     return rewards
 
-#добавить загрузку ембедингов
-#поставить экспериментов
+# добавить загрузку ембедингов
+# поставить экспериментов

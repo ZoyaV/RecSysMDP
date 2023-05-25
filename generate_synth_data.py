@@ -21,6 +21,10 @@ from recsys_mdp.generators.utils.config import (
     GlobalConfig
 )
 from recsys_mdp.generators.utils.lazy_imports import lazy_import
+from recsys_mdp.mdp_former.base import (
+    TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
+    RELEVANCE_INT_COL, TERMINATE_COL
+)
 
 wandb = lazy_import('wandb')
 
@@ -214,16 +218,13 @@ def make_env_setting(config_path="", env_name='default', dataset_path = None):
     config_class = GlobalConfig(
         config=config, config_path=path_object, type_resolver=TypesResolver()
     )
-    # make conrollable environment
+    # make controllable environment
     env_conf = config['env']
     env: NextItemEnvironment = config_class.resolve_object(
         env_conf, object_type_or_factory=NextItemEnvironment
     )
 
-    ### One of user have one stable interest
     make_user_with_stable_interest(env.states[0], print_debug=True)
-
-    ### One two interest with interaction [need to balance]
     make_user_with_two_interests(env.states[6], print_debug=True)
 
     # make model
@@ -261,9 +262,9 @@ def main():
     trajectories = generate_dataset(gen_conf, env, model, use_best=use_best)
 
     column_names = [
-        'timestamp', 'user_idx', 'item_idx',
-        'relevance_cont', 'relevance_int',
-        'terminated', 'true_top'
+        TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL,
+        RELEVANCE_CONT_COL, RELEVANCE_INT_COL,
+        TERMINATE_COL, 'true_top'
     ]
     save_data(
         data=trajectories,

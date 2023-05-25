@@ -1,4 +1,6 @@
 import numpy as np
+
+from recsys_mdp.mdp_former.base import ITEM_ID_COL, USER_ID_COL
 from recsys_mdp.metrics.d3rlpy_loggers import base_ndcg, tsne_embeddings, episode_hit_rate, tsne_encoder
 from recsys_mdp.metrics.logger import Logger
 from recsys_mdp.metrics.scorers import log_covarage, total_ndcg, interactive_hit_rates, static_hit_rates, preference_correlation
@@ -56,8 +58,7 @@ def make_observation(state_tail, test_users_or, test_items, discrete=True):
     return test_states, true_items
 
 
-def init_next_step_scorer(state_tail, test_users_or, test_items, \
-                          top_k, tresh, discrete=True):
+def init_next_step_scorer(state_tail, test_users_or, test_items, top_k, tresh, discrete=True):
     test_states, true_items = get_test_observation(state_tail, test_items, test_users_or, discrete)
     scorer = base_ndcg(test_states, true_items, tresh, top_k, discrete)
     return scorer
@@ -69,21 +70,21 @@ def init_scorers(state_tail, test_values, top_k, tresh, metrics, prediction_type
 
 
 def init_logger(
-        test_mdp, state_tail, test_values, top_k, tresh, metrics, prediction_type,
+        test_mdp, state_tail, data, top_k, tresh, metrics, prediction_type,
         wandb_logger=None
 ):
     fake_mdp, users_interests = get_test_observation(
-        state_tail, test_values['full_items'], test_values['full_users'], prediction_type
+        state_tail, data[ITEM_ID_COL].values, data[USER_ID_COL].values, prediction_type
     )
 
-    statitic = dict()
+    static = dict()
     interactive = dict()
     visualizations = []
 
     if 'coverage' in metrics:
-        statitic['coverage'] = log_covarage
+        static['coverage'] = log_covarage
     if 'ndcg' in metrics:
-        statitic['ndcg'] = total_ndcg
+        static['ndcg'] = total_ndcg
     if 'ihitrate' in metrics:
         interactive['ihitrate'] = interactive_hit_rates
     if 'stat_hitrate' in metrics:
@@ -99,7 +100,7 @@ def init_logger(
     logger = Logger(
         interactive_mdp=test_mdp, user_interests=users_interests,
         fake_mdp=fake_mdp, top_k=top_k,
-        static_scorers=statitic, interactive_scorers=interactive, visual_loggers=visualizations,
+        static_scorers=static, interactive_scorers=interactive, visual_loggers=visualizations,
         wandb_logger=wandb_logger
     )
 

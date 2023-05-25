@@ -1,18 +1,20 @@
 import numpy as np
 
+from recsys_mdp.mdp_former.base import RATING_COL, ITEM_ID_COL
 
-def discrete_relevance_action(df, key_mapping=None):
-    actions = df[key_mapping['reward_col_name']]
+
+def discrete_relevance_action(df):
+    actions = df[RATING_COL]
     return actions.values
 
 
-def next_item_action(df, key_mapping=None):
-    actions = df[key_mapping['item_col_name']].values.astype(int)
-    return actions
+def next_item_action(df):
+    actions = df[ITEM_ID_COL]
+    return actions.values
 
 
-def continuous_relevance_action(df, key_mapping=None):
+def continuous_relevance_action(df):
     # TODO: scale should be customizable
-    actions = df[key_mapping['reward_col_name']]
+    actions = df[RATING_COL]
     noise = np.random.normal(scale=0.01, size=actions.shape)
     return ((actions.values + noise) - 2) / 5
