@@ -178,7 +178,8 @@ class FullHistory(nn.Module):
             freeze_emb,
             use_als,
             user_emb,
-            item_emb
+            item_emb,
+            state_keys
     ):
         super().__init__()
 
@@ -187,6 +188,10 @@ class FullHistory(nn.Module):
         self.user_emb = user_emb
         self.item_emb = item_emb
         self.freeze_emb = freeze_emb
+        self.state_keys = state_keys
+
+        print(self.state_keys)
+        #exit()
 
         self.user_embeddings = nn.Embedding(user_num, embedding_dim)
         self.item_embeddings = nn.Embedding(
@@ -205,7 +210,10 @@ class FullHistory(nn.Module):
 
     @property
     def out_embeddings(self):
-        return self.memory_size
+        if 'user' in self.state_keys:
+            return self.memory_size + 1
+        else:
+            return self.memory_size
     def initialize(self):
         """weight init"""
         nn.init.normal_(self.user_embeddings.weight, std=0.01)
@@ -230,18 +238,18 @@ class FullHistory(nn.Module):
         :param memory: memory batch
         :return: vector of dimension 3 * embedding_dim
         """
-        # user_embedding = self.user_embeddings()
 
+        if 'item' not in self.state_keys:
+            raise Exception("Memory is a required parameter!")
         item_embeddings = self.item_embeddings(memory.long())
-        #TODO: add scorers check
-        # TODO: fix dtype transform of scorers
-        #if scorers:
-       # print(scorers.long())
 
-        scorers_embeddings = self.score_embeddings(scorers.long())
-        item_embeddings = item_embeddings * scorers_embeddings
+        if 'score' in self.state_keys:
+            scorers_embeddings = self.score_embeddings(scorers.long())
+            item_embeddings = item_embeddings * scorers_embeddings
+
+        if 'user' in self.state_keys:
+            user_embedding = self.user_embeddings(user.long())[:,None,:]
+            item_embeddings = torch.cat((item_embeddings, user_embedding), axis = 1)
 
         batch, i, j = item_embeddings.shape
-        # print(item_embeddings.reshape(-1,i*j).shape)
-        #  exit()
         return item_embeddings.reshape(-1, i * j)

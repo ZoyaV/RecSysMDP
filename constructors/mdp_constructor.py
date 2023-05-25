@@ -103,7 +103,7 @@ def load_episode_splitter(splitter_name):
 
 
 def make_mdp(
-        data, framestack_size, history_keys,
+        data, framestack_size,
         action_function_name, reward_function_name, episode_splitter_name
 ):
     reward_function = load_reward_function(reward_function_name)
@@ -114,7 +114,6 @@ def make_mdp(
     mdp_preparator_class = MDPFormer(
         load_from_file=False, dataframe=data,
         framestack=framestack_size,
-        history_keys=history_keys,
         reward_function=reward_function,
         action_function=action_function,
         episode_splitter=episode_splitter,

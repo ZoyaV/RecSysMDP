@@ -8,6 +8,7 @@ class ActorEncoder(nn.Module):
     def __init__(self, user_num, item_num, embedding_dim,
                  hidden_dim, memory_size, feature_size,
                  state_repr_name ="drr",
+                 state_keys = ['user','item','score'],
                  freeze_emb = False,
                  attention_hidden_size = 0,
                  use_als = False,
@@ -16,6 +17,7 @@ class ActorEncoder(nn.Module):
         super().__init__()
 
         self.state_repr_name = state_repr_name
+        self.state_keys = state_keys
         if state_repr_name == 'drr':
             self.state_repr = StateReprModuleWithAttention(
                 user_num, item_num, embedding_dim, memory_size, freeze_emb,
@@ -29,7 +31,7 @@ class ActorEncoder(nn.Module):
         elif state_repr_name == 'full_history':
             self.state_repr = FullHistory(
                 user_num, item_num, embedding_dim,
-                memory_size, freeze_emb, use_als, user_emb, item_emb
+                memory_size, freeze_emb, use_als, user_emb, item_emb, state_keys
             )
         self.feature_size = feature_size
         self.memory_size = memory_size
@@ -53,24 +55,21 @@ class ActorEncoder(nn.Module):
         """
         :param user: user batch
         :param memory: memory batch
-        :return: output, vector of the size `feature_size`
-        """
+        :return: output, vector of the size `feature_size`        """
 
-        # TODO: how to check is user in x or score in x?
-        user = x[:,-1]
+        user = x[:, -1]
         memory = x[:, :self.memory_size]
         score = x[:, self.memory_size:-1]
-      #  print(user)
-       # exit()
-        try:
-            state = self.state_repr(user, memory, score)
-        except Exception as e:
-            print(e)
-            print(user)
-            print(memory)
-            print(score)
-            print(x)
-            exit()
+
+        # try:
+        state = self.state_repr(user, memory, score)
+        # except Exception as e:
+        #     print(e)
+        #     print("USER: ", user)
+        #     print("MEMORY: ", memory)
+        #     print("SCORES: ", score)
+        #     print(x)
+        #     exit()
         return torch.relu(self.layers(state))
 
     def get_feature_size(self):

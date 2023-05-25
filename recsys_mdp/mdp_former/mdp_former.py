@@ -9,7 +9,6 @@ from recsys_mdp.mdp_former.episode_splitting import split_by_time, to_episode_ra
 from recsys_mdp.mdp_former.rewarding import monotony_reward
 from recsys_mdp.mdp_former.utils import isnone
 
-DEFAULT_HISTORY_KEYS = ['framestack', 'user_id']
 
 
 class MDPFormer:
@@ -17,13 +16,11 @@ class MDPFormer:
             self, load_from_file: bool = False, path: str = None,
             dataframe: pd.DataFrame = None,
             framestack: int = 5,
-            history_keys=None,
             reward_function=monotony_reward,
             action_function=continuous_relevance_action,
             episode_splitter=None,
     ):
         self.framestack = framestack
-        self.history_keys = isnone(history_keys, DEFAULT_HISTORY_KEYS)
         self.reward_function = reward_function
         self.action_function = action_function
         self.split_condition = isnone(episode_splitter, split_by_time)
