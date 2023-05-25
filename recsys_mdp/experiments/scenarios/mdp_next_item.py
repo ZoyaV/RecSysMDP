@@ -11,8 +11,8 @@ import pandas as pd
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
-from recsys_mdp.generators.mdp.utils import boosting
-from recsys_mdp.generators.synthetic.relevance import similarity
+from recsys_mdp.simulator.utils import boosting
+from recsys_mdp.simulator.relevance import similarity
 from recsys_mdp.utils.run.wandb import get_logger
 from recsys_mdp.utils.base import sample_rng, sample_int, lin_sum, update_exp_trace
 from recsys_mdp.utils.run.config import (
@@ -588,18 +588,18 @@ class MdpNextItemExperiment:
 class TypesResolver(LazyTypeResolver):
     def resolve(self, type_name: str, **kwargs):
         if type_name == 'dataset.toy_ratings':
-            from recsys_mdp.generators.synthetic.dataset import \
+            from recsys_mdp.simulator.dataset import \
                 ToyRatingsDatasetBuilder
             return ToyRatingsDatasetBuilder
         if type_name == 'ds_source.random':
-            from recsys_mdp.generators.synthetic.log import RandomLogGenerator
+            from recsys_mdp.simulator.log import RandomLogGenerator
             return RandomLogGenerator
         if type_name == 'embeddings.random':
-            from recsys_mdp.generators.synthetic.embeddings import \
+            from recsys_mdp.simulator.embeddings import \
                 RandomEmbeddingsGenerator
             return RandomEmbeddingsGenerator
         if type_name == 'embeddings.clusters':
-            from recsys_mdp.generators.synthetic.embeddings import \
+            from recsys_mdp.simulator.embeddings import \
                 RandomClustersEmbeddingsGenerator
             return RandomClustersEmbeddingsGenerator
         if type_name == 'model.random':
