@@ -449,9 +449,16 @@ class ObjectResolver:
             config, type_tag = extracted_type_tag(config)
             object_type_or_factory = self.type_resolver[type_tag]
 
-        if config_type is list:
-            return object_type_or_factory(*config)
-        return object_type_or_factory(**config)
+        try:
+            if config_type is list:
+                return object_type_or_factory(*config)
+            return object_type_or_factory(**config)
+        except TypeError:
+            from pprint import pprint
+            pprint(config)
+            pprint(substitution_registry)
+            print(f'object_type_or_factory: {object_type_or_factory} | config_type: {config_type}')
+            raise
 
 
 class GlobalConfig:

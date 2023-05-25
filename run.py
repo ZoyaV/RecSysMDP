@@ -5,12 +5,13 @@ from recsys_mdp.utils.run.entrypoint import (
 
 
 class RunnerRegistry(LazyTypeResolver):
-    def resolve(self, name: str):
-        if name == 'test.next_item':
+    def resolve(self, type_tag: str):
+        if type_tag == 'test.next_item':
             from recsys_mdp.experiments.next_item import (
                 NextItemExperiment
             )
             return NextItemExperiment
+        raise ValueError(f'Unknown type: {type_tag}')
 
 
 if __name__ == "__main__":

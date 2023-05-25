@@ -1,5 +1,5 @@
 # runner type tag
-_type_: test.mdp_nip_reset
+_type_: test.next_item
 # wandb project
 project: recsys.synth.mdp.next_item
 # wandb logging
