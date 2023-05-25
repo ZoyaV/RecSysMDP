@@ -92,7 +92,7 @@ class MDPFormer:
         history += obs_prev[:history_size].copy()  # items history
         history += obs_prev[history_size:history_size*2].copy()  # scorers history
         history += [obs_prev[-1]]  # user id
-        if not relevance2reward:
+        if relevance2reward:
             rewards_df = pd.DataFrame({self.data_mapping['reward_col_name']: [relevance]})
             relevance = self.reward_function(rewards_df, self.data_mapping)[0]
         interaction = {self.user_col_name: user,
