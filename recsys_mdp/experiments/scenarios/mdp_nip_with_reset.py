@@ -16,7 +16,7 @@ from recsys_mdp.experiments.run.config import (
 )
 from recsys_mdp.experiments.run.timer import timer, print_with_timestamp
 
-from  recsys_mdp.generators.scenarios.mdp_next_item_integration import (
+from recsys_mdp.generators.scenarios.mdp_next_item import (
     MdpGenerationProcessParameters, LearningProcessParameters,
     TypesResolver, NextItemEnvironment, get_cuda_device
 )

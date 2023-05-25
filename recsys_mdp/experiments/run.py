@@ -12,7 +12,7 @@ class RunnerRegistry(LazyTypeResolver):
             )
             return BanditsRatingsExperiment
         if name == 'test.mdp_next_item':
-            from recsys_mdp.experiments.scenarios.mdp_next_item_integration import (
+            from recsys_mdp.experiments.scenarios.mdp_next_item import (
                 MdpNextItemExperiment
             )
             return MdpNextItemExperiment
