@@ -338,10 +338,13 @@ class ConfigResolver:
                 config_type=config_type,
                 config_path=reference_path,
             )
-            # by the implementation we override the innermost base config with each outer one
-            resolved_base_config.update(**config)
-            config = resolved_base_config
+            if config_type == dict:
+                # by the implementation we override the innermost base config with each outer one
+                resolved_base_config.update(**config)
+            else:
+                resolved_base_config.extend(config)
 
+            config = resolved_base_config
         return config
 
     def _resolve_reference(self, config_path: str, *, default_base_path: str) -> TConfig:
@@ -382,8 +385,30 @@ class ConfigResolver:
         """
         sub_config = self.global_config
         for key_token in key_path:
+            key_token = self._parse_key_token(key_token)
             sub_config = sub_config[key_token]
         return sub_config
+
+    @staticmethod
+    def _parse_key_token(key: str) -> str | int:
+        # noinspection PyShadowingNames
+        def boolify(s):
+            if s in ['True', 'true']:
+                return True
+            if s in ['False', 'false']:
+                return False
+            raise ValueError('Not a boolean value!')
+
+        assert isinstance(key, str)
+
+        # NB: try/except is widely accepted pythonic way to parse things
+        # NB: order of casters is important (from most specific to most general)
+        for caster in (boolify, int):
+            try:
+                return caster(key)
+            except ValueError:
+                pass
+        return key
 
 
 class ObjectResolver:
@@ -465,6 +490,6 @@ class GlobalConfig:
             config,
             object_type_or_factory=object_type_or_factory,
             config_type=config_type,
-            **(self.global_substitution_registry | substitution_registry)
+            **substitution_registry | self.global_substitution_registry
         )
 
