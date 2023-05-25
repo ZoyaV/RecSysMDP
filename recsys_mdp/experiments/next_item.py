@@ -10,16 +10,20 @@ import pandas as pd
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
+from recsys_mdp.experiments.constructors.mdp_constructor import make_mdp
+from recsys_mdp.experiments.constructors.type_resolver import TypesResolver
 from recsys_mdp.utils.run.wandb import get_logger
 from recsys_mdp.utils.run.config import (
     TConfig, GlobalConfig
 )
 from recsys_mdp.utils.run.timer import timer, print_with_timestamp
 
-from recsys_mdp.experiments.scenarios.next_item_old import (
+from recsys_mdp.simulator.env import (
     MdpGenerationProcessParameters, LearningProcessParameters,
-    TypesResolver, NextItemEnvironment, get_cuda_device
+    NextItemEnvironment
 )
+from recsys_mdp.utils.base import get_cuda_device
+from recsys_mdp.experiments.constructors.scorers_constructor import init_logger
 ### Rewrrite eval as part of Experiment class
 from run_experiment import eval_algo
 
@@ -28,15 +32,7 @@ from recsys_mdp.mdp.base import (
     RELEVANCE_INT_COL, TERMINATE_COL, RATING_COL
 )
 
-from constructors.mdp_constructor import make_mdp
 from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
-from constructors.algorithm_constuctor import init_model
-from constructors.algorithm_constuctor import init_algo
-from constructors.scorers_constructor import init_scorers
-from constructors.scorers_constructor import init_logger
-
-
-import wandb
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
@@ -234,13 +230,6 @@ class NextItemExperiment:
             top_k: int,ratings_column,
             mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
     ):
-        from constructors.mdp_constructor import make_mdp
-        from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
-        from constructors.algorithm_constuctor import init_model
-        from constructors.algorithm_constuctor import init_algo
-        from constructors.scorers_constructor import init_scorers
-        from constructors.scorers_constructor import init_logger
-        from run_experiment import eval_algo
 
         log = pd.DataFrame(dataset, columns=[
             TIMESTAMP_COL,
@@ -265,6 +254,8 @@ class NextItemExperiment:
 
         # Init RL algorithm
         if not self.learnable_model:
+            from recsys_mdp.experiments.constructors.algorithm_constuctor import init_model
+            from recsys_mdp.experiments.constructors.algorithm_constuctor import init_algo
             model = init_model(data=log, **algo_settings['model_parameters'])
             algo = init_algo(model, **algo_settings['general_parameters'])
             self.model = algo

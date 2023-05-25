@@ -1,49 +1,19 @@
 from __future__ import annotations
 
 import datetime
-import logging
-from itertools import count
-from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
-from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
-from recsys_mdp.simulator.utils import boosting
+from recsys_mdp.simulator.embeddings import Embeddings
 from recsys_mdp.simulator.relevance import similarity
-from recsys_mdp.utils.run.wandb import get_logger
-from recsys_mdp.utils.base import sample_rng, sample_int, lin_sum, update_exp_trace
-from recsys_mdp.utils.run.config import (
-    TConfig, GlobalConfig, LazyTypeResolver
-)
-from recsys_mdp.utils.run.timer import timer, print_with_timestamp
-from recsys_mdp.mdp.base import (
-    TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
-    RELEVANCE_INT_COL, TERMINATE_COL, RATING_COL
-)
-
-if TYPE_CHECKING:
-    from wandb.sdk.wandb_run import Run
-
+from recsys_mdp.simulator.utils import softmax, normalize, boosting
+from recsys_mdp.utils.base import sample_rng, sample_int, update_exp_trace, lin_sum
+from recsys_mdp.utils.run.config import GlobalConfig, TConfig
 
 USER_RESET_MODE_CONTINUE = 'continue'
 USER_RESET_MODE_INIT = 'init'
 USER_RESET_MODE_DISCONTINUE = 'discontinue'
-
-
-def normalize(x: np.ndarray) -> np.ndarray:
-    normalizer = x.sum(-1)
-    assert normalizer > 1e-8, f'Normalization is dangerous for {x}'
-    return x / normalizer
-
-
-def softmax(x: np.ndarray, temp=.12) -> np.ndarray:
-    """Computes softmax values for a vector `x` with a given temperature."""
-    temp = np.clip(temp, 1e-5, 1e+3)
-    e_x = np.exp((x - np.max(x, axis=-1)) / temp)
-    return e_x / e_x.sum(axis=-1)
 
 
 class MdpGenerationProcessParameters:
@@ -73,50 +43,6 @@ class LearningProcessParameters:
         self.epochs = epochs
         self.eval_schedule = eval_schedule
         self.eval_episodes = eval_episodes
-
-
-class Embeddings:
-    n_dims: int
-
-    n_users: int
-    users: np.ndarray
-    # mapping user ind -> cluster ind
-    user_cluster_ind: np.ndarray
-    # user clusters' embeddings
-    user_clusters: np.ndarray
-    n_user_clusters: int
-
-    n_items: int
-    items: np.ndarray
-    # mapping item ind -> cluster ind
-    item_cluster_ind: np.ndarray
-    # item clusters' embeddings
-    item_clusters: np.ndarray
-    n_item_clusters: int
-
-    def __init__(
-            self, global_config: GlobalConfig, seed: int,
-            n_users: int, n_items: int,
-            n_dims: int, users: TConfig, items: TConfig
-    ):
-        self.n_dims = n_dims
-
-        rng = np.random.default_rng(seed)
-        self.n_users = n_users
-        self.user_embeddings_generator = global_config.resolve_object(
-            users, n_dims=self.n_dims, seed=rng.integers(100_000_000)
-        )
-        self.user_cluster_ind, self.users = self.user_embeddings_generator.generate(n_users)
-        self.user_clusters = self.user_embeddings_generator.clusters
-        self.n_user_clusters = self.user_embeddings_generator.n_clusters
-
-        self.n_items = n_items
-        self.item_embeddings_generator = global_config.resolve_object(
-            items, n_dims=self.n_dims, seed=rng.integers(100_000_000)
-        )
-        self.item_cluster_ind, self.items = self.item_embeddings_generator.generate(n_items)
-        self.item_clusters = self.item_embeddings_generator.clusters
-        self.n_item_clusters = self.item_embeddings_generator.n_clusters
 
 
 class UserState:
@@ -414,221 +340,6 @@ class NextItemEnvironment:
         return relevance, terminated
 
 
-class MdpNextItemExperiment:
-    config: GlobalConfig
-    logger: Run | None
-
-    init_time: float
-    seed: int
-    rng: Generator
-
-    generation_config: MdpGenerationProcessParameters
-    learning_config: LearningProcessParameters
-
-    def __init__(
-            self, config: TConfig, config_path: Path, seed: int,
-            generation: TConfig, learning: TConfig,
-            zoya_settings: TConfig,
-            model: TConfig, env: TConfig,
-            log: bool, cuda_device: bool | int | None,
-            project: str = None,
-            **_
-    ):
-        self.config = GlobalConfig(
-            config=config, config_path=config_path, type_resolver=TypesResolver()
-        )
-        self.logger = get_logger(config, log=log, project=project)
-
-        self.init_time = timer()
-        self.print_with_timestamp('==> Init')
-
-        self.seed = seed
-        self.rng = np.random.default_rng(seed)
-        self.generation_config = MdpGenerationProcessParameters(**generation)
-        self.learning_config = LearningProcessParameters(**learning)
-        self.zoya_settings = zoya_settings
-
-        self.env: NextItemEnvironment = self.config.resolve_object(
-            env, object_type_or_factory=NextItemEnvironment
-        )
-        self.model: LearnableBase = self.config.resolve_object(
-            model | dict(use_gpu=get_cuda_device(cuda_device)),
-            n_actions=self.env.n_items
-        )
-        self.learnable_model = False
-
-    def run(self):
-        logging.disable(logging.DEBUG)
-        self.set_metrics()
-
-        self.print_with_timestamp('==> Run')
-        total_epoch = 0
-        for generation_epoch in range(self.generation_config.epochs):
-            self.print_with_timestamp(f'Epoch: {generation_epoch} ==> generation')
-            dataset = self._generate_dataset()
-            self.print_with_timestamp(f'Epoch: {generation_epoch} ==> learning')
-            total_epoch += self._learn_on_dataset(
-                total_epoch, dataset,
-                **self.zoya_settings
-            )
-
-        self.print_with_timestamp('<==')
-
-    def _generate_dataset(self):
-        config = self.generation_config
-        samples = []
-        for episode in count():
-            samples.extend(self._generate_episode())
-
-            if config.episodes_per_epoch is not None and episode >= config.episodes_per_epoch:
-                break
-            if config.samples_per_epoch is not None and len(samples) >= config.samples_per_epoch:
-                break
-
-        return samples
-
-    def _generate_episode(self):
-        env, model = self.env, self.model
-        user_id = env.reset()
-        trajectory = []
-        # FIXME: set special item_id for EMPTY_ITEM token
-        # [10 last item_ids] + [user_id]
-        fake_obs = np.random.randint(0, 3521, 10).tolist() + [user_id]
-        obs = np.asarray(fake_obs)
-
-        while True:
-            # FIXME: separate
-            # TODO: batched observations vs item_id as obs with env wrapper
-            try:
-                item_id = model.predict(obs.reshape(1, -1))[0]
-            except:
-                item_id = model.predict(obs[:10].reshape(1, -1))[0]
-            obs[:9] = obs[1:10]
-            obs[-2] = item_id
-
-            timestamp = env.timestamp
-
-            relevance, terminated = env.step(item_id)
-            continuous_relevance, discrete_relevance = relevance
-            trajectory.append((
-                timestamp,
-                user_id, item_id,
-                continuous_relevance, discrete_relevance,
-                terminated
-            ))
-            if terminated:
-                break
-        return trajectory
-
-    def _learn_on_dataset(
-            self, total_epoch: int, dataset: list[tuple],
-            top_k: int, ratings_column,
-            mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
-    ):
-        from constructors.mdp_constructor import make_mdp
-        from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
-        from constructors.algorithm_constuctor import init_model
-        from constructors.algorithm_constuctor import init_algo
-        from constructors.scorers_constructor import init_logger
-        from run_experiment import eval_algo
-
-        log = pd.DataFrame(dataset, columns=[
-            TIMESTAMP_COL,
-            USER_ID_COL, ITEM_ID_COL,
-            RELEVANCE_CONT_COL, RELEVANCE_INT_COL,
-            TERMINATE_COL
-        ])
-        log[RATING_COL] = log[ratings_column]
-
-        mdp_preparator = make_mdp(data=log, **mdp_settings)
-        states, rewards, actions, terminations, state_tail = mdp_preparator.create_mdp()
-        train_mdp = to_d3rlpy_form_ND(
-            states, rewards, actions, terminations,
-            discrete=scorer['prediction_type'] == "discrete"
-        )
-
-        # Init RL algorithm
-        if not self.learnable_model:
-            model = init_model(data=log, **algo_settings['model_parameters'])
-            algo = init_algo(model, **algo_settings['general_parameters'])
-            self.model = algo
-            self.learnable_model = True
-
-        # Init scorer
-        logger = init_logger(
-            train_mdp, state_tail, log, top_k, wandb_logger=self.logger, **scorer
-        )
-
-        # Run experiment
-        config = self.learning_config
-        fitter = self.model.fitter(
-            dataset=train_mdp, n_epochs=config.epochs,
-            verbose=False, save_metrics=False, show_progress=False,
-        )
-        for epoch, metrics in fitter:
-            if epoch == 1 or epoch % config.eval_schedule == 0:
-                eval_algo(
-                    self.model, logger, train_logger=logger, env=self.env,
-                    looking_for=[0, 1, 6]
-                )
-            total_epoch += 1
-        return total_epoch
-
-    def print_with_timestamp(self, text: str):
-        print_with_timestamp(text, self.init_time)
-
-    def set_metrics(self):
-        if not self.logger:
-            return
-
-        self.logger.define_metric('epoch')
-        self.logger.define_metric('mae', step_metric='epoch')
-
-
-class TypesResolver(LazyTypeResolver):
-    def resolve(self, type_name: str, **kwargs):
-        if type_name == 'dataset.toy_ratings':
-            from recsys_mdp.simulator.dataset import \
-                ToyRatingsDatasetBuilder
-            return ToyRatingsDatasetBuilder
-        if type_name == 'ds_source.random':
-            from recsys_mdp.simulator.log import RandomLogGenerator
-            return RandomLogGenerator
-        if type_name == 'embeddings.random':
-            from recsys_mdp.simulator.embeddings import \
-                RandomEmbeddingsGenerator
-            return RandomEmbeddingsGenerator
-        if type_name == 'embeddings.clusters':
-            from recsys_mdp.simulator.embeddings import \
-                RandomClustersEmbeddingsGenerator
-            return RandomClustersEmbeddingsGenerator
-        if type_name == 'model.random':
-            from recsys_mdp.utils.random_recommender import RandomRecommender
-            return RandomRecommender
-        if type_name == 'd3rlpy.cql':
-            from d3rlpy.algos import CQL
-            return CQL
-        if type_name == 'd3rlpy.sac':
-            from d3rlpy.algos import SAC
-            return SAC
-        if type_name == 'd3rlpy.ddpg':
-            from d3rlpy.algos import DDPG
-            return DDPG
-        if type_name == 'd3rlpy.discrete_cql':
-            from d3rlpy.algos import DiscreteCQL
-            return DiscreteCQL
-        # if type_name == 'd3rlpy.sdac':
-        #     from replay.models.rl.sdac.sdac import SDAC
-        #     return SDAC
-        if type_name == 'd3rlpy.discrete_sac':
-            from d3rlpy.algos import DiscreteSAC
-            return DiscreteSAC
-        if type_name == 'd3rlpy.bc':
-            from d3rlpy.algos.bc import BC
-            return BC
-        raise ValueError(f'Unknown type: {type_name}')
-
-
 def random_datetime(
         rng: Generator, start_year: int = 2019, end_year: int = 2021
 ) -> datetime.datetime:
@@ -648,13 +359,3 @@ def pause_random_duration(rng: Generator) -> datetime.timedelta:
 
 def track_random_duration(rng: Generator) -> datetime.timedelta:
     return datetime.timedelta(seconds=float(rng.integers(120, 260, endpoint=True)))
-
-
-def get_cuda_device(cuda_device: int | None) -> int | bool:
-    if cuda_device is not None:
-        import torch.cuda
-        cuda_available = torch.cuda.is_available()
-        print(f'CUDA available: {cuda_available}; device: {cuda_device}')
-        if not cuda_available:
-            cuda_device = False
-    return cuda_device

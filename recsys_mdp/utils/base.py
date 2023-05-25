@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import numpy as np
+import torch.cuda
 from numpy.random import Generator
 
 
@@ -27,3 +30,13 @@ def update_exp_trace(traces, tr, decay, val=1., with_reset=False):
         traces[tr] = val
     else:
         traces[tr] += val
+
+
+def get_cuda_device(cuda_device: int | None) -> int | bool:
+    if cuda_device is not None:
+        import torch.cuda
+        cuda_available = torch.cuda.is_available()
+        print(f'CUDA available: {cuda_available}; device: {cuda_device}')
+        if not cuda_available:
+            cuda_device = False
+    return cuda_device

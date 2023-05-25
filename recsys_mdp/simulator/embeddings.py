@@ -4,6 +4,52 @@ import numpy as np
 from numpy.random import Generator
 
 from recsys_mdp.simulator.clusters import generate_clusters
+from recsys_mdp.utils.base import sample_int
+from recsys_mdp.utils.run.config import GlobalConfig, TConfig
+
+
+class Embeddings:
+    n_dims: int
+
+    n_users: int
+    users: np.ndarray
+    # mapping user ind -> cluster ind
+    user_cluster_ind: np.ndarray
+    # user clusters' embeddings
+    user_clusters: np.ndarray
+    n_user_clusters: int
+
+    n_items: int
+    items: np.ndarray
+    # mapping item ind -> cluster ind
+    item_cluster_ind: np.ndarray
+    # item clusters' embeddings
+    item_clusters: np.ndarray
+    n_item_clusters: int
+
+    def __init__(
+            self, global_config: GlobalConfig, seed: int,
+            n_users: int, n_items: int,
+            n_dims: int, users: TConfig, items: TConfig
+    ):
+        self.n_dims = n_dims
+
+        rng = np.random.default_rng(seed)
+        self.n_users = n_users
+        self.user_embeddings_generator = global_config.resolve_object(
+            users, n_dims=self.n_dims, seed=sample_int(rng)
+        )
+        self.user_cluster_ind, self.users = self.user_embeddings_generator.generate(n_users)
+        self.user_clusters = self.user_embeddings_generator.clusters
+        self.n_user_clusters = self.user_embeddings_generator.n_clusters
+
+        self.n_items = n_items
+        self.item_embeddings_generator = global_config.resolve_object(
+            items, n_dims=self.n_dims, seed=sample_int(rng)
+        )
+        self.item_cluster_ind, self.items = self.item_embeddings_generator.generate(n_items)
+        self.item_clusters = self.item_embeddings_generator.clusters
+        self.n_item_clusters = self.item_embeddings_generator.n_clusters
 
 
 class RandomEmbeddingsGenerator:

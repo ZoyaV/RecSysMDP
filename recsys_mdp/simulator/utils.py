@@ -30,3 +30,16 @@ def boosting(
     #   1 -> 0 -> K^tanh(0) = K^0 = 1
     #   +inf -> -inf -> K^tanh(-inf) = K^(-1) = 1 / K
     return np.power(K, np.tanh(x / softness))
+
+
+def normalize(x: np.ndarray) -> np.ndarray:
+    normalizer = x.sum(-1)
+    assert normalizer > 1e-8, f'Normalization is dangerous for {x}'
+    return x / normalizer
+
+
+def softmax(x: np.ndarray, temp=.12) -> np.ndarray:
+    """Computes softmax values for a vector `x` with a given temperature."""
+    temp = np.clip(temp, 1e-5, 1e+3)
+    e_x = np.exp((x - np.max(x, axis=-1)) / temp)
+    return e_x / e_x.sum(axis=-1)
