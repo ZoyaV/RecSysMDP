@@ -250,8 +250,14 @@ class NextItemExperiment:
         ])
         log[RATING_COL] = log[ratings_column]
 
-        mdp_prep, train_mdp, algo_logger = self.data2mdp(log, top_k, mdp_settings, scorer)
-        _, _, algo_test_logger = self.data2mdp(log, top_k, mdp_settings, scorer)
+        split_timestamp = log[TIMESTAMP_COL].quantile(0.7)
+
+        # train/test split
+        train_log = log[log[TIMESTAMP_COL] <= split_timestamp]
+        test_log = log[log[TIMESTAMP_COL] > split_timestamp]
+
+        mdp_prep, train_mdp, algo_logger = self.data2mdp(train_log, top_k, mdp_settings, scorer)
+        _, _, algo_test_logger = self.data2mdp(test_log, top_k, mdp_settings, scorer)
 
         self.mdp_prep = mdp_prep
         self.algo_logger = algo_logger
