@@ -1,5 +1,5 @@
-from recsys_mdp.experiments.run.config import LazyTypeResolver
-from recsys_mdp.experiments.run.entrypoint import (
+from recsys_mdp.utils.run.config import LazyTypeResolver
+from recsys_mdp.utils.run.entrypoint import (
     run_experiment, default_run_arg_parser
 )
 

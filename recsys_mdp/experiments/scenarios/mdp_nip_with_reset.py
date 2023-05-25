@@ -10,11 +10,11 @@ import pandas as pd
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
-from recsys_mdp.experiments.run.wandb import get_logger
-from recsys_mdp.experiments.run.config import (
+from recsys_mdp.utils.run.wandb import get_logger
+from recsys_mdp.utils.run.config import (
     TConfig, GlobalConfig
 )
-from recsys_mdp.experiments.run.timer import timer, print_with_timestamp
+from recsys_mdp.utils.run.timer import timer, print_with_timestamp
 
 from recsys_mdp.generators.scenarios.mdp_next_item import (
     MdpGenerationProcessParameters, LearningProcessParameters,

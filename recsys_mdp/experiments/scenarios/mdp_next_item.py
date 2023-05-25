@@ -13,12 +13,12 @@ from numpy.random import Generator
 
 from recsys_mdp.generators.mdp.utils import boosting
 from recsys_mdp.generators.synthetic.relevance import similarity
-from recsys_mdp.experiments.run.wandb import get_logger
+from recsys_mdp.utils.run.wandb import get_logger
 from recsys_mdp.utils.base import sample_rng, sample_int, lin_sum, update_exp_trace
-from recsys_mdp.experiments.run.config import (
+from recsys_mdp.utils.run.config import (
     TConfig, GlobalConfig, LazyTypeResolver
 )
-from recsys_mdp.experiments.run.timer import timer, print_with_timestamp
+from recsys_mdp.utils.run.timer import timer, print_with_timestamp
 from recsys_mdp.mdp.base import (
     TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
     RELEVANCE_INT_COL, TERMINATE_COL, RATING_COL

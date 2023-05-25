@@ -9,14 +9,14 @@ import pandas as pd
 import yaml
 from d3rlpy.base import LearnableBase
 
-from als_model import ALSRecommender
+from recsys_mdp.models.als_model import ALSRecommender
 from constructors.mdp_constructor import save_data
 from recsys_mdp.generators.synthetic.relevance import similarity
 from recsys_mdp.experiments.scenarios.mdp_next_item import (
     NextItemEnvironment,
     TypesResolver
 )
-from recsys_mdp.experiments.run.config import (
+from recsys_mdp.utils.run.config import (
     GlobalConfig
 )
 from recsys_mdp.utils.lazy_imports import lazy_import

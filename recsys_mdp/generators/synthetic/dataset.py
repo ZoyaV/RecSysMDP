@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from recsys_mdp.generators.synthetic.relevance import RelevanceCalculator
-from recsys_mdp.experiments.run.config import GlobalConfig, TConfig
+from recsys_mdp.utils.run.config import GlobalConfig, TConfig
 
 
 @dataclasses.dataclass
