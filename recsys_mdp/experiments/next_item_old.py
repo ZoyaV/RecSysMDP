@@ -10,10 +10,13 @@ import pandas as pd
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
-from recsys_mdp.experiments.constructors.type_resolver import TypesResolver
+from recsys_mdp.experiments.utils.type_resolver import TypesResolver
 from recsys_mdp.simulator.env import (
-    MdpGenerationProcessParameters, LearningProcessParameters,
     NextItemEnvironment
+)
+from recsys_mdp.experiments.utils.iteration import (
+    MdpGenerationProcessParameters,
+    LearningProcessParameters
 )
 from recsys_mdp.utils.run.wandb import get_logger
 from recsys_mdp.utils.base import get_cuda_device
@@ -95,12 +98,8 @@ class MdpNextItemExperiment:
         samples = []
         for episode in count():
             samples.extend(self._generate_episode())
-
-            if config.episodes_per_epoch is not None and episode >= config.episodes_per_epoch:
+            if episode >= config.episodes_per_epoch or len(samples) >= config.samples_per_epoch:
                 break
-            if config.samples_per_epoch is not None and len(samples) >= config.samples_per_epoch:
-                break
-
         return samples
 
     def _generate_episode(self):
@@ -141,11 +140,11 @@ class MdpNextItemExperiment:
             top_k: int, ratings_column,
             mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
     ):
-        from constructors.mdp_constructor import make_mdp
+        from utils.mdp_constructor import make_mdp
         from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
-        from constructors.algorithm_constuctor import init_model
-        from constructors.algorithm_constuctor import init_algo
-        from constructors.scorers_constructor import init_logger
+        from utils.algorithm_constuctor import init_model
+        from utils.algorithm_constuctor import init_algo
+        from utils.scorers_constructor import init_logger
         from run_experiment import eval_algo
 
         log = pd.DataFrame(dataset, columns=[

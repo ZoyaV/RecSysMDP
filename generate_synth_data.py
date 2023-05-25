@@ -10,10 +10,10 @@ import yaml
 from d3rlpy.base import LearnableBase
 
 from recsys_mdp.models.als_model import ALSRecommender
-from recsys_mdp.experiments.constructors.mdp_constructor import save_data
+from recsys_mdp.experiments.utils.mdp_constructor import save_data
 from recsys_mdp.simulator.env import NextItemEnvironment
 from recsys_mdp.simulator.relevance import similarity
-from recsys_mdp.experiments.constructors.type_resolver import TypesResolver
+from recsys_mdp.experiments.utils.type_resolver import TypesResolver
 from recsys_mdp.utils.run.config import (
     GlobalConfig
 )

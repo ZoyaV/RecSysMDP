@@ -10,8 +10,8 @@ import pandas as pd
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
-from recsys_mdp.experiments.constructors.mdp_constructor import make_mdp
-from recsys_mdp.experiments.constructors.type_resolver import TypesResolver
+from recsys_mdp.experiments.utils.mdp_constructor import make_mdp
+from recsys_mdp.experiments.utils.type_resolver import TypesResolver
 from recsys_mdp.utils.run.wandb import get_logger
 from recsys_mdp.utils.run.config import (
     TConfig, GlobalConfig
@@ -19,12 +19,14 @@ from recsys_mdp.utils.run.config import (
 from recsys_mdp.utils.run.timer import timer, print_with_timestamp
 
 from recsys_mdp.simulator.env import (
-    MdpGenerationProcessParameters, LearningProcessParameters,
     NextItemEnvironment
 )
+from recsys_mdp.experiments.utils.iteration import (
+    MdpGenerationProcessParameters,
+    LearningProcessParameters
+)
 from recsys_mdp.utils.base import get_cuda_device
-from recsys_mdp.experiments.constructors.scorers_constructor import init_logger
-### Rewrrite eval as part of Experiment class
+from recsys_mdp.experiments.utils.scorers_constructor import init_logger
 from run_experiment import eval_algo
 
 from recsys_mdp.mdp.base import (
@@ -37,28 +39,13 @@ from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
 
+
 def log_satiation(logger, satiation, user_id):
     if logger is None:
         return
     hist = (satiation, np.arange(len(satiation)+1))
     histogram = logger.Histogram(np_histogram=hist)
     logger.log({f'user_{user_id}_satiation': histogram})
-
-def get_values_fixme(data, col_mapping):
-    full_users = data[col_mapping['user_col_name']].values
-    full_items = data[col_mapping['item_col_name']].values
-
-    users_unique = np.unique(data[col_mapping['user_col_name']].values)
-    items_unique = np.unique(data[col_mapping['item_col_name']].values)
-
-    rating = data[col_mapping['reward_col_name']].values
-    return {
-        'users_unique': users_unique,
-        'items_unique': items_unique,
-        'full_users': full_users,
-        'full_items': full_items,
-        'rating': rating
-    }
 
 
 class NextItemExperiment:
@@ -114,8 +101,7 @@ class NextItemExperiment:
         self.print_with_timestamp(f'Generate dataset')
         dataset = self._generate_dataset()
         fitter = self._init_rl_setting(
-             dataset,
-            **self.zoya_settings
+             dataset, **self.zoya_settings
         )
         for generation_epoch in range(self.generation_config.epochs):
             self.print_with_timestamp(f'Epoch: {generation_epoch} ==> learning')
@@ -129,13 +115,10 @@ class NextItemExperiment:
         config = self.generation_config
         samples = []
         for episode in count():
-            samples.extend(self._generate_episode(first_run=True, use_env_actions=True))
-
-            if config.episodes_per_epoch is not None and episode >= config.episodes_per_epoch:
+            trajectory = self._generate_episode(first_run=True, use_env_actions=True)
+            samples.extend(trajectory)
+            if episode >= config.episodes_per_epoch or len(samples) >= config.samples_per_epoch:
                 break
-            if config.samples_per_epoch is not None and len(samples) >= config.samples_per_epoch:
-                break
-
         return samples
 
     def _framestack_from_last_best(self, user_id, N = 10):
@@ -254,8 +237,8 @@ class NextItemExperiment:
 
         # Init RL algorithm
         if not self.learnable_model:
-            from recsys_mdp.experiments.constructors.algorithm_constuctor import init_model
-            from recsys_mdp.experiments.constructors.algorithm_constuctor import init_algo
+            from recsys_mdp.experiments.utils.algorithm_constuctor import init_model
+            from recsys_mdp.experiments.utils.algorithm_constuctor import init_algo
             model = init_model(data=log, **algo_settings['model_parameters'])
             algo = init_algo(model, **algo_settings['general_parameters'])
             self.model = algo
