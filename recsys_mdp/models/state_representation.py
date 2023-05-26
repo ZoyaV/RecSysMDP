@@ -254,7 +254,9 @@ class FullHistory(nn.Module):
         batch, i, j = item_embeddings.shape
         out =  item_embeddings.reshape(-1, i * j)
         if 'score' in self.state_keys:
-            batch, i, j = scorers_embeddings.shape
+            # TODO: co-style with score shape
+            batch, i = scorers_embeddings.shape
+            j = 1
            # print(batch, i, j)
             score = scorers_embeddings.reshape(batch, i * j)
             out = torch.cat((out, score), axis = 1)

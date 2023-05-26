@@ -19,8 +19,11 @@ def summary_reward(df):
     rewards = relevance_based_reward(df)
     sum_reward = np.zeros(df.shape[0])
     sum_reward[-1] = np.sum(rewards)
-    return rewards
+    return sum_reward
 
+def ones_reward(df):
+    sum_reward = np.ones(df.shape[0])
+    return sum_reward
 def relevance_based_reward(df):
     rewards = np.zeros(df.shape[0])
     rewards[df[RATING_COL] <= 3] = -1

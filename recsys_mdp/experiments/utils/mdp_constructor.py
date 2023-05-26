@@ -74,6 +74,9 @@ def load_reward_function(func_name):
     elif func_name == 'summary_reward':
         from recsys_mdp.mdp.rewarding import summary_reward
         return summary_reward
+    elif func_name == 'ones_reward':
+        from recsys_mdp.mdp.rewarding import ones_reward
+        return ones_reward
     else:
         raise ValueError(f'Unknown reward func name {func_name}')
 
