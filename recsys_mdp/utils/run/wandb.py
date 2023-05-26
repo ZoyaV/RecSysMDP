@@ -45,16 +45,16 @@ class DryWandbLogger:
 
 
 def get_logger(
-        config: TConfig, log: bool | str | None, project: str = None, wandb_init: TConfig = None
+        config: TConfig, log: bool | str | None, project: str = None, **wandb_init
 ) -> Run | None:
     if log is None or not log:
         return None
 
     if log == 'dry':
         # imitate wandb logger, but do nothing => useful for debugging
+        # noinspection PyTypeChecker
         return DryWandbLogger()
 
-    wandb_init = isnone(wandb_init, {})
     logger = wandb.init(project=project, **wandb_init)
 
     # we have to pass the config with update instead of init because for sweep runs

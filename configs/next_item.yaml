@@ -64,7 +64,6 @@ zoya_settings:
     action_function_name: "next_item_action"
     episode_splitter_name: "interaction_interruption"
 
-
   scorer:
     metrics: ['ndcg', 'stat_hitrate', 'PC', 'ihitrate']
     tresh: [0.7, 0.5, 0.9]

@@ -62,8 +62,6 @@ def generate_episode(
             except:
                 item_id = model.predict(obs[:framestack_size].reshape(1, -1))[0]
 
-
-
         timestamp = env.timestamp
         # log satiation histogram
         if env.timestep % 4 == 0 and log_sat:

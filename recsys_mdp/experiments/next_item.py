@@ -34,7 +34,7 @@ from recsys_mdp.mdp.base import (
     RELEVANCE_INT_COL, TERMINATE_COL, RATING_COL
 )
 
-from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
+from recsys_mdp.mdp.utils import to_d3rlpy_form_ND, isnone
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
@@ -71,7 +71,10 @@ class NextItemExperiment:
         self.config = GlobalConfig(
             config=config, config_path=config_path, type_resolver=TypesResolver()
         )
-        self.logger = get_logger(config, log=log, project=project, wandb_init=wandb_init)
+        self.logger = self.config.resolve_object(
+            dict(config=config, log=log, project=project) | isnone(wandb_init, {}),
+            object_type_or_factory=get_logger
+        )
 
         self.init_time = timer()
         self.print_with_timestamp('==> Init')
@@ -137,8 +140,11 @@ class NextItemExperiment:
         framestack_size = self.zoya_settings['mdp_settings']['framestack_size']
         obs = np.random.randint(0, self.env.n_items, framestack_size).tolist() + [user_id]
         return obs
-    def _generate_episode(self, cold_start = False, user_id = None,
-                          use_env_actions = False, log_sat = False, first_run = False):
+
+    def _generate_episode(
+            self, cold_start = False, user_id = None,
+            use_env_actions = False, log_sat = False, first_run = False
+    ):
         env, model = self.env, self.model
         orig_user_id = user_id
         user_id = env.reset(user_id=user_id)
@@ -162,13 +168,15 @@ class NextItemExperiment:
             continuous_relevance, discrete_relevance = relevance
             timestamp = env.timestamp
             if not first_run:
-            #generate new observation with framestack
-                _, obs = self.preparator.make_interaction(relevance=discrete_relevance, user=user_id, item=item_id,
-                                                          ts=timestamp, obs_prev=obs, relevance2reward=False)
+                # generate new observation with framestack
+                _, obs = self.preparator.make_interaction(
+                    relevance=discrete_relevance, user=user_id, item=item_id,
+                    ts=timestamp, obs_prev=obs, relevance2reward=False
+                )
 
             items_top = env.state.ranked_items(with_satiation=True, discrete=True)
             if use_env_actions:
-                item_id =  self.rng.choice(items_top[:N_BEST_ITEMS])
+                item_id = self.rng.choice(items_top[:N_BEST_ITEMS])
             trajectory.append((
                 timestamp,
                 user_id, item_id,
@@ -178,7 +186,6 @@ class NextItemExperiment:
             ))
             if terminated:
                 break
-
 
             if env.timestep % 4 == 0 and log_sat:
                 log_satiation(self.logger, env.state.satiation, orig_user_id)
@@ -251,17 +258,6 @@ class NextItemExperiment:
             verbose=False, save_metrics=False, show_progress=False,
         )
         return fitter
-
-    def _eval_returns(self):
-        cont_returns, disc_returns = [], []
-        for ep in range(self.learning_config.eval_episodes):
-            trajectory = self._generate_episode()
-            cont_returns.append(np.sum([step[2] for step in trajectory]))
-            disc_returns.append(np.sum([step[3] for step in trajectory]))
-        return {
-            'continuous_return': np.mean(cont_returns),
-            'discrete_return': np.mean(disc_returns),
-        }
 
     def print_with_timestamp(self, text: str):
         print_with_timestamp(text, self.init_time)
