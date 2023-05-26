@@ -244,7 +244,7 @@ class FullHistory(nn.Module):
         item_embeddings = self.item_embeddings(memory.long())
 
         if 'score' in self.state_keys:
-            scorers_embeddings = self.score_embeddings(scorers.long())
+            scorers_embeddings = scorers/5
           #  item_embeddings = item_embeddings * scorers_embeddings
 
         if 'user' in self.state_keys:
