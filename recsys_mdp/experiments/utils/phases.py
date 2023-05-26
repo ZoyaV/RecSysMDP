@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-class MdpGenerationProcessParameters:
+class GenerationPhaseParameters:
     epochs: int
 
     episodes_per_epoch: int | None
@@ -19,7 +19,7 @@ class MdpGenerationProcessParameters:
         self.samples_per_epoch = samples_per_epoch
 
 
-class LearningProcessParameters:
+class LearningPhaseParameters:
     epochs: int
     eval_schedule: int
     eval_episodes: int

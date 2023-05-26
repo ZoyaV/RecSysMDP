@@ -27,6 +27,7 @@ def init_model(
         model_params.append(users_emb)
         model_params.append(items_emb)
 
+    # FIXME: order-based parameters passing is highly dangerous!
     actor_encoder_factory = ActorEncoderFactory(
         *model_params
     )

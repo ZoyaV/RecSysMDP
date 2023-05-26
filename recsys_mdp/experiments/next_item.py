@@ -21,9 +21,9 @@ from recsys_mdp.utils.run.timer import timer, print_with_timestamp
 from recsys_mdp.simulator.env import (
     NextItemEnvironment
 )
-from recsys_mdp.experiments.utils.iteration import (
-    MdpGenerationProcessParameters,
-    LearningProcessParameters
+from recsys_mdp.experiments.utils.phases import (
+    GenerationPhaseParameters,
+    LearningPhaseParameters
 )
 from recsys_mdp.utils.base import get_cuda_device
 from recsys_mdp.experiments.utils.scorers_constructor import init_logger
@@ -56,12 +56,12 @@ class NextItemExperiment:
     seed: int
     rng: Generator
 
-    generation_config: MdpGenerationProcessParameters
-    learning_config: LearningProcessParameters
+    generation_phase: GenerationPhaseParameters
+    learning_phase: LearningPhaseParameters
 
     def __init__(
             self, config: TConfig, config_path: Path, seed: int,
-            generation: TConfig, learning: TConfig,
+            generation_phase: TConfig, learning_phase: TConfig,
             zoya_settings: TConfig,
             model: TConfig, env: TConfig,
             log: bool, cuda_device: bool | int | None,
@@ -81,8 +81,8 @@ class NextItemExperiment:
 
         self.seed = seed
         self.rng = np.random.default_rng(seed)
-        self.generation_config = MdpGenerationProcessParameters(**generation)
-        self.learning_config = LearningProcessParameters(**learning)
+        self.generation_phase = GenerationPhaseParameters(**generation_phase)
+        self.learning_phase = LearningPhaseParameters(**learning_phase)
         self.zoya_settings = zoya_settings
 
         self.env: NextItemEnvironment = self.config.resolve_object(
@@ -106,7 +106,7 @@ class NextItemExperiment:
         fitter = self._init_rl_setting(
              dataset, **self.zoya_settings
         )
-        for generation_epoch in range(self.generation_config.epochs):
+        for generation_epoch in range(self.generation_phase.epochs):
             self.print_with_timestamp(f'Epoch: {generation_epoch} ==> learning')
             total_epoch += self._learn_on_dataset(
                 total_epoch, fitter
@@ -115,7 +115,7 @@ class NextItemExperiment:
         self.print_with_timestamp('<==')
 
     def _generate_dataset(self):
-        config = self.generation_config
+        config = self.generation_phase
         samples = []
         for episode in count():
             trajectory = self._generate_episode(first_run=True, use_env_actions=True)
@@ -193,7 +193,7 @@ class NextItemExperiment:
 
     def _learn_on_dataset(self, total_epoch, fitter):
         for epoch, metrics in fitter:
-            if epoch == 1 or epoch %  self.learning_config.eval_schedule == 0:
+            if epoch == 1 or epoch %  self.learning_phase.eval_schedule == 0:
                 eval_algo(
                     self.model, self.algo_test_logger, train_logger=self.algo_logger, env=self.env,
                     looking_for=[0, 1, 6]
@@ -252,7 +252,7 @@ class NextItemExperiment:
             self.learnable_model = True
 
         # Run experiment
-        config = self.learning_config
+        config = self.learning_phase
         fitter = self.model.fitter(
             dataset=train_mdp, n_epochs=config.epochs,
             verbose=False, save_metrics=False, show_progress=False,

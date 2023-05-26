@@ -14,9 +14,9 @@ from recsys_mdp.experiments.utils.type_resolver import TypesResolver
 from recsys_mdp.simulator.env import (
     NextItemEnvironment
 )
-from recsys_mdp.experiments.utils.iteration import (
-    MdpGenerationProcessParameters,
-    LearningProcessParameters
+from recsys_mdp.experiments.utils.phases import (
+    GenerationPhaseParameters,
+    LearningPhaseParameters
 )
 from recsys_mdp.utils.run.wandb import get_logger
 from recsys_mdp.utils.base import get_cuda_device
@@ -41,8 +41,8 @@ class MdpNextItemExperiment:
     seed: int
     rng: Generator
 
-    generation_config: MdpGenerationProcessParameters
-    learning_config: LearningProcessParameters
+    generation_config: GenerationPhaseParameters
+    learning_config: LearningPhaseParameters
 
     def __init__(
             self, config: TConfig, config_path: Path, seed: int,
@@ -63,8 +63,8 @@ class MdpNextItemExperiment:
 
         self.seed = seed
         self.rng = np.random.default_rng(seed)
-        self.generation_config = MdpGenerationProcessParameters(**generation)
-        self.learning_config = LearningProcessParameters(**learning)
+        self.generation_config = GenerationPhaseParameters(**generation)
+        self.learning_config = LearningPhaseParameters(**learning)
         self.zoya_settings = zoya_settings
 
         self.env: NextItemEnvironment = self.config.resolve_object(
