@@ -71,6 +71,9 @@ def load_reward_function(func_name):
     elif func_name == 'monotony_reward':
         from recsys_mdp.mdp.rewarding import monotony_reward
         return monotony_reward
+    elif func_name == 'summary_reward':
+        from recsys_mdp.mdp.rewarding import summary_reward
+        return summary_reward
     else:
         raise ValueError(f'Unknown reward func name {func_name}')
 
@@ -86,6 +89,7 @@ def load_action_function(func_name):
     elif func_name == 'discrete_relevance_action':
         from recsys_mdp.mdp.acting import discrete_relevance_action
         return discrete_relevance_action
+
     else:
         raise ValueError(f'Unknown action func name {func_name}')
 

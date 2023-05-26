@@ -15,6 +15,11 @@ def condition_reward(df):
     rewards[df[RATING_COL] > 3] = -0.1
     return rewards
 
+def summary_reward(df):
+    rewards = relevance_based_reward(df)
+    sum_reward = np.zeros(df.shape[0])
+    sum_reward[-1] = np.sum(rewards)
+    return rewards
 
 def relevance_based_reward(df):
     rewards = np.zeros(df.shape[0])
