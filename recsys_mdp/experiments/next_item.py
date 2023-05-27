@@ -106,7 +106,8 @@ class NextItemExperiment:
         fitter, dataset_info = self._init_rl_setting(
              dataset, **self.zoya_settings
         )
-
+        # TODO: need to be a parametr
+        dataset_info = None
         for generation_epoch in range(self.generation_phase.epochs):
             self.print_with_timestamp(f'Epoch: {generation_epoch} ==> learning')
             total_epoch += self._learn_on_dataset(
