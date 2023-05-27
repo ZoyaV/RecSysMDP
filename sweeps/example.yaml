@@ -2,13 +2,13 @@ program: run.py
 
 # wandb project: for a sweep it will be used instead of the project
 # specified in run config
-project: cql_params
+project: cql_params_tr
 method: grid
 parameters:
   # Keep seeds presented every time and keep them on top
   # I recommend just uncommenting the needed number of seeds to use
   seed.:
-    values: [40, 41, 42, 43, 44] #, 45, 46] #, 47, 48, 49] #, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
+    values: [40, 41, 42] #, 45, 46] #, 47, 48, 49] #, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
 
   # Then you can optionally overwrite some attributes with
   # non-usual values or instead to "freeze" frequently changed
@@ -24,14 +24,11 @@ parameters:
   # NB: It's better to use "path..to.attribute" or "attribute.", i.e. +additional "." after first
   # part of a path to attribute
   zoya_settings..mdp_settings.reward_function_name:
-    values:
-      - ones_reward
-      - relevance_based_reward
+    values: ones_reward
 
   zoya_settings..mdp_settings.episode_splitter_name:
-    values:
-      - interaction_interruption
-      - full_user_interaction
+    value: interaction_interruption
+
 
   model..batch_size:
     values:
