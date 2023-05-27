@@ -60,7 +60,7 @@ zoya_settings:
   ratings_column: relevance_int
   mdp_settings:
     framestack_size: 10
-    reward_function_name: "relevance_based_reward"
+    reward_function_name: "ones_reward"
     action_function_name: "next_item_action"
     episode_splitter_name: "interaction_interruption"
 
