@@ -23,17 +23,41 @@ parameters:
   # path.to.config.attribute and its values for "sweeping"
   # NB: It's better to use "path..to.attribute" or "attribute.", i.e. +additional "." after first
   # part of a path to attribute
+  zoya_settings..mdp_settings.reward_function_name:
+    - ones_reward
+    - relevance_based_reward
+    -
+  zoya_settings..mdp_settings.episode_splitter_name:
+    - interaction_interruption
+    - full_user_interaction
+
   model..batch_size:
     values:
       - 4
       - 8
       - 16
       - 32
-  model..actor_learning_rate:
+  models..cql.actor_learning_rate:
     values:
       - 1e-2
       - 1e-3
       - 1e-4
+  models..cql.critic_learning_rate:
+    values:
+      - 3e-2
+      - 3e-3
+      - 3e-4
+  models..cql.conservative_weight:
+    values:
+      - 5.0
+      - 2.0
+      - 7.0
+  models..default.gamma:
+    values:
+      - 0.99
+      - 0.9
+      - 0.95
+      - 0.97
 
 command:
   - ${env}
