@@ -236,6 +236,8 @@ class NextItemExperiment:
         test_log = log[log[TIMESTAMP_COL] > split_timestamp]
 
         mdp_prep, train_mdp, algo_logger = self.data2mdp(train_log, top_k, mdp_settings, scorer)
+        mdp_settings['reward_function_name'] = "relevance_based_reward"
+        mdp_settings['episode_splitter_name'] = "interaction_interruption"
         _, _, algo_test_logger = self.data2mdp(test_log, top_k, mdp_settings, scorer)
 
         self.mdp_prep = mdp_prep
