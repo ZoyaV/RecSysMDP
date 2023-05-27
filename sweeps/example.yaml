@@ -24,7 +24,7 @@ parameters:
   # NB: It's better to use "path..to.attribute" or "attribute.", i.e. +additional "." after first
   # part of a path to attribute
   zoya_settings..mdp_settings.reward_function_name:
-    values: ones_reward
+    value: ones_reward
 
   zoya_settings..mdp_settings.episode_splitter_name:
     value: interaction_interruption
