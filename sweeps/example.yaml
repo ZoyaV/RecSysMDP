@@ -15,10 +15,10 @@ parameters:
   # config attributes to prevent unexpected behavior and mistakes
   # NB: "value" means that only one value is specified, i.e. it isn't
   # used for "sweeping"
-  cuda_device.:
-    value: True
-  generation..samples:
-    value: 4000
+  #cuda_device.:
+   # value: True
+ # generation..samples:
+   # value: 4000
 
   # path.to.config.attribute and its values for "sweeping"
   # NB: It's better to use "path..to.attribute" or "attribute.", i.e. +additional "." after first
