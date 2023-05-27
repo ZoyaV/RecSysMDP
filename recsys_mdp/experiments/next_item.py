@@ -103,13 +103,14 @@ class NextItemExperiment:
         total_epoch = 0
         self.print_with_timestamp(f'Generate dataset')
         dataset = self._generate_dataset()
-        fitter = self._init_rl_setting(
+        fitter, dataset_info = self._init_rl_setting(
              dataset, **self.zoya_settings
         )
+
         for generation_epoch in range(self.generation_phase.epochs):
             self.print_with_timestamp(f'Epoch: {generation_epoch} ==> learning')
             total_epoch += self._learn_on_dataset(
-                total_epoch, fitter
+                total_epoch, fitter, dataset_info
             )
 
         self.print_with_timestamp('<==')
@@ -191,12 +192,12 @@ class NextItemExperiment:
                 log_satiation(self.logger, env.state.satiation, orig_user_id)
         return trajectory
 
-    def _learn_on_dataset(self, total_epoch, fitter):
+    def _learn_on_dataset(self, total_epoch, fitter, dataset_info = None):
         for epoch, metrics in fitter:
             if epoch == 1 or epoch %  self.learning_phase.eval_schedule == 0:
                 eval_algo(
                     self.model, self.algo_test_logger, train_logger=self.algo_logger, env=self.env,
-                    looking_for=[0, 1, 6]
+                    looking_for=[0, 1, 6], dataset_info = dataset_info
                 )
             total_epoch += 1
         return total_epoch
@@ -229,6 +230,32 @@ class NextItemExperiment:
         ])
         log[RATING_COL] = log[ratings_column]
 
+        mean_dreturn = np.mean(log[RELEVANCE_INT_COL])
+        median_dreturn = np.median(log[RELEVANCE_INT_COL])
+        std_dreturn = np.std(log[RELEVANCE_INT_COL])
+
+        mean_return = np.mean(log[RELEVANCE_CONT_COL])
+        median_return = np.median(log[RELEVANCE_CONT_COL])
+        std_return = np.std(log[RELEVANCE_CONT_COL])
+
+        dataset_info = [
+            {
+                "discrete_return": mean_dreturn,
+                "continuous_return": mean_return,
+            },
+            {
+                "discrete_return": mean_dreturn + std_dreturn,
+                "continuous_return": mean_return + std_return,
+            },
+            {
+                "discrete_return": mean_dreturn - std_dreturn,
+                "continuous_return": mean_return - std_return,
+            },
+            {
+                "discrete_return": median_dreturn,
+                "continuous_return": median_return
+            }]
+
         split_timestamp = log[TIMESTAMP_COL].quantile(0.7)
 
         # train/test split
@@ -259,7 +286,7 @@ class NextItemExperiment:
             dataset=train_mdp, n_epochs=config.epochs,
             verbose=False, save_metrics=False, show_progress=False,
         )
-        return fitter
+        return fitter, dataset_info
 
     def print_with_timestamp(self, text: str):
         print_with_timestamp(text, self.init_time)
