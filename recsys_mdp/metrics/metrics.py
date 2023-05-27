@@ -15,6 +15,8 @@ def hit_rate( pred, ground_truth):
     for item in pred:
         if int(item) in ground_truth:
             k+=1
+    if init_pred_count == 0:
+        return 0
     return k / init_pred_count
 
 def coverage(pred):

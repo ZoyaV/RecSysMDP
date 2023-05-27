@@ -66,13 +66,15 @@ class Logger():
         interaction_result = []
         for episode in self.interactive_mdp:
             user = int(episode.observations[0][-1])
+            # TODO: attention to top_k slice. It may affect to materic.
             original_items = episode.actions
-            original_rewards = episode.rewards[:self.top_k]
+            original_rewards = episode.rewards
             obs = episode.observations[0]
             not_interactive_items = model.predict(episode.observations)
             interactive_items = []
             predicted_values = []
-            for i in range(self.top_k):
+          #  print(len(episode))
+            for i in range(len(episode)):
                 new_item = model.predict([obs])[0]
                 orig_obs = episode.observations[i:i+1]
                 if i>=len(original_items):
