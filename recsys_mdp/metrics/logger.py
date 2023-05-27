@@ -132,6 +132,11 @@ class Logger():
             visual_logger(**visual_info)
 
         flattened_dict = flatten_dict_keys(log_resuls)
-        print(flattened_dict)
+
+        #print(flattened_dict)
         if self.wandb_logger:
             self.wandb_logger.log(flattened_dict)
+
+
+
+

@@ -51,7 +51,7 @@ def eval_algo(algo, logger, train_logger, env = None, looking_for = None, datase
         "test_STAT": logger.static_log(algo),
         "test_INTERECT": logger.interactive_log(algo),
         "ONLINE": online_res
-    }, {"ONLINE": dataset_info})
+    })
 
     train_logger.visual_log(algo, {
         "train_STAT": train_logger.static_log(algo),
