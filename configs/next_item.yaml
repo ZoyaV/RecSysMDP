@@ -1,7 +1,7 @@
 # runner type tag
 _type_: test.next_item
 # wandb project
-project: recsys.synth.mdp.next_item
+project: recsys.synth.mdp.next_item_test_scores
 # wandb logging
 log: True
 
@@ -10,7 +10,7 @@ cuda_device: ...
 
 generation_phase:
   epochs: 1
-  episodes_per_epoch: 1000
+  episodes_per_epoch: 3000
   samples_per_epoch: 10000
 
 learning_phase:
@@ -21,8 +21,8 @@ learning_phase:
 env:
   global_config: ???
   seed: ???
-  n_users: 100
-  n_items: 100
+  n_users: 1000
+  n_items: 1000
   max_episode_len: [40, 20]
   embeddings:
     n_dims: 8
@@ -40,7 +40,7 @@ env:
       min_l2_dist: 0.
   user_state:
     base_satiation: 0.15
-    base_satiation_speed: [0.04, .4]
+    base_satiation_speed: [0.1, .4]
     satiation_drift: .2
     item_listening_trace_decay: .9
     item_repeat_penalty_power: .15
@@ -51,18 +51,18 @@ env:
     boosting_softness: [2.0, 3.0]
     discrete_actions:
       - [0.2, 0.08]
-      - [0.37, 0.05]
+      - [0.37, 0.1]
       - [0.58, 0.03]
-      - [0.75, 0.1]
+      - [0.75, 0.05]
 
 zoya_settings:
   top_k: 10
   ratings_column: relevance_int
   mdp_settings:
     framestack_size: 10
-    reward_function_name: "ones_reward"
+    reward_function_name: ones_reward #relevance_based_reward #"ones_reward"
     action_function_name: "next_item_action"
-    episode_splitter_name: "interaction_interruption"
+    episode_splitter_name: interaction_interruption #full_user_interaction #"interaction_interruption"
 
   scorer:
     metrics: ['ndcg', 'stat_hitrate', 'PC', 'ihitrate']
@@ -77,10 +77,10 @@ zoya_settings:
 
     model_parameters:
       use_als: False
-      user_num: 100
-      item_num: 100
+      user_num: 1000
+      item_num: 1000
       emb_dim: 16
-      hid_dim: 32
+      hid_dim: 256
       memory_size: 10
       feature_size: 512
       state_repr_name: "full_history" #drr adrr

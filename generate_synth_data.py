@@ -24,6 +24,10 @@ from recsys_mdp.mdp.base import (
 )
 
 wandb = lazy_import('wandb')
+from recsys_mdp.simulator.user_state import (
+    USER_RESET_MODE_CONTINUE, USER_RESET_MODE_INIT,
+    USER_RESET_MODE_DISCONTINUE, UserState
+)
 
 
 def generate_episode(
@@ -95,7 +99,7 @@ def generate_episode(
         ))
         if terminated:
             break
-
+    env.reset(user_id, USER_RESET_MODE_DISCONTINUE)
     if log_sat:
         log_satiation(logger, env.state.satiation, orig_user_id)
 

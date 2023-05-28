@@ -39,6 +39,10 @@ from recsys_mdp.mdp.utils import to_d3rlpy_form_ND, isnone
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
 
+from recsys_mdp.simulator.user_state import (
+    USER_RESET_MODE_CONTINUE, USER_RESET_MODE_INIT,
+    USER_RESET_MODE_DISCONTINUE, UserState
+)
 
 def log_satiation(logger, satiation, user_id):
     if logger is None:
@@ -107,7 +111,7 @@ class NextItemExperiment:
              dataset, **self.zoya_settings
         )
         # TODO: need to be a parametr
-        dataset_info = None
+       # dataset_info = None
         for generation_epoch in range(self.generation_phase.epochs):
             self.print_with_timestamp(f'Epoch: {generation_epoch} ==> learning')
             total_epoch += self._learn_on_dataset(
@@ -152,6 +156,7 @@ class NextItemExperiment:
         user_id = env.reset(user_id=user_id)
         trajectory = []
         N_BEST_ITEMS = 10
+        RANGE_SIZE= 15
         # Get random items from best for framestack
         # TODO: How it will affect to episode lenghts?
         # TODO: Make framestack making as function
@@ -178,7 +183,7 @@ class NextItemExperiment:
 
             items_top = env.state.ranked_items(with_satiation=True, discrete=True)
             if use_env_actions:
-                item_id = self.rng.choice(items_top[:N_BEST_ITEMS])
+                item_id = self.rng.choice(items_top[:RANGE_SIZE])
             trajectory.append((
                 timestamp,
                 user_id, item_id,
@@ -191,6 +196,7 @@ class NextItemExperiment:
 
             if env.timestep % 4 == 0 and log_sat:
                 log_satiation(self.logger, env.state.satiation, orig_user_id)
+        env.reset(user_id, USER_RESET_MODE_DISCONTINUE)
         return trajectory
 
     def _learn_on_dataset(self, total_epoch, fitter, dataset_info = None):
@@ -264,6 +270,8 @@ class NextItemExperiment:
         test_log = log[log[TIMESTAMP_COL] > split_timestamp]
 
         mdp_prep, train_mdp, algo_logger = self.data2mdp(train_log, top_k, mdp_settings, scorer)
+       # print(train_mdp.rewards)
+       # exit()
         mdp_settings['reward_function_name'] = "relevance_based_reward"
         mdp_settings['episode_splitter_name'] = "interaction_interruption"
         _, _, algo_test_logger = self.data2mdp(test_log, top_k, mdp_settings, scorer)

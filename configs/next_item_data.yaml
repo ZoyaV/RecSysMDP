@@ -62,7 +62,7 @@ zoya_settings:
     framestack_size: 10
     reward_function_name: "ones_reward"
     action_function_name: "next_item_action"
-    episode_splitter_name: "interaction_interruption"
+    episode_splitter_name: "full_user_interaction"
 
   scorer:
     metrics: ['ndcg', 'stat_hitrate', 'PC', 'ihitrate']
