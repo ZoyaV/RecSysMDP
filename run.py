@@ -11,6 +11,11 @@ class RunnerRegistry(LazyTypeResolver):
                 NextItemExperiment
             )
             return NextItemExperiment
+        if type_tag == 'test.next_item_on_data':
+            from recsys_mdp.experiments.next_item_on_data import (
+                NextItemOnDataExperiment
+            )
+            return NextItemOnDataExperiment
         raise ValueError(f'Unknown type: {type_tag}')
 
 
