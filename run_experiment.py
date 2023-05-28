@@ -28,7 +28,9 @@ def episode_statistics(states):
     print("STD: ", np.std(sizes))
 
 
-def eval_algo(algo, logger, train_logger, env=None, looking_for=None, dataset_info=None):
+def eval_algo(
+        algo, logger, train_logger, env=None, looking_for=None, dataset_info=None, rng=None
+):
     if env:
         env.hard_reset(mode=USER_RESET_MODE_INIT)
 
@@ -36,7 +38,7 @@ def eval_algo(algo, logger, train_logger, env=None, looking_for=None, dataset_in
         looking_for.append(None)
         for i in looking_for:
             online_res[f"user {i}"] = eval_returns(
-                env, algo, user_id=i, logger=logger.wandb_logger
+                env, algo, user_id=i, logger=logger.wandb_logger, rng=rng
             )
         if dataset_info is not None:
             for i, name in enumerate(['mean', 'mean+', 'mean-', 'median']):
