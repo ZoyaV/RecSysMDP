@@ -269,8 +269,7 @@ def main():
         data=trajectories,
         columns=column_names,
         save_dir=Path('./environments') / args.env_name,
-        dataset_name=args.env_name,
-        train_test_split=.7
+        dataset_name=args.env_name
     )
 
 

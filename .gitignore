@@ -8,6 +8,12 @@ d3rlpy_logs/
 # Mac OS files
 .DS_Store
 
+# non-commited data in the repo's root (note the leading slash):
+#   for storing datasets
+/datasets/
+#   for caching generated data
+/cache/
+
 ### ================ DEFAULT PYTHON IGNORES ====================
 
 # Byte-compiled / optimized / DLL files

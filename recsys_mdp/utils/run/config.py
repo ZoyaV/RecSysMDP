@@ -427,14 +427,14 @@ class ObjectResolver:
         self.type_resolver = type_resolver
         self.config_resolver = config_resolver
 
-    def resolve(
+    def resolve_requirements(
             self, config: TConfig, *,
             object_type_or_factory: TTypeOrFactory = None,
             config_type: Type[dict | list] = dict,
             **substitution_registry
-    ) -> Any:
+    ) -> tuple[TConfig, TTypeOrFactory]:
         if not is_resolved_value(config) or config is None:
-            return config
+            raise ValueError(f'{config}')
 
         if self.config_resolver is not None:
             # we expect that referencing is enabled, so we need to resolve the config
@@ -448,6 +448,19 @@ class ObjectResolver:
             # have to resolve the type from the config as object type is not specified
             config, type_tag = extracted_type_tag(config)
             object_type_or_factory = self.type_resolver[type_tag]
+
+        return config, object_type_or_factory
+
+    def resolve(
+            self, config: TConfig, *,
+            object_type_or_factory: TTypeOrFactory = None,
+            config_type: Type[dict | list] = dict,
+            **substitution_registry
+    ) -> Any:
+        config, object_type_or_factory = self.resolve_requirements(
+            config, object_type_or_factory=object_type_or_factory,
+            config_type=config_type, **substitution_registry
+        )
 
         try:
             if config_type is list:
@@ -494,6 +507,19 @@ class GlobalConfig:
             **substitution_registry
     ) -> Any:
         return self.object_resolver.resolve(
+            config,
+            object_type_or_factory=object_type_or_factory,
+            config_type=config_type,
+            **substitution_registry | self.global_substitution_registry
+        )
+
+    def resolve_object_requirements(
+            self, config: TConfig, *,
+            object_type_or_factory: TTypeOrFactory = None,
+            config_type: Type[dict | list] = dict,
+            **substitution_registry
+    ) -> tuple[TConfig, TTypeOrFactory]:
+        return self.object_resolver.resolve_requirements(
             config,
             object_type_or_factory=object_type_or_factory,
             config_type=config_type,
