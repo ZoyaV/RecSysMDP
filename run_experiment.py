@@ -28,7 +28,7 @@ def episode_statistics(states):
     print("STD: ", np.std(sizes))
 
 
-def eval_algo(algo, logger, train_logger, env = None, looking_for = None, dataset_info = None):
+def eval_algo(algo, logger, train_logger, env=None, looking_for=None, dataset_info=None):
     if env:
         env.hard_reset(mode=USER_RESET_MODE_INIT)
 
@@ -43,10 +43,9 @@ def eval_algo(algo, logger, train_logger, env = None, looking_for = None, datase
                 online_res[f" dataset {name}"] = dataset_info[i]
 
     else:
-        online_res =None
-    print("END")
+        online_res = None
 
-   # print(online_res)
+    # print(online_res)
     logger.visual_log(algo, {
         "test_STAT": logger.static_log(algo),
         "test_INTERECT": logger.interactive_log(algo),
@@ -61,14 +60,14 @@ def eval_algo(algo, logger, train_logger, env = None, looking_for = None, datase
 
 def fit(
         algo, n_epochs, train_mdp, test_mdp, train_logger, test_logger,
-        model_name, eval_schedule=5, env = None, looking_for=None
+        model_name, eval_schedule=5, env=None, looking_for=None
 ):
-    fitter = algo.fitter(train_mdp, n_epochs=n_epochs, save_metrics=False,)
+    fitter = algo.fitter(train_mdp, n_epochs=n_epochs, save_metrics=False, )
 
     for epoch, metrics in fitter:
         if epoch % eval_schedule == 0:
             eval_algo(algo, test_logger, train_logger, env, looking_for)
-          #  algo.save_model(f'checkpoints/{model_name}/{model_name}_{epoch}.pt')
+        #  algo.save_model(f'checkpoints/{model_name}/{model_name}_{epoch}.pt')
 
     # algo.save_model(f'checkpoints/{model_name}/{model_name}_final.pt')
     return algo
@@ -78,7 +77,7 @@ def run_experiment(
         *,
         top_k, data_path, test_data_path, ratings_column,
         mdp_settings, scorer, algo_settings,
-        model_name, wandb_logger=None, env_path = None, looking_for = None
+        model_name, wandb_logger=None, env_path=None, looking_for=None
 ):
     prediction_type = scorer['prediction_type'] == "discrete"
 
@@ -131,10 +130,10 @@ def run_experiment(
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', dest='config')
-    parser.add_argument('--folder_name', type = str, default = "aboba")
-    parser.add_argument('--experiment_name', type = str, default="default_exp")
-    parser.add_argument('--framestack', type = int, default = 0)
-    parser.add_argument('--model_parametrs', nargs='+',default = [])
+    parser.add_argument('--folder_name', type=str, default="aboba")
+    parser.add_argument('--experiment_name', type=str, default="default_exp")
+    parser.add_argument('--framestack', type=int, default=0)
+    parser.add_argument('--model_parametrs', nargs='+', default=[])
     parser.add_argument('--freeze_emb', type=int)
     parser.add_argument('--state_repr', type=str)
     parser.add_argument('--use_als', type=int)
@@ -183,7 +182,7 @@ def main():
         experiment['algo_settings']['use_als'] = args.use_als
 
     prm = []
-    if len(args.model_parametrs)>1:
+    if len(args.model_parametrs) > 1:
         prm = [int(p) for p in args.model_parametrs]
         experiment['algo_settings']['model_parametrs']['user_num'] = prm[0]
         experiment['algo_settings']['model_parametrs']['item_num'] = prm[1]
@@ -204,7 +203,7 @@ def main():
 
     run_experiment(
         model_name=model_name, wandb_logger=wandb_run,
-        env_path = env_path, looking_for = looking_for, **experiment
+        env_path=env_path, looking_for=looking_for, **experiment
     )
 
 
