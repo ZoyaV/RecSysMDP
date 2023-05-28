@@ -11,7 +11,7 @@ class ExperimentCache:
         self.root = cache_root / experiment_id
 
         # ensure all dirs along the path are created
-        self.root.mkdir(exist_ok=True)
+        self.root.mkdir(parents=True, exist_ok=True)
         # bump current cache folder modified time
         self.root.touch(exist_ok=True)
 
