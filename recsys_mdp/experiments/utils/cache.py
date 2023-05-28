@@ -2,18 +2,21 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
-from recsys_mdp.utils.run.config import TConfig
 
+class ExperimentCache:
+    root: Path
 
-def cache_dataset(config: TConfig, keep_last_n_caches: int = 10):
-    cache_root = Path('./cache')
-    # clean up old cache, while keeping only the last N
-    _clean_up_dir(cache_root, keep_last_n=keep_last_n_caches)
+    def __init__(self, cache_root: str, experiment_id: str, keep_last_n_experiments: int):
+        cache_root = Path(cache_root)
+        self.root = cache_root / experiment_id
 
-    unique_id = hex_digest(obj=config)
-    dataset_root = cache_root / unique_id
-    dataset_root.mkdir(exist_ok=True)
+        # ensure all dirs along the path are created
+        self.root.mkdir(exist_ok=True)
+        # bump current cache folder modified time
+        self.root.touch(exist_ok=True)
 
+        # clean up old cache, while keeping only the last N
+        _clean_up_dir(cache_root, keep_last_n=keep_last_n_experiments)
 
 
 def _clean_up_dir(path: Path, keep_last_n: int = None):
@@ -32,7 +35,9 @@ def _clean_up_dir(path: Path, keep_last_n: int = None):
         path.rmdir()
 
 
-def hex_digest(path: str = None, obj: Any = None) -> str:
+def hex_digest(obj: Any = None, path: str = None) -> str:
+    """Provides a hash digest of an object or a file (provided via its path)."""
+
     # only one of the should be specified
     assert (path is None) != (obj is None)
 

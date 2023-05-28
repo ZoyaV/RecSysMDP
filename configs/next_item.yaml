@@ -12,6 +12,7 @@ generation_phase:
   epochs: 1
   episodes_per_epoch: 1000
   samples_per_epoch: 10000
+  use_cache: true
 
 learning_phase:
   epochs: 250
@@ -172,3 +173,8 @@ embeddings:
 wandb_init:
   name: ...
   group: ...
+
+cache:
+  cache_root: cache
+  experiment_id: ???
+  keep_last_n_experiments: 4

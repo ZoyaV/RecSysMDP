@@ -10,9 +10,34 @@ from recsys_mdp.mdp.base import (
 )
 
 
+def prepare_log_df(log_df: pd.DataFrame, ratings_column: str = None) -> pd.DataFrame:
+    # ensure correct column types
+    log_df[TIMESTAMP_COL] = pd.to_datetime(log_df[TIMESTAMP_COL])
+    log_df[USER_ID_COL] = log_df[USER_ID_COL].astype(int)
+    log_df[ITEM_ID_COL] = log_df[ITEM_ID_COL].astype(int)
+    log_df[RELEVANCE_INT_COL] = log_df[RELEVANCE_INT_COL].astype(int)
+
+    if ratings_column is not None:
+        log_df[RATING_COL] = log_df[ratings_column]
+
+    # ensure correct time-based sorting
+    log_df = log_df.sort_values(TIMESTAMP_COL)
+    return log_df
+
+
+def cache_log_df(path: Path, log_df: pd.DataFrame):
+    if not path.exists():
+        # noinspection PyTypeChecker
+        log_df.to_pickle(path)
+
+
+def restore_log_df(path: Path):
+    if path.exists():
+        return pd.read_pickle(path)
+
+
 def save_data(
-        data: list[tuple], columns: list[str], save_dir: str | Path, dataset_name: str,
-        train_test_split: float | None = 0.7
+        data: list[tuple], columns: list[str], save_dir: str | Path, dataset_name: str
 ):
     # Create a DataFrame from the list of tuples
     df = pd.DataFrame(data, columns=columns)
@@ -26,19 +51,6 @@ def save_data(
     # Save the DataFrame to a CSV file
     print(f"Data generated to {filepath}: {df.shape}")
     df.to_csv(filepath, index=False)
-
-    if train_test_split is not None:
-        # calc timestamp for time split
-        split_timestamp = df[TIMESTAMP_COL].quantile(train_test_split)
-
-        # train/test split
-        train_data = df[df[TIMESTAMP_COL] <= split_timestamp]
-        test_data = df[df[TIMESTAMP_COL] > split_timestamp]
-
-        # save train/test parts of the entire dataset
-        train_data.to_csv(save_dir/'train_data.csv', index=False)
-        test_data.to_csv(save_dir/'test_data.csv', index=False)
-        print("Save train/test splits.")
 
 
 def load_data(filepath, relevance_ratings_column: str = None):
@@ -58,6 +70,19 @@ def load_data(filepath, relevance_ratings_column: str = None):
         data[RATING_COL] = data[relevance_ratings_column]
 
     return data
+
+
+def split_dataframe(df: pd.DataFrame, split_ratio: float = .8, time_sorted: bool = False):
+    if time_sorted:
+        # DataFrame is already sorted by time, therefore we can split by indices
+        split_ind = int(df.shape[0] * split_ratio)
+        return df.iloc[:split_ind], df.iloc[split_ind:]
+
+    # calc timestamp for time split
+    split_timestamp = df[TIMESTAMP_COL].quantile(split_ratio)
+
+    # train/test split
+    return df[df[TIMESTAMP_COL] <= split_timestamp], df[df[TIMESTAMP_COL] > split_timestamp]
 
 
 def load_reward_function(func_name):
