@@ -164,8 +164,8 @@ class NextItemOnDataExperiment:
         )
         return fitter
 
-    def print_with_timestamp(self, text: str):
-        print_with_timestamp(text, self.init_time)
+    def print_with_timestamp(self, *args):
+        print_with_timestamp(self.init_time, *args)
 
     def set_metrics(self):
         if not self.logger:

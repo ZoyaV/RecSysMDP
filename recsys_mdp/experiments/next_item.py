@@ -70,6 +70,9 @@ class NextItemExperiment:
             cache: TConfig = None,
             **_
     ):
+        self.init_time = timer()
+        self.print_with_timestamp('==> Init')
+
         self.config = GlobalConfig(
             config=config, config_path=config_path, type_resolver=TypesResolver()
         )
@@ -83,8 +86,6 @@ class NextItemExperiment:
             wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
         )
 
-        self.init_time = timer()
-        self.print_with_timestamp('==> Init')
 
         self.seed = seed
         self.rng = np.random.default_rng(seed)
@@ -327,8 +328,8 @@ class NextItemExperiment:
         )
         return preparator, mdp, algo_logger
 
-    def print_with_timestamp(self, text: str):
-        print_with_timestamp(text, self.init_time)
+    def print_with_timestamp(self, *args):
+        print_with_timestamp(self.init_time, *args)
 
     def set_metrics(self):
         if not self.logger:

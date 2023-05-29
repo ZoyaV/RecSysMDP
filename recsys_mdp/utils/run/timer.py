@@ -3,7 +3,7 @@ import timeit
 timer = timeit.default_timer
 
 
-def print_with_timestamp(text: str, start_time: float):
+def print_with_timestamp(start_time: float, *args):
     elapsed_sec = timer() - start_time
     if elapsed_sec < 1:
         time_format = '5.3f'
@@ -13,4 +13,4 @@ def print_with_timestamp(text: str, start_time: float):
         time_format = '5.1f'
     else:
         time_format = '5.0f'
-    print(f'[{elapsed_sec:{time_format}}] {text}')
+    print(f'[{elapsed_sec:{time_format}}]', *args)
