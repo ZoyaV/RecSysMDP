@@ -62,13 +62,13 @@ zoya_settings:
   mdp_settings:
     framestack_size: 10
     reward_function_name: ones_reward #relevance_based_reward #"ones_reward"
-    action_function_name: "next_item_action"
+    action_function_name: next_item_action
     episode_splitter_name: interaction_interruption #full_user_interaction #"interaction_interruption"
 
   scorer:
-    metrics: ['ndcg', 'stat_hitrate', 'PC', 'ihitrate']
+    metrics: [ndcg, stat_hitrate, PC, ihitrate]
     tresh: [0.7, 0.5, 0.9]
-    prediction_type: "discrete"
+    prediction_type: discrete
 
   algo_settings:
     general_parameters:
@@ -78,16 +78,18 @@ zoya_settings:
 
     model_parameters:
       use_als: False
-      user_num: 1000
-      item_num: 1000
       emb_dim: 16
       hid_dim: 256
       memory_size: 10
       feature_size: 512
-      state_repr_name: "full_history" #drr adrr
+      #drr adrr
+      state_repr_name: full_history
       freeze_emb: False
       attention_hidden_size: 32
-      state_keys: ['user','item'] #['user','item','score']
+      state_keys:
+        - user
+        - item
+        - score
 
 model:
   _base_: models.random

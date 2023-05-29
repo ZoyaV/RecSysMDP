@@ -233,6 +233,7 @@ class NextItemExperiment:
         if not self.learnable_model:
             model = init_model(
                 data=log_df,
+                user_num=self.env.n_users, item_num=self.env.n_items,
                 **algo_settings['model_parameters']
             )
             algo = init_algo(model, **algo_settings['general_parameters'])
