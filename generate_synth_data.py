@@ -96,7 +96,7 @@ def log_satiation(logger, satiation, user_id):
         return
     hist = (satiation, np.arange(len(satiation) + 1))
     histogram = wandb.Histogram(np_histogram=hist)
-    logger.log({f'user_{user_id}_satiation': histogram})
+    logger.log({f'user {user_id} satiation': histogram})
 
 
 def learn_als_model(data):

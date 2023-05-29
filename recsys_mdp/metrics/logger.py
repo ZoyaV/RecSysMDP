@@ -11,6 +11,8 @@ def flatten_dict_keys(d, parent_key='', sep='_'):
         else:
             items.append((new_key, v))
     return dict(items)
+
+
 class Logger():
     def __init__(
             self, interactive_mdp, user_interests, fake_mdp,
@@ -131,7 +133,8 @@ class Logger():
         for visual_logger in self.visual_loggers:
             visual_logger(**visual_info)
 
-        flattened_dict = flatten_dict_keys(log_resuls)
+        # set sep='/' to make groups in wandb UI
+        flattened_dict = flatten_dict_keys(log_resuls, sep='_')
 
         #print(flattened_dict)
         if self.wandb_logger:

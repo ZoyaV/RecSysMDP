@@ -40,14 +40,6 @@ if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
 
 
-def log_satiation(logger, satiation, user_id):
-    if logger is None:
-        return
-    hist = (satiation, np.arange(len(satiation)+1))
-    histogram = logger.Histogram(np_histogram=hist)
-    logger.log({f'user_{user_id}_satiation': histogram})
-
-
 class NextItemOnDataExperiment:
     config: GlobalConfig
     logger: Run | None

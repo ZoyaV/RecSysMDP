@@ -12,6 +12,7 @@ import structlog
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
+from generate_synth_data import log_satiation
 from recsys_mdp.experiments.utils.algorithm_constuctor import init_model, init_algo
 from recsys_mdp.experiments.utils.cache import ExperimentCache, hex_digest
 from recsys_mdp.experiments.utils.mdp_constructor import (
@@ -45,14 +46,6 @@ from run_experiment import eval_algo
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
-
-
-def log_satiation(logger, satiation, user_id):
-    if logger is None:
-        return
-    hist = (satiation, np.arange(len(satiation) + 1))
-    histogram = logger.Histogram(np_histogram=hist)
-    logger.log({f'user_{user_id}_satiation': histogram})
 
 
 class NextItemExperiment:
