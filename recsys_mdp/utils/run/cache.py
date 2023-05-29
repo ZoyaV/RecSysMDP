@@ -3,12 +3,12 @@ from pathlib import Path
 from typing import Any
 
 
-class ExperimentCache:
+class CacheDirectory:
     root: Path
 
-    def __init__(self, cache_root: str, experiment_id: str, keep_last_n_experiments: int):
+    def __init__(self, cache_root: str, unique_id: str, keep_last_n_entries: int):
         cache_root = Path(cache_root)
-        self.root = cache_root / experiment_id
+        self.root = cache_root / unique_id
 
         # ensure all dirs along the path are created
         self.root.mkdir(parents=True, exist_ok=True)
@@ -16,7 +16,7 @@ class ExperimentCache:
         self.root.touch(exist_ok=True)
 
         # clean up old cache, while keeping only the last N
-        _clean_up_dir(cache_root, keep_last_n=keep_last_n_experiments)
+        _clean_up_dir(cache_root, keep_last_n=keep_last_n_entries)
 
 
 def _clean_up_dir(path: Path, keep_last_n: int = None):
@@ -46,8 +46,10 @@ def hex_digest(obj: Any = None, path: str = None) -> str:
 
     if path is not None:
         with open(path, 'rb') as f:
+            # noinspection PyTypeChecker
             return hashlib.file_digest(f, get_hasher).hexdigest()
 
+    assert isinstance(obj, dict), f'Do not pass non-builtins'
     hasher = get_hasher()
     hasher.update(repr(obj).encode('utf-8'))
     return hasher.hexdigest()

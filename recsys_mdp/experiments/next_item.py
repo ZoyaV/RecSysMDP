@@ -14,7 +14,7 @@ from numpy.random import Generator
 
 from recsys_mdp.metrics.logger import log_satiation
 from recsys_mdp.experiments.utils.algorithm_constuctor import init_model, init_algo
-from recsys_mdp.experiments.utils.cache import ExperimentCache, hex_digest
+from recsys_mdp.utils.run.cache import CacheDirectory, hex_digest
 from recsys_mdp.experiments.utils.mdp_constructor import (
     make_mdp, split_dataframe,
     prepare_log_df, restore_log_df, cache_log_df
@@ -58,7 +58,7 @@ class NextItemExperiment:
 
     generation_phase: GenerationPhaseParameters
     learning_phase: LearningPhaseParameters
-    cache: ExperimentCache | None
+    cache: CacheDirectory | None
 
     def __init__(
             self, config: TConfig, config_path: Path, seed: int,
@@ -114,7 +114,7 @@ class NextItemExperiment:
 
             generated_data_minimum_config = generation_phase | env_config
             self.cache = self.config.resolve_object(
-                cache, object_type_or_factory=ExperimentCache,
+                cache, object_type_or_factory=CacheDirectory,
                 experiment_id=hex_digest(generated_data_minimum_config),
             )
             self.print_with_timestamp(f'Initialized cache in {self.cache.root}')
