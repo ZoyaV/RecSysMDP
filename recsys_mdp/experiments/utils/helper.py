@@ -2,7 +2,7 @@ import numpy as np
 from numpy.random import Generator
 
 from recsys_mdp.metrics.logger import log_satiation
-from recsys_mdp.simulator.user_state import USER_RESET_MODE_DISCONTINUE
+from recsys_mdp.simulator.user_state import USER_RESET_MODE_DISCONTINUE, USER_RESET_MODE_INIT
 
 
 def generate_episode(
@@ -113,3 +113,35 @@ def eval_returns(env, model, user_id=None, logger=None, rng: Generator = None):
         'step_hit_rate': np.mean(steps_hit_rate),
         'trajectory_len': np.mean(episode_lenghts)
     }
+
+
+def eval_algo(
+        algo, logger, train_logger, env=None, looking_for=None, dataset_info=None, rng=None
+):
+    if env:
+        env.hard_reset(mode=USER_RESET_MODE_INIT)
+
+        online_res = dict()
+        looking_for.append(None)
+        for i in looking_for:
+            online_res[f"user {i}"] = eval_returns(
+                env, algo, user_id=i, logger=logger.wandb_logger, rng=rng
+            )
+        if dataset_info is not None:
+            for i, name in enumerate(['mean', 'mean+', 'mean-', 'median']):
+                online_res[f" dataset {name}"] = dataset_info[i]
+
+    else:
+        online_res = None
+
+    # print(online_res)
+    logger.visual_log(algo, {
+        "test_STAT": logger.static_log(algo),
+        "test_INTERECT": logger.interactive_log(algo),
+        "ONLINE": online_res
+    })
+
+    train_logger.visual_log(algo, {
+        "train_STAT": train_logger.static_log(algo),
+        "train_INTERECT": train_logger.interactive_log(algo),
+    })

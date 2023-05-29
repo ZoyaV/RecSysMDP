@@ -9,8 +9,7 @@ import yaml
 from recsys_mdp.experiments.utils.algorithm_constuctor import init_algo, init_model
 from recsys_mdp.experiments.utils.mdp_constructor import load_data, make_mdp
 from recsys_mdp.experiments.utils.scorers_constructor import init_logger
-from recsys_mdp.experiments.utils.helper import eval_returns
-from recsys_mdp.simulator.user_state import USER_RESET_MODE_INIT
+from recsys_mdp.experiments.utils.helper import eval_algo
 from recsys_mdp.utils.lazy_imports import lazy_import
 from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
 
@@ -26,38 +25,6 @@ def episode_statistics(states):
     print("Max: ", np.max(sizes))
     print("Min: ", np.min(sizes))
     print("STD: ", np.std(sizes))
-
-
-def eval_algo(
-        algo, logger, train_logger, env=None, looking_for=None, dataset_info=None, rng=None
-):
-    if env:
-        env.hard_reset(mode=USER_RESET_MODE_INIT)
-
-        online_res = dict()
-        looking_for.append(None)
-        for i in looking_for:
-            online_res[f"user {i}"] = eval_returns(
-                env, algo, user_id=i, logger=logger.wandb_logger, rng=rng
-            )
-        if dataset_info is not None:
-            for i, name in enumerate(['mean', 'mean+', 'mean-', 'median']):
-                online_res[f" dataset {name}"] = dataset_info[i]
-
-    else:
-        online_res = None
-
-    # print(online_res)
-    logger.visual_log(algo, {
-        "test_STAT": logger.static_log(algo),
-        "test_INTERECT": logger.interactive_log(algo),
-        "ONLINE": online_res
-    })
-
-    train_logger.visual_log(algo, {
-        "train_STAT": train_logger.static_log(algo),
-        "train_INTERECT": train_logger.interactive_log(algo),
-    })
 
 
 def fit(

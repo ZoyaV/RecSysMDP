@@ -27,7 +27,7 @@ from recsys_mdp.experiments.utils.phases import (
 )
 from recsys_mdp.utils.base import get_cuda_device
 from recsys_mdp.experiments.utils.scorers_constructor import init_logger
-from run_experiment import eval_algo
+from recsys_mdp.experiments.utils.helper import eval_algo
 
 from recsys_mdp.mdp.base import (
     TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,

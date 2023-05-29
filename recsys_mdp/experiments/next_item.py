@@ -42,7 +42,7 @@ from recsys_mdp.utils.run.config import (
 )
 from recsys_mdp.utils.run.timer import timer, print_with_timestamp
 from recsys_mdp.utils.run.wandb import get_logger
-from run_experiment import eval_algo
+from recsys_mdp.experiments.utils.helper import eval_algo
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
