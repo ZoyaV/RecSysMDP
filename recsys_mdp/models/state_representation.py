@@ -190,8 +190,7 @@ class FullHistory(nn.Module):
         self.freeze_emb = freeze_emb
         self.state_keys = state_keys
 
-        print(self.state_keys)
-        #exit()
+        print(f'State keys: {self.state_keys}')
 
         self.user_embeddings = nn.Embedding(user_num, embedding_dim)
         self.item_embeddings = nn.Embedding(

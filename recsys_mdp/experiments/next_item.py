@@ -8,9 +8,11 @@ from typing import TYPE_CHECKING
 import d3rlpy
 import numpy as np
 import pandas as pd
+import structlog
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
+from recsys_mdp.experiments.utils.algorithm_constuctor import init_model, init_algo
 from recsys_mdp.experiments.utils.cache import ExperimentCache, hex_digest
 from recsys_mdp.experiments.utils.mdp_constructor import (
     make_mdp, split_dataframe,
@@ -78,9 +80,14 @@ class NextItemExperiment:
         self.config = GlobalConfig(
             config=config, config_path=config_path, type_resolver=TypesResolver()
         )
+
         self.logger = self.config.resolve_object(
             dict(config=config, log=log, project=project) | isnone(wandb_init, {}),
             object_type_or_factory=get_logger
+        )
+        logging.disable(logging.DEBUG)
+        structlog.configure(
+            wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
         )
 
         self.init_time = timer()
@@ -120,10 +127,8 @@ class NextItemExperiment:
             self.print_with_timestamp(f'Initialized cache in {self.cache.root}')
 
     def run(self):
-        logging.disable(logging.DEBUG)
-        self.set_metrics()
-
         self.print_with_timestamp('==> Run')
+        self.set_metrics()
         total_epoch = 0
         generation_epoch = 0
 
@@ -226,9 +231,10 @@ class NextItemExperiment:
 
         # Init RL algorithm
         if not self.learnable_model:
-            from recsys_mdp.experiments.utils.algorithm_constuctor import init_model
-            from recsys_mdp.experiments.utils.algorithm_constuctor import init_algo
-            model = init_model(data=log_df, **algo_settings['model_parameters'])
+            model = init_model(
+                data=log_df,
+                **algo_settings['model_parameters']
+            )
             algo = init_algo(model, **algo_settings['general_parameters'])
             self.model = algo
             self.learnable_model = True
