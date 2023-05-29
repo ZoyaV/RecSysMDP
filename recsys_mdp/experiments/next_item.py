@@ -12,9 +12,9 @@ import structlog
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
-from recsys_mdp.metrics.logger import log_satiation
 from recsys_mdp.experiments.utils.algorithm_constuctor import init_model, init_algo
-from recsys_mdp.utils.run.cache import CacheDirectory, hex_digest
+from recsys_mdp.experiments.utils.cache import ExperimentCache
+from recsys_mdp.experiments.utils.helper import eval_algo
 from recsys_mdp.experiments.utils.mdp_constructor import (
     make_mdp, split_dataframe,
     prepare_log_df, restore_log_df, cache_log_df
@@ -30,6 +30,7 @@ from recsys_mdp.mdp.base import (
     RELEVANCE_INT_COL, TERMINATE_COL
 )
 from recsys_mdp.mdp.utils import to_d3rlpy_form_ND, isnone
+from recsys_mdp.metrics.logger import log_satiation
 from recsys_mdp.simulator.env import (
     NextItemEnvironment
 )
@@ -42,7 +43,6 @@ from recsys_mdp.utils.run.config import (
 )
 from recsys_mdp.utils.run.timer import timer, print_with_timestamp
 from recsys_mdp.utils.run.wandb import get_logger
-from recsys_mdp.experiments.utils.helper import eval_algo
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
@@ -58,7 +58,7 @@ class NextItemExperiment:
 
     generation_phase: GenerationPhaseParameters
     learning_phase: LearningPhaseParameters
-    cache: CacheDirectory | None
+    cache: ExperimentCache | None
 
     def __init__(
             self, config: TConfig, config_path: Path, seed: int,
@@ -106,17 +106,8 @@ class NextItemExperiment:
 
         self.cache = None
         if self.generation_phase.use_cache:
-            env_config, _ = self.config.resolve_object_requirements(
-                env, object_type_or_factory=NextItemEnvironment
-            )
-            # remove global config object
-            env_config, _ = extracted(env_config, 'global_config')
-
-            generated_data_minimum_config = generation_phase | env_config
-            self.cache = self.config.resolve_object(
-                cache, object_type_or_factory=CacheDirectory,
-                experiment_id=hex_digest(generated_data_minimum_config),
-            )
+            generation_minimal_config = self._generation_minimal_config(**self.config.config)
+            self.cache = ExperimentCache(config=generation_minimal_config, **cache)
             self.print_with_timestamp(f'Initialized cache in {self.cache.root}')
 
     def run(self):
@@ -346,3 +337,13 @@ class NextItemExperiment:
         self.logger.define_metric('epoch')
         self.logger.define_metric('mae', step_metric='epoch')
 
+    def _generation_minimal_config(self, seed, env, generation_phase, **_):
+        env_config, _ = self.config.resolve_object_requirements(
+            env, object_type_or_factory=NextItemEnvironment
+        )
+        # remove global config object
+        env_config, _ = extracted(env_config, 'global_config')
+
+        minimal_config = generation_phase | env_config
+        minimal_config['seed'] = seed
+        return minimal_config

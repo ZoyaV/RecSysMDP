@@ -58,6 +58,26 @@ env:
       - [0.58, 0.03]
       - [0.75, 0.05]
 
+observations:
+  discrete: true
+  history_size: 10
+
+mdp:
+  ratings_column: relevance_int
+  framestack_size: 10
+  reward_function_name: ones_reward #relevance_based_reward #"ones_reward"
+  action_function_name: next_item_action
+  episode_splitter_name: interaction_interruption #full_user_interaction #"interaction_interruption"
+
+generation_model: ...
+eval_model: ...
+
+scoring:
+  top_k: 10
+  metrics: [ndcg, stat_hitrate, PC, ihitrate]
+  tresh: [0.7, 0.5, 0.9]
+  prediction_type: discrete
+
 zoya_settings:
   top_k: 10
   ratings_column: relevance_int
@@ -180,5 +200,4 @@ wandb_init:
 
 cache:
   cache_root: cache
-  experiment_id: ???
   keep_last_n_experiments: 4
