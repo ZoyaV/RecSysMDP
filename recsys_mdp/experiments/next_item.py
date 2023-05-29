@@ -12,7 +12,7 @@ import structlog
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
-from generate_synth_data import log_satiation
+from recsys_mdp.metrics.logger import log_satiation
 from recsys_mdp.experiments.utils.algorithm_constuctor import init_model, init_algo
 from recsys_mdp.experiments.utils.cache import ExperimentCache, hex_digest
 from recsys_mdp.experiments.utils.mdp_constructor import (

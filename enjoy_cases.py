@@ -1,18 +1,11 @@
-import argparse
 import pickle
 
-import numpy as np
 import yaml
-from numpy.random import Generator
 
 from recsys_mdp.experiments.utils.algorithm_constuctor import init_algo, init_model
 from recsys_mdp.experiments.utils.mdp_constructor import load_data, make_mdp
-from generate_synth_data import generate_episode
 from recsys_mdp.utils.run.config import read_config
-from recsys_mdp.utils.lazy_imports import lazy_import
 from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
-
-wandb = lazy_import('wandb')
 
 
 def load_pretrained_model(conf_name, step=-1):
@@ -53,31 +46,3 @@ def get_enjoy_setting(pretrain_conf, env_path, config_path, model_epoch=-1):
     return gen_conf, env, model
 
 
-def eval_returns(env, model, user_id=None, logger=None, rng: Generator = None):
-    cont_returns, disc_returns, steps_hit_rate, coverages = [], [], [], []
-    true_discrete_return = []
-    episode_lenghts= []
-    n_episodes = 20 if user_id is not None else 50
-    for ep in range(20):
-        trajectory = generate_episode(
-            env, model, user_id=user_id, log_sat=True, logger=logger, rng=rng
-        )
-        episode_lenghts.append(len(trajectory))
-        coverage = len({step[2] for step in trajectory})
-        step_hit_rate = [step[2] in step[-1] for step in trajectory]
-        cont_returns.append(np.mean([step[3] for step in trajectory]))
-        disc_returns.append(np.mean([step[4] for step in trajectory]))
-        true_discrete_return.append(np.sum([step[4] for step in trajectory]))
-        coverages.append(coverage)
-        steps_hit_rate.append(np.mean(step_hit_rate))
-
-        # from temp_utils import log_distributions
-        # log_distributions(true_items, predicted_items, "True best items", "Predicted best items")
-    return {
-        'continuous_return': np.mean(cont_returns),
-        'discrete_return': np.mean(disc_returns),
-        'true_discrete_return': np.mean(true_discrete_return),
-        'coverage': np.mean(coverages),
-        'step_hit_rate': np.mean(steps_hit_rate),
-        'trajectory_len': np.mean(episode_lenghts)
-    }

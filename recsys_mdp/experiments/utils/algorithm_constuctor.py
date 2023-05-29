@@ -1,6 +1,7 @@
 import torch
 
 from recsys_mdp.mdp.base import USER_ID_COL, ITEM_ID_COL, RATING_COL
+from recsys_mdp.models.als_model import ALSRecommender
 from recsys_mdp.models.embedddings import als_embeddings
 
 
@@ -60,3 +61,9 @@ def init_algo(actor_encoder_factory, use_gpu, batch_size, algo):
                     actor_encoder_factory = actor_encoder_factory,  batch_size=batch_size)
 
     return algo
+
+
+def learn_als_model(data):
+    model = ALSRecommender()
+    model.fit(data)
+    return model

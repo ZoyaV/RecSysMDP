@@ -1,16 +1,20 @@
 import numpy as np
 import torch
 
+from recsys_mdp.utils.lazy_imports import lazy_import
 
-def flatten_dict_keys(d, parent_key='', sep='_'):
-    items = []
-    for k, v in d.items():
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict_keys(v, new_key, sep=sep).items())
+wandb = lazy_import('wandb')
+
+
+def flatten_dict(d: dict, parent_key: str = '', sep: str = '_'):
+    result = {}
+    for key, value in d.items():
+        flatten_key = f'{parent_key}{sep}{key}' if parent_key else key
+        if isinstance(value, dict):
+            result |= flatten_dict(value, flatten_key, sep=sep)
         else:
-            items.append((new_key, v))
-    return dict(items)
+            result[flatten_key] = value
+    return result
 
 
 class Logger():
@@ -134,12 +138,16 @@ class Logger():
             visual_logger(**visual_info)
 
         # set sep='/' to make groups in wandb UI
-        flattened_dict = flatten_dict_keys(log_resuls, sep='_')
+        flattened_dict = flatten_dict(log_resuls, sep='_')
 
         #print(flattened_dict)
         if self.wandb_logger:
             self.wandb_logger.log(flattened_dict)
 
 
-
-
+def log_satiation(logger, satiation, user_id):
+    if logger is None:
+        return
+    hist = (satiation, np.arange(len(satiation) + 1))
+    histogram = wandb.Histogram(np_histogram=hist)
+    logger.log({f'user {user_id} satiation': histogram})
