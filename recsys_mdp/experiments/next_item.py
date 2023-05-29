@@ -5,6 +5,7 @@ from itertools import count
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import d3rlpy
 import numpy as np
 import pandas as pd
 from d3rlpy.base import LearnableBase
@@ -87,6 +88,8 @@ class NextItemExperiment:
 
         self.seed = seed
         self.rng = np.random.default_rng(seed)
+        d3rlpy.seed(seed)
+
         self.generation_phase = GenerationPhaseParameters(**generation_phase)
         self.learning_phase = LearningPhaseParameters(**learning_phase)
         self.zoya_settings = zoya_settings
@@ -252,7 +255,7 @@ class NextItemExperiment:
 
     def _framestack_random_act(self, user_id):
         framestack_size = self.zoya_settings['mdp_settings']['framestack_size']
-        obs = np.random.randint(0, self.env.n_items, framestack_size).tolist() + [user_id]
+        obs = self.rng.integers(0, self.env.n_items, framestack_size).tolist() + [user_id]
         return obs
 
     def _generate_episode(

@@ -6,12 +6,13 @@ from recsys_mdp.mdp.base import USER_ID_COL, ITEM_ID_COL, RATING_COL
 
 
 class ALSRecommender:
-    def __init__(self, factors=50, regularization=0.01, iterations=50):
+    def __init__(self, seed: int, factors=50, regularization=0.01, iterations=50):
         self.model = AlternatingLeastSquares(
             factors=factors, regularization=regularization, iterations=iterations
         )
         self.user_mapping = {}
         self.item_mapping = {}
+        self.rng = np.random.default_rng(seed)
 
     def fit(self, data):
         # Создание словарей для маппинга индексов пользователей и элементов в их оригинальные ID
@@ -57,4 +58,4 @@ class ALSRecommender:
         top_items = [self.item_mapping[i] for i, _ in sorted_ratings[:5]]
 
         # Возвращение случайного элемента из списка с наибольшими рейтингами
-        return [np.random.choice(top_items)]
+        return self.rng.choice(top_items, size=1)
