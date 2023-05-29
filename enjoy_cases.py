@@ -79,5 +79,5 @@ def eval_returns(env, model, user_id=None, logger=None, rng: Generator = None):
         'true_discrete_return': np.mean(true_discrete_return),
         'coverage': np.mean(coverages),
         'step_hit_rate': np.mean(steps_hit_rate),
-        'trajectory_len': np.mean(trajectory)
+        'trajectory_len': np.mean(episode_lenghts)
     }
