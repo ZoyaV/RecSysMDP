@@ -24,7 +24,7 @@ env:
   seed: ???
   n_users: 100
   n_items: 1000
-  max_episode_len: [40, 20]
+  max_episode_len: [50, 10]
   embeddings:
     n_dims: 8
     users:
