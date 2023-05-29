@@ -3,6 +3,7 @@ import pickle
 
 import numpy as np
 import yaml
+from numpy.random import Generator
 
 from recsys_mdp.experiments.utils.algorithm_constuctor import init_algo, init_model
 from recsys_mdp.experiments.utils.mdp_constructor import load_data, make_mdp
@@ -14,7 +15,7 @@ from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
 wandb = lazy_import('wandb')
 
 
-def load_pretrained_model(conf_name, step = -1):
+def load_pretrained_model(conf_name, step=-1):
     with open(f"./checkpoints/{conf_name}/cfg.yaml") as f:
         config = yaml.load(f, Loader=yaml.Loader)
 
@@ -41,7 +42,7 @@ def load_pretrained_model(conf_name, step = -1):
     return algo
 
 
-def get_enjoy_setting(pretrain_conf, env_path, config_path, model_epoch = -1):
+def get_enjoy_setting(pretrain_conf, env_path, config_path, model_epoch=-1):
     config = read_config(config_path)
     # Unpickle the object
     with open(f'{env_path}/env.pkl', 'rb') as f:
@@ -52,13 +53,15 @@ def get_enjoy_setting(pretrain_conf, env_path, config_path, model_epoch = -1):
     return gen_conf, env, model
 
 
-def eval_returns(env, model, user_id=None, logger=None):
+def eval_returns(env, model, user_id=None, logger=None, rng: Generator = None):
     cont_returns, disc_returns, steps_hit_rate, coverages = [], [], [], []
     true_discrete_return = []
     episode_lenghts= []
     n_episodes = 20 if user_id is not None else 50
     for ep in range(20):
-        trajectory = generate_episode(env, model, user_id=user_id, log_sat=True, logger=logger)
+        trajectory = generate_episode(
+            env, model, user_id=user_id, log_sat=True, logger=logger, rng=rng
+        )
         episode_lenghts.append(len(trajectory))
         coverage = len({step[2] for step in trajectory})
         step_hit_rate = [step[2] in step[-1] for step in trajectory]
@@ -78,30 +81,3 @@ def eval_returns(env, model, user_id=None, logger=None):
         'step_hit_rate': np.mean(steps_hit_rate),
         'trajectory_len': np.mean(trajectory)
     }
-
-
-def main():
-    wandb_run = wandb.init(
-        project="log_cases"
-    )
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str)
-    parser.add_argument('--pretrain_conf', type=str)
-    parser.add_argument('--env', type=str)
-
-    args = parser.parse_args()
-
-    if args.config is None:
-        args.config = "recsys_mdp/generators/configs/mdp_next_item_integration.yaml"
-
-    for i in range(10, 500, 10):
-        gen_conf, env, model = get_enjoy_setting(
-            pretrain_conf=args.pretrain_conf, env_path=args.env,
-            config_path=args.config, model_epoch=i
-        )
-        print(f"epoch {i} - {eval_returns(env, model)}")
-        wandb_run.log(eval_returns(env, model))
-
-
-if __name__ == "__main__":
-    main()

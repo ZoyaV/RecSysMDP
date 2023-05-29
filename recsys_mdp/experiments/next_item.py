@@ -5,6 +5,7 @@ from itertools import count
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import d3rlpy
 import numpy as np
 import pandas as pd
 from d3rlpy.base import LearnableBase
@@ -23,11 +24,14 @@ from recsys_mdp.experiments.utils.scorers_constructor import init_logger
 from recsys_mdp.experiments.utils.type_resolver import TypesResolver
 from recsys_mdp.mdp.base import (
     TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
-    RELEVANCE_INT_COL, TERMINATE_COL, RATING_COL
+    RELEVANCE_INT_COL, TERMINATE_COL
 )
 from recsys_mdp.mdp.utils import to_d3rlpy_form_ND, isnone
 from recsys_mdp.simulator.env import (
     NextItemEnvironment
+)
+from recsys_mdp.simulator.user_state import (
+    USER_RESET_MODE_DISCONTINUE
 )
 from recsys_mdp.utils.base import get_cuda_device
 from recsys_mdp.utils.run.config import (
@@ -40,15 +44,11 @@ from run_experiment import eval_algo
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
 
-from recsys_mdp.simulator.user_state import (
-    USER_RESET_MODE_CONTINUE, USER_RESET_MODE_INIT,
-    USER_RESET_MODE_DISCONTINUE, UserState
-)
 
 def log_satiation(logger, satiation, user_id):
     if logger is None:
         return
-    hist = (satiation, np.arange(len(satiation)+1))
+    hist = (satiation, np.arange(len(satiation) + 1))
     histogram = logger.Histogram(np_histogram=hist)
     logger.log({f'user_{user_id}_satiation': histogram})
 
@@ -88,6 +88,8 @@ class NextItemExperiment:
 
         self.seed = seed
         self.rng = np.random.default_rng(seed)
+        d3rlpy.seed(seed)
+
         self.generation_phase = GenerationPhaseParameters(**generation_phase)
         self.learning_phase = LearningPhaseParameters(**learning_phase)
         self.zoya_settings = zoya_settings
@@ -182,7 +184,7 @@ class NextItemExperiment:
 
     def _init_rl_setting(
             self, log_df: pd.DataFrame,
-            top_k: int,ratings_column,
+            top_k: int, ratings_column,
             mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
     ):
         mean_dreturn = np.mean(log_df[RELEVANCE_INT_COL])
@@ -239,7 +241,7 @@ class NextItemExperiment:
         )
         return fitter, dataset_info
 
-    def _framestack_from_last_best(self, user_id, N = 10):
+    def _framestack_from_last_best(self, user_id, N=10):
         top_framestack = []
         framestack_size = self.zoya_settings['mdp_settings']['framestack_size']
         for i in range(framestack_size):
@@ -253,12 +255,12 @@ class NextItemExperiment:
 
     def _framestack_random_act(self, user_id):
         framestack_size = self.zoya_settings['mdp_settings']['framestack_size']
-        obs = np.random.randint(0, self.env.n_items, framestack_size).tolist() + [user_id]
+        obs = self.rng.integers(0, self.env.n_items, framestack_size).tolist() + [user_id]
         return obs
 
     def _generate_episode(
-            self, cold_start = False, user_id = None,
-            use_env_actions = False, log_sat = False, first_run = False
+            self, cold_start=False, user_id=None,
+            use_env_actions=False, log_sat=False, first_run=False
     ):
         env, model = self.env, self.model
         orig_user_id = user_id
@@ -313,8 +315,10 @@ class NextItemExperiment:
             if epoch == 1 or epoch % self.learning_phase.eval_schedule == 0:
                 self.print_with_timestamp(f'Epoch: {epoch} | Total epoch: {total_epoch}')
                 eval_algo(
-                    self.model, self.algo_test_logger, train_logger=self.algo_logger, env=self.env,
-                    looking_for=[0, 1, 6], dataset_info = dataset_info
+                    self.model, self.algo_test_logger,
+                    train_logger=self.algo_logger, env=self.env,
+                    looking_for=[0, 1, 6], dataset_info=dataset_info,
+                    rng=self.rng
                 )
             total_epoch += 1
         return total_epoch
@@ -330,82 +334,7 @@ class NextItemExperiment:
         algo_logger = init_logger(
             mdp, state_tail, log, top_k, wandb_logger=self.logger, **scorer
         )
-        return preparator,mdp, algo_logger
-
-
-    def _init_rl_setting(
-            self, dataset: list[tuple],
-            top_k: int,ratings_column,
-            mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
-    ):
-
-        log = pd.DataFrame(dataset, columns=[
-            TIMESTAMP_COL,
-            USER_ID_COL, ITEM_ID_COL,
-            RELEVANCE_CONT_COL, RELEVANCE_INT_COL,
-            TERMINATE_COL, "best_from_env"
-        ])
-        log[RATING_COL] = log[ratings_column]
-
-        mean_dreturn = np.mean(log[RELEVANCE_INT_COL])
-        median_dreturn = np.median(log[RELEVANCE_INT_COL])
-        std_dreturn = np.std(log[RELEVANCE_INT_COL])
-
-        mean_return = np.mean(log[RELEVANCE_CONT_COL])
-        median_return = np.median(log[RELEVANCE_CONT_COL])
-        std_return = np.std(log[RELEVANCE_CONT_COL])
-
-        dataset_info = [
-            {
-                "discrete_return": mean_dreturn,
-                "continuous_return": mean_return,
-            },
-            {
-                "discrete_return": mean_dreturn + std_dreturn,
-                "continuous_return": mean_return + std_return,
-            },
-            {
-                "discrete_return": mean_dreturn - std_dreturn,
-                "continuous_return": mean_return - std_return,
-            },
-            {
-                "discrete_return": median_dreturn,
-                "continuous_return": median_return
-            }]
-
-        split_timestamp = log[TIMESTAMP_COL].quantile(0.7)
-
-        # train/test split
-        train_log = log[log[TIMESTAMP_COL] <= split_timestamp]
-        test_log = log[log[TIMESTAMP_COL] > split_timestamp]
-
-        mdp_prep, train_mdp, algo_logger = self.data2mdp(train_log, top_k, mdp_settings, scorer)
-       # print(train_mdp.rewards)
-       # exit()
-        mdp_settings['reward_function_name'] = "relevance_based_reward"
-        mdp_settings['episode_splitter_name'] = "interaction_interruption"
-        _, _, algo_test_logger = self.data2mdp(test_log, top_k, mdp_settings, scorer)
-
-        self.mdp_prep = mdp_prep
-        self.algo_logger = algo_logger
-        self.algo_test_logger = algo_test_logger
-
-        # Init RL algorithm
-        if not self.learnable_model:
-            from recsys_mdp.experiments.utils.algorithm_constuctor import init_model
-            from recsys_mdp.experiments.utils.algorithm_constuctor import init_algo
-            model = init_model(data=log, **algo_settings['model_parameters'])
-            algo = init_algo(model, **algo_settings['general_parameters'])
-            self.model = algo
-            self.learnable_model = True
-
-        # Run experiment
-        config = self.learning_phase
-        fitter = self.model.fitter(
-            dataset=train_mdp, n_epochs=config.epochs,
-            verbose=False, save_metrics=False, show_progress=False,
-        )
-        return fitter, dataset_info
+        return preparator, mdp, algo_logger
 
     def print_with_timestamp(self, text: str):
         print_with_timestamp(text, self.init_time)

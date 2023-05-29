@@ -1,37 +1,20 @@
-import argparse
-import pickle
-from itertools import count
-from pathlib import Path
-import random
-
 import numpy as np
-import pandas as pd
-import yaml
-from d3rlpy.base import LearnableBase
+from numpy.random import Generator
 
 from recsys_mdp.models.als_model import ALSRecommender
-from recsys_mdp.experiments.utils.mdp_constructor import save_data
-from recsys_mdp.simulator.env import NextItemEnvironment
 from recsys_mdp.simulator.relevance import similarity
-from recsys_mdp.experiments.utils.type_resolver import TypesResolver
-from recsys_mdp.utils.run.config import (
-    GlobalConfig
+from recsys_mdp.simulator.user_state import (
+    USER_RESET_MODE_DISCONTINUE
 )
 from recsys_mdp.utils.lazy_imports import lazy_import
-from recsys_mdp.mdp.base import (
-    TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
-    RELEVANCE_INT_COL, TERMINATE_COL
-)
 
 wandb = lazy_import('wandb')
-from recsys_mdp.simulator.user_state import (
-    USER_RESET_MODE_CONTINUE, USER_RESET_MODE_INIT,
-    USER_RESET_MODE_DISCONTINUE, UserState
-)
 
 
 def generate_episode(
-        env, model, framestack_size=10, user_id = None, log_sat=False, logger=None, get_best_for_start = True, use_best = False
+        env, model, framestack_size=10, user_id=None, log_sat=False, logger=None,
+        get_best_for_start=True, use_best=False,
+        rng: Generator = None
 ):
     orig_user_id = user_id
     user_id = env.reset(user_id=user_id)
@@ -46,16 +29,16 @@ def generate_episode(
 
         for i in range(framestack_size):
             items_top = env.state.ranked_items(with_satiation=True, discrete=True)
-            item_id = random.choice(items_top[:10])
+            item_id = rng.choice(items_top[:10])
             top_framestack.append(item_id)
             _, _ = env.step(item_id)
-        #add scores as all is best
+        # add scores as all is best
         # [N last item_ids] + [[5] * N] +  [user_id]
-        fake_obs =top_framestack + [5]*framestack_size + [user_id]
+        fake_obs = top_framestack + [5] * framestack_size + [user_id]
 
     else:
         # [N last item_ids] + [user_id]
-        fake_obs = np.random.randint(0, env.n_items, framestack_size).tolist() + [user_id]
+        fake_obs = rng.integers(0, env.n_items, framestack_size).tolist() + [user_id]
     obs = np.asarray(fake_obs)
     item_id = 0
     # episode generation
@@ -75,28 +58,30 @@ def generate_episode(
 
         continuous_relevance, discrete_relevance = relevance
 
-        #TODO: add addtional function for framestack support
+        # TODO: add addtional function for framestack support
 
         obs[:framestack_size - 1] = obs[1:framestack_size]
         obs[framestack_size - 1] = item_id
-      #  print(obs[:framestack_size])
+        #  print(obs[:framestack_size])
         obs[framestack_size:framestack_size * 2 - 1] = obs[framestack_size + 1:framestack_size * 2]
         obs[framestack_size * 2 - 1] = discrete_relevance
 
-       # print(obs)
-     #   print(obs[framestack_size:framestack_size * 2])
+        # print(obs)
+        #   print(obs[framestack_size:framestack_size * 2])
         items_top = env.state.ranked_items(with_satiation=True, discrete=True)
 
         if use_best:
-            item_id = random.choice(items_top[:10])
+            item_id = rng.choice(items_top[:10])
 
-        trajectory.append((
-            timestamp,
-            user_id, item_id,
-            continuous_relevance, discrete_relevance,
-            terminated,
-            items_top[:10]
-        ))
+        trajectory.append(
+            (
+                timestamp,
+                user_id, item_id,
+                continuous_relevance, discrete_relevance,
+                terminated,
+                items_top[:10]
+            )
+        )
         if terminated:
             break
     env.reset(user_id, USER_RESET_MODE_DISCONTINUE)
@@ -109,28 +94,15 @@ def generate_episode(
 def log_satiation(logger, satiation, user_id):
     if logger is None:
         return
-    hist = (satiation, np.arange(len(satiation)+1))
+    hist = (satiation, np.arange(len(satiation) + 1))
     histogram = wandb.Histogram(np_histogram=hist)
     logger.log({f'user_{user_id}_satiation': histogram})
 
 
-def poor_model_from_dataset(dataset_path):
+def learn_als_model(data):
     model = ALSRecommender()
-    data = pd.read_csv(dataset_path)
     model.fit(data)
     return model
-
-
-def generate_dataset(gen_conf, env, model, use_best = False):
-    config = gen_conf
-    samples = []
-    for episode in count():
-        samples.extend(generate_episode(env, model, use_best = use_best))
-        if config['episodes_per_epoch'] is not None and episode >= config['episodes_per_epoch']:
-            break
-        if config['samples_per_epoch'] is not None and len(samples) >= config['samples_per_epoch']:
-            break
-    return samples
 
 
 @np.printoptions(3)
@@ -207,71 +179,3 @@ def make_user_with_two_interests(user, print_debug=False):
 
     user.satiation_speed[top1] = 0.01
     user.satiation_speed[top2] = 0.04
-
-
-def make_env_setting(config_path="", env_name='default', dataset_path = None):
-    # read configs
-    with open(config_path) as f:
-        config = yaml.load(f, Loader=yaml.Loader)
-    path_object = Path(config_path)
-    config_class = GlobalConfig(
-        config=config, config_path=path_object, type_resolver=TypesResolver()
-    )
-    # make controllable environment
-    env_conf = config['env']
-    env: NextItemEnvironment = config_class.resolve_object(
-        env_conf, object_type_or_factory=NextItemEnvironment
-    )
-
-    make_user_with_stable_interest(env.states[0], print_debug=True)
-    make_user_with_two_interests(env.states[6], print_debug=True)
-
-    # make model
-    if dataset_path:
-        model = poor_model_from_dataset(dataset_path)
-    else:
-        model_conf = config['model']
-        model: LearnableBase = config_class.resolve_object(
-            model_conf | dict(use_gpu=False),
-            n_actions=env.n_items
-        )
-    gen_conf = config['generation']
-
-    # save environment object
-    with open(f'environments/{env_name}/env.pkl', 'wb') as f:
-        pickle.dump(env, f)
-
-    return gen_conf, env, model
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', dest='config')
-    parser.add_argument('--env_name', type=str)
-    parser.add_argument('--base_data', type=str, default=None)
-    args = parser.parse_args()
-
-    if args.config is None:
-        args.config = "recsys_mdp/generators/configs/mdp_next_item_integration.yaml"
-
-    gen_conf, env, model = make_env_setting(
-        config_path=args.config, env_name=args.env_name, dataset_path=args.base_data
-    )
-    use_best = 'best' in args.env_name
-    trajectories = generate_dataset(gen_conf, env, model, use_best=use_best)
-
-    column_names = [
-        TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL,
-        RELEVANCE_CONT_COL, RELEVANCE_INT_COL,
-        TERMINATE_COL, 'true_top'
-    ]
-    save_data(
-        data=trajectories,
-        columns=column_names,
-        save_dir=Path('./environments') / args.env_name,
-        dataset_name=args.env_name
-    )
-
-
-if __name__ == "__main__":
-    main()
