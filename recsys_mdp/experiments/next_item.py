@@ -78,14 +78,14 @@ class NextItemExperiment:
         )
 
         self.logger = self.config.resolve_object(
-            dict(config=config, log=log, project=project) | isnone(wandb_init, {}),
-            object_type_or_factory=get_logger
+            isnone(wandb_init, {}),
+            object_type_or_factory=get_logger,
+            config=config, log=log, project=project
         )
         logging.disable(logging.DEBUG)
         structlog.configure(
             wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
         )
-
 
         self.seed = seed
         self.rng = np.random.default_rng(seed)
@@ -105,10 +105,12 @@ class NextItemExperiment:
         self.learnable_model = False
         self.preparator = None
 
-        self.cache = None
-        if self.generation_phase.use_cache:
-            generation_minimal_config = self._generation_minimal_config(**self.config.config)
-            self.cache = ExperimentCache(config=generation_minimal_config, **cache)
+        generation_minimal_config = self.generation_minimal_config(**self.config.config)
+        self.cache = self.config.resolve_object(
+            cache | dict(experiment_config=generation_minimal_config),
+            object_type_or_factory=ExperimentCache,
+        )
+        if self.cache.enabled:
             self.print_with_timestamp(f'Initialized cache in {self.cache.root}')
 
     def run(self):
@@ -124,7 +126,7 @@ class NextItemExperiment:
         fitter, dataset_info = self._init_rl_setting(
              dataset, **self.zoya_settings
         )
-        # TODO: need to be a parametr
+        # TODO: need to be a parameter
         dataset_info = None
         for generation_epoch in range(self.generation_phase.epochs):
             self.print_with_timestamp(f'Epoch: {generation_epoch} ==> learning')
@@ -133,21 +135,15 @@ class NextItemExperiment:
             )
 
         self.print_with_timestamp('<==')
-
-    def log_df_cache_filepath(self, generation_epoch: int):
-        if self.cache is None:
-            return None
-        return self.cache.root / f'epoch_{generation_epoch}.pkl.gzip'
+        if self.logger:
+            self.logger.config.update(self.config.config)
 
     def _generate_dataset(self, generation_epoch: int, ratings_column: str = None, **_):
         config = self.generation_phase
+        log_df = self.cache.try_restore_log_df(generation_epoch, logger=self.print_with_timestamp)
 
-        use_cache = self.cache is not None
-        cache_filepath = self.log_df_cache_filepath(generation_epoch)
-
-        log_df = restore_log_df(cache_filepath) if use_cache else None
         if log_df is None:
-            self.print_with_timestamp("Not use caching or didn't find data, generating it then")
+            self.print_with_timestamp("Generating dataset...")
             samples = []
             for episode in count():
                 trajectory = self._generate_episode(first_run=True, use_env_actions=True)
@@ -161,15 +157,11 @@ class NextItemExperiment:
                 RELEVANCE_CONT_COL, RELEVANCE_INT_COL,
                 TERMINATE_COL, "best_from_env"
             ])
-        else:
-            self.print_with_timestamp(f'Data restored from {cache_filepath}')
 
         log_df = prepare_log_df(log_df, ratings_column=ratings_column)
-
-        if use_cache:
-            cache_log_df(path=cache_filepath, log_df=log_df)
-            self.print_with_timestamp(f'Data cached to {cache_filepath}')
-
+        self.cache.try_cache_log_df(
+            log_df=log_df, generation_epoch=generation_epoch, logger=self.print_with_timestamp
+        )
         return log_df
 
     def _init_rl_setting(
@@ -338,7 +330,7 @@ class NextItemExperiment:
         self.logger.define_metric('epoch')
         self.logger.define_metric('mae', step_metric='epoch')
 
-    def _generation_minimal_config(self, seed, env, generation_phase, **_):
+    def generation_minimal_config(self, seed, env, generation_phase, **_):
         env_config, _ = self.config.resolve_object_requirements(
             env, object_type_or_factory=NextItemEnvironment
         )

@@ -45,7 +45,7 @@ class DryWandbLogger:
 
 
 def get_logger(
-        config: TConfig, log: bool | str | None, project: str = None, **wandb_init
+        *, config: TConfig, log: bool | str | None, project: str = None, **wandb_init
 ) -> Run | None:
     if log is None or not log:
         return None

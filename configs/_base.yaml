@@ -1,0 +1,105 @@
+# additional params for wandb.init
+wandb_init:
+  log: ???
+  project: ???
+  config: ???
+  name: ...
+  group: ...
+
+env:
+  embeddings:
+    random:
+      _type_: env.embeddings.random
+      seed: ???
+      n_dims: ???
+
+    clusters:
+      _type_: env.embeddings.clusters
+      seed: ???
+      n_dims: ???
+      n_clusters: 4
+      # all clusters have equal weight == 1 by default;
+      # increasing cluster's weight linearly increases probability to sample element from it
+      cluster_sampling_weight:
+        0: 1
+      intra_cluster_noise_scale: 0.05
+      n_dissimilar_dims_required: 3
+      min_dim_delta: 0.3
+      min_l2_dist: 0.1
+      max_generation_tries: 20000
+
+    10_clusters_for_8_dims:
+      _base_: clusters
+      n_clusters: 10
+      intra_cluster_noise_scale: 0.15
+      min_l2_dist: 0.3
+
+    20_clusters_for_8_dims:
+      _base_: clusters
+      n_clusters: 20
+      intra_cluster_noise_scale: 0.15
+      n_dissimilar_dims_required: 2
+      min_dim_delta: 0.25
+      min_l2_dist: 0.3
+
+models:
+  random:
+    _type_: model.random
+  discrete_random:
+    _type_: model.discrete_random
+  cql:
+    _type_: model.cql
+    _base_: default
+    actor_learning_rate: 1e-3
+    critic_learning_rate: 3e-3
+    temp_learning_rate: 1e-4
+    alpha_learning_rate: 1e-4
+    alpha_threshold: 10.0
+    conservative_weight: 5.0
+    initial_temperature: 1.0
+    initial_alpha: 1.0
+    n_action_samples: 10
+    soft_q_backup: False
+  bc:
+    _type_: model.bc
+    _base_: default
+    learning_rate: 5e-4
+  discrete_bc:
+    _type_: model.discrete_bc
+    _base_: default
+    learning_rate: 5e-4
+  ddpg:
+    _type_: model.ddpg
+    _base_: default
+    temp_learning_rate: 1e-4
+    initial_temperature: 1.0
+  discrete_cql:
+    _type_: model.discrete_cql
+    _base_: default
+  sac:
+    _type_: model.sac
+    _base_: default
+  sdac:
+    _type_: model.sdac
+    _base_: default
+  discrete_sac:
+    _type_: model.discrete_sac
+    _base_: default
+  default:
+    actor_learning_rate: 1e-4
+    critic_learning_rate: 3e-4
+    temp_learning_rate: 1e-4  #?
+    alpha_learning_rate: 1e-4 # ?
+    q_func_factory: "mean"
+    batch_size: 256
+    n_frames: 1
+    n_steps: 1
+    gamma: 0.99
+    tau: 0.005
+    n_critics: 2
+    initial_temperature: 1.0  #?
+    initial_alpha: 1.0  #?
+    alpha_threshold: 10.0 # ?
+    conservative_weight: 5.0 # ?
+    n_action_samples: 10  #?
+    soft_q_backup: False  #?

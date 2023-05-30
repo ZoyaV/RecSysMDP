@@ -52,7 +52,7 @@ class Embeddings:
         self.n_item_clusters = self.item_embeddings_generator.n_clusters
 
 
-class RandomEmbeddingsGenerator:
+class RandomEmbeddings:
     rng: Generator
     n_dims: int
 
@@ -60,7 +60,7 @@ class RandomEmbeddingsGenerator:
         self.rng = np.random.default_rng(seed)
         self.n_dims = n_dims
         self.n_clusters = 1
-        _, self.clusters = np.full(n_dims, 0.5)
+        self.clusters = np.full(n_dims, 0.5)
 
     def generate(self, n: int = None) -> tuple[int, np.ndarray] | tuple[np.ndarray, np.ndarray]:
         shape = (n, self.n_dims) if n is not None else (self.n_dims,)
@@ -71,7 +71,7 @@ class RandomEmbeddingsGenerator:
         return np.arange(n), self.clusters
 
 
-class RandomClustersEmbeddingsGenerator:
+class RandomClustersEmbeddings:
     rng: Generator
     n_dims: int
     intra_cluster_noise_scale: float

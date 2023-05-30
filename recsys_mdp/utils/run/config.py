@@ -172,15 +172,15 @@ def is_resolved_value(value: Any) -> bool:
     return value != _TO_BE_NONE_VALUE and value != _TO_BE_INDUCED_VALUE
 
 
-def resolve_init_params(config: TConfig, **induction_registry):
+def resolve_init_params(_config: TConfig, **induction_registry):
     """
     Resolve params defined with the config. Some values are intended to be resolved
     later at runtime - so, it tries to substitute special values with the
     values from the induction registry.
     """
     return {
-        k: resolve_value(config[k], key=k, induction_registry=induction_registry)
-        for k in config
+        k: resolve_value(_config[k], key=k, induction_registry=induction_registry)
+        for k in _config
     }
 
 
@@ -428,47 +428,47 @@ class ObjectResolver:
         self.config_resolver = config_resolver
 
     def resolve_requirements(
-            self, config: TConfig, *,
+            self, _config: TConfig, *,
             object_type_or_factory: TTypeOrFactory = None,
             config_type: Type[dict | list] = dict,
             **substitution_registry
     ) -> tuple[TConfig, TTypeOrFactory]:
-        if not is_resolved_value(config) or config is None:
-            raise ValueError(f'{config}')
+        if not is_resolved_value(_config) or _config is None:
+            raise ValueError(f'{_config}')
 
         if self.config_resolver is not None:
             # we expect that referencing is enabled, so we need to resolve the config
-            config = self.config_resolver.resolve(config, config_type=config_type)
+            _config = self.config_resolver.resolve(_config, config_type=config_type)
 
         if config_type is dict:
             # substitute inducible args using substitution registry
-            config = resolve_init_params(config, **substitution_registry)
+            _config = resolve_init_params(_config, **substitution_registry)
 
         if object_type_or_factory is None:
             # have to resolve the type from the config as object type is not specified
-            config, type_tag = extracted_type_tag(config)
+            _config, type_tag = extracted_type_tag(_config)
             object_type_or_factory = self.type_resolver[type_tag]
 
-        return config, object_type_or_factory
+        return _config, object_type_or_factory
 
     def resolve(
-            self, config: TConfig, *,
+            self, _config: TConfig, *,
             object_type_or_factory: TTypeOrFactory = None,
             config_type: Type[dict | list] = dict,
             **substitution_registry
     ) -> Any:
-        config, object_type_or_factory = self.resolve_requirements(
-            config, object_type_or_factory=object_type_or_factory,
+        _config, object_type_or_factory = self.resolve_requirements(
+            _config, object_type_or_factory=object_type_or_factory,
             config_type=config_type, **substitution_registry
         )
 
         try:
             if config_type is list:
-                return object_type_or_factory(*config)
-            return object_type_or_factory(**config)
+                return object_type_or_factory(*_config)
+            return object_type_or_factory(**_config)
         except TypeError:
             from pprint import pprint
-            pprint(config)
+            pprint(_config)
             pprint(substitution_registry)
             print(f'object_type_or_factory: {object_type_or_factory} | config_type: {config_type}')
             raise
@@ -501,26 +501,26 @@ class GlobalConfig:
         )
 
     def resolve_object(
-            self, config: TConfig, *,
+            self, _config: TConfig, *,
             object_type_or_factory: TTypeOrFactory = None,
             config_type: Type[dict | list] = dict,
             **substitution_registry
     ) -> Any:
         return self.object_resolver.resolve(
-            config,
+            _config,
             object_type_or_factory=object_type_or_factory,
             config_type=config_type,
             **substitution_registry | self.global_substitution_registry
         )
 
     def resolve_object_requirements(
-            self, config: TConfig, *,
+            self, _config: TConfig, *,
             object_type_or_factory: TTypeOrFactory = None,
             config_type: Type[dict | list] = dict,
             **substitution_registry
     ) -> tuple[TConfig, TTypeOrFactory]:
         return self.object_resolver.resolve_requirements(
-            config,
+            _config,
             object_type_or_factory=object_type_or_factory,
             config_type=config_type,
             **substitution_registry | self.global_substitution_registry
