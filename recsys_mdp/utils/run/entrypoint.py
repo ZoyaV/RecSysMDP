@@ -41,7 +41,7 @@ def run_experiment(
 
     if not args.multithread:
         # prevent math parallelization as it usually only slows things down for us
-        set_single_threaded_math()
+        set_single_threaded_math(with_torch=args.with_torch)
 
     config_path = Path(args.config_filepath)
     config = read_config(config_path)
@@ -95,9 +95,13 @@ def run_single_run_experiment(run_params: RunParams) -> None:
         runner.run()
 
 
-def set_single_threaded_math():
+def set_single_threaded_math(with_torch: bool = False):
     os.environ['OMP_NUM_THREADS'] = '1'
     os.environ['MKL_NUM_THREADS'] = '1'
+
+    if with_torch:
+        import torch
+        torch.set_num_threads(1)
 
 
 def default_run_arg_parser() -> ArgumentParser:
@@ -115,4 +119,5 @@ def default_run_arg_parser() -> ArgumentParser:
     parser.add_argument('-n', '--n_sweep_agents', type=int, default=None)
 
     parser.add_argument('--multithread', dest='multithread', action='store_true', default=False)
+    parser.add_argument('--with_torch', dest='with_torch', action='store_true', default=True)
     return parser
