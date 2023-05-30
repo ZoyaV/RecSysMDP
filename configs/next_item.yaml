@@ -64,6 +64,22 @@ scoring:
   tresh: [0.7, 0.5, 0.9]
   prediction_type: discrete
 
+init_embeddings_with_als: true
+hidden_state_encoder:
+#      use_als: False
+  embedding_dim: 16
+  hidden_dim: 256
+  memory_size: 10
+  feature_size: 512
+  #drr adrr
+  state_repr_name: full_history
+  freeze_emb: False
+  attention_hidden_size: 32
+  state_keys:
+    - user
+    - item
+#        - score
+
 zoya_settings:
   top_k: 10
   ratings_column: relevance_int
@@ -85,9 +101,9 @@ zoya_settings:
       use_gpu: False
 
     model_parameters:
-      use_als: False
-      emb_dim: 16
-      hid_dim: 256
+#      use_als: False
+      embedding_dim: 16
+      hidden_dim: 256
       memory_size: 10
       feature_size: 512
       #drr adrr

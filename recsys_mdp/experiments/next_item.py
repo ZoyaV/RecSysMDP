@@ -12,7 +12,10 @@ import structlog
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
-from recsys_mdp.experiments.utils.algorithm_constuctor import init_hidden_state_encoder, init_algo
+from recsys_mdp.experiments.utils.algorithm_constuctor import (
+    init_hidden_state_encoder, init_algo,
+    init_als_embeddings
+)
 from recsys_mdp.experiments.utils.cache import ExperimentCache
 from recsys_mdp.experiments.utils.helper import eval_algo, generate_episode
 from recsys_mdp.experiments.utils.mdp_constructor import (
@@ -226,9 +229,18 @@ class NextItemExperiment:
 
         # Init RL algorithm
         if not self.learnable_model:
+            initial_user_embeddings, initial_item_embeddings = None, None
+            init_with_als = False
+            if init_with_als:
+                emb_dim = None
+                initial_user_embeddings, initial_item_embeddings = init_als_embeddings(
+                    data=log_df, emb_dim=emb_dim
+                )
+
             model = init_hidden_state_encoder(
-                data=log_df,
                 user_num=self.env.n_users, item_num=self.env.n_items + 1,
+                initial_user_embeddings=initial_user_embeddings,
+                initial_item_embeddings=initial_item_embeddings,
                 **algo_settings['model_parameters']
             )
             algo = init_algo(model, **algo_settings['general_parameters'])

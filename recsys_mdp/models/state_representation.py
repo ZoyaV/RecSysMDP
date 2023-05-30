@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from d3rlpy.models.encoders import EncoderFactory
-import torch.nn.functional as F
+from torch.nn.functional import softmax
+
 
 class StateReprModuleWithAttention(nn.Module):
     def __init__(
@@ -12,14 +12,14 @@ class StateReprModuleWithAttention(nn.Module):
             memory_size,
             freeze_emb,
             attention_hidden_size,
-            use_als,
-            user_emb,
-            item_emb
+            initial_user_embeddings=None,
+            initial_item_embeddings=None
     ):
         super().__init__()
-        self.use_als = use_als
-        self.user_emb = user_emb
-        self.item_emb = item_emb
+        assert (initial_user_embeddings is None) == (initial_item_embeddings is None)
+        self.initial_user_embeddings = initial_user_embeddings
+        self.initial_item_embeddings = initial_item_embeddings
+
         self.freeze_emb = freeze_emb
 
         self.user_embeddings = nn.Embedding(user_num, embedding_dim)
@@ -44,9 +44,9 @@ class StateReprModuleWithAttention(nn.Module):
         nn.init.uniform_(self.drr_ave.weight)
         self.drr_ave.bias.data.zero_()
 
-        if self.use_als:
-            self.item_embeddings.weight.data.copy_(self.item_emb)
-            self.user_embeddings.weight.data.copy_(self.user_emb)
+        if self.initial_item_embeddings is not None:
+            self.item_embeddings.weight.data.copy_(self.initial_item_embeddings)
+            self.user_embeddings.weight.data.copy_(self.initial_user_embeddings)
 
         if self.freeze_emb:
             self.user_embeddings.weight.requires_grad = False
@@ -55,14 +55,13 @@ class StateReprModuleWithAttention(nn.Module):
     @property
     def out_embeddings(self):
         return 3
+
     def forward(self, user, memory):
         """
         :param user: user batch
         :param memory: memory batch
         :return: vector of dimension 3 * embedding_dim
         """
-
-
         user_embedding = self.user_embeddings(user.long())
         item_embeddings = self.item_embeddings(memory.long())
 
@@ -71,19 +70,20 @@ class StateReprModuleWithAttention(nn.Module):
             [user_embedding.unsqueeze(1).expand_as(item_embeddings),
              item_embeddings], dim=-1)
         attention_scores = self.attention_net(attention_input)
-        attention_weights = F.softmax(attention_scores, dim=1)
+        attention_weights = softmax(attention_scores, dim=1)
 
         # Compute weighted average of item embeddings
         weighted_item_embeddings = item_embeddings * attention_weights
 
         # Compute average DRR values for each item
         drr_ave = self.drr_ave(weighted_item_embeddings).squeeze(1)
-       # print(drr_ave.shape)
+        # print(drr_ave.shape)
         # Concatenate user embedding, weighted item embeddings, and DRR values
         state = torch.cat(
             [user_embedding, user_embedding * drr_ave, drr_ave], dim=-1)
-
         return state
+
+
 class StateReprModule(nn.Module):
     """
     Compute state for RL environment. Based on `DRR paper
@@ -101,15 +101,14 @@ class StateReprModule(nn.Module):
             embedding_dim,
             memory_size,
             freeze_emb,
-            use_als,
-            user_emb,
-            item_emb
+            initial_user_embeddings=None,
+            initial_item_embeddings=None
     ):
         super().__init__()
 
-        self.use_als = use_als
-        self.user_emb = user_emb
-        self.item_emb = item_emb
+        assert (initial_user_embeddings is None) == (initial_item_embeddings is None)
+        self.initial_user_embeddings = initial_user_embeddings
+        self.initial_item_embeddings = initial_item_embeddings
         self.freeze_emb = freeze_emb
 
         self.user_embeddings = nn.Embedding(user_num, embedding_dim)
@@ -132,9 +131,9 @@ class StateReprModule(nn.Module):
 
         self.drr_ave.bias.data.zero_()
 
-        if self.use_als:
-            self.item_embeddings.weight.data.copy_(self.item_emb)
-            self.user_embeddings.weight.data.copy_(self.user_emb)
+        if self.initial_item_embeddings is not None:
+            self.item_embeddings.weight.data.copy_(self.initial_item_embeddings)
+            self.user_embeddings.weight.data.copy_(self.initial_user_embeddings)
 
         if self.freeze_emb:
             self.item_embeddings.weight.requires_grad = False
@@ -143,6 +142,7 @@ class StateReprModule(nn.Module):
     @property
     def out_embeddings(self):
         return 3
+
     def forward(self, user, memory):
         """
         :param user: user batch
@@ -176,17 +176,16 @@ class FullHistory(nn.Module):
             embedding_dim,
             memory_size,
             freeze_emb,
-            use_als,
-            user_emb,
-            item_emb,
-            state_keys
+            state_keys,
+            initial_user_embeddings = None,
+            initial_item_embeddings = None,
     ):
         super().__init__()
 
         self.memory_size = memory_size
-        self.use_als = use_als
-        self.user_emb = user_emb
-        self.item_emb = item_emb
+        assert (initial_user_embeddings is None) == (initial_item_embeddings is None)
+        self.initial_user_embeddings = initial_user_embeddings
+        self.initial_item_embeddings = initial_item_embeddings
         self.freeze_emb = freeze_emb
         self.state_keys = state_keys
 
@@ -196,7 +195,6 @@ class FullHistory(nn.Module):
         self.item_embeddings = nn.Embedding(
             item_num + 1, embedding_dim, padding_idx=int(item_num)
         )
-
         #TODO: co-style, make size of score emb flexible
         self.score_embeddings = nn.Embedding(
             6, 1
@@ -213,6 +211,7 @@ class FullHistory(nn.Module):
             return self.memory_size + 1
         else:
             return self.memory_size
+
     def initialize(self):
         """weight init"""
         nn.init.normal_(self.user_embeddings.weight, std=0.01)
@@ -223,9 +222,9 @@ class FullHistory(nn.Module):
 
         self.drr_ave.bias.data.zero_()
 
-        if self.use_als:
-            self.item_embeddings.weight.data.copy_(self.item_emb)
-            self.user_embeddings.weight.data.copy_(self.user_emb)
+        if self.initial_item_embeddings is not None:
+            self.item_embeddings.weight.data.copy_(self.initial_item_embeddings)
+            self.user_embeddings.weight.data.copy_(self.initial_user_embeddings)
 
         if self.freeze_emb:
             self.item_embeddings.weight.requires_grad = False
@@ -237,14 +236,13 @@ class FullHistory(nn.Module):
         :param memory: memory batch
         :return: vector of dimension 3 * embedding_dim
         """
-
         if 'item' not in self.state_keys:
             raise Exception("Memory is a required parameter!")
         item_embeddings = self.item_embeddings(memory.long())
 
         if 'score' in self.state_keys:
             scorers_embeddings = scorers/5
-          #  item_embeddings = item_embeddings * scorers_embeddings
+            # item_embeddings = item_embeddings * scorers_embeddings
 
         if 'user' in self.state_keys:
             user_embedding = self.user_embeddings(user.long())[:,None,:]
@@ -256,7 +254,7 @@ class FullHistory(nn.Module):
             # TODO: co-style with score shape
             batch, i = scorers_embeddings.shape
             j = 1
-           # print(batch, i, j)
+            # print(batch, i, j)
             score = scorers_embeddings.reshape(batch, i * j)
             out = torch.cat((out, score), axis = 1)
         return out
