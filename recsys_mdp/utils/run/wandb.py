@@ -59,7 +59,7 @@ def get_logger(
 
     # we have to pass the config with update instead of init because for sweep runs
     # it is already initialized with the sweep run config
-    logger.config.update(config)
+    logger.config.update(config, allow_val_change=True)
     return logger
 
 

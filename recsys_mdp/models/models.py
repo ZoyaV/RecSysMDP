@@ -1,19 +1,27 @@
+from typing import Sequence
+
 import torch
 import torch.nn as nn
 from d3rlpy.models.encoders import EncoderFactory
-from recsys_mdp.models.state_representation import StateReprModuleWithAttention, StateReprModule, FullHistory
+from d3rlpy.models.torch import Encoder, EncoderWithAction
+
+from recsys_mdp.models.state_representation import (
+    StateReprModuleWithAttention, StateReprModule, FullHistory
+)
 
 
-class ActorEncoder(nn.Module):
-    def __init__(self, user_num, item_num, embedding_dim,
-                 hidden_dim, memory_size, feature_size,
-                 state_repr_name ="drr",
-                 state_keys = ['user','item','score'],
-                 freeze_emb = False,
-                 attention_hidden_size = 0,
-                 use_als = False,
-                 user_emb = None,
-                 item_emb = None):
+class ActorEncoder(nn.Module, Encoder):
+    def __init__(
+            self, user_num, item_num, embedding_dim,
+            hidden_dim, memory_size, feature_size,
+            state_repr_name ="drr",
+            state_keys = ['user','item','score'],
+            freeze_emb = False,
+            attention_hidden_size = 0,
+            use_als = False,
+            user_emb = None,
+            item_emb = None
+    ):
         super().__init__()
 
         self.state_repr_name = state_repr_name
@@ -50,7 +58,6 @@ class ActorEncoder(nn.Module):
 
     def initialize(self):
         """weight init"""
-       # return
         for layer in self.layers:
             if isinstance(layer, nn.Linear):
                 nn.init.kaiming_uniform_(layer.weight)
@@ -79,16 +86,14 @@ class ActorEncoder(nn.Module):
     def get_feature_size(self):
         return self.feature_size
 
-class ActorEncoderWithAction(nn.Module):
-    def __init__(self,action_size, user_num, item_num, embedding_dim,
-                 hidden_dim, memory_size, feature_size,
-                 state_repr_name ="drr",
-                 freeze_emb = False,
-                 attention_hidden_size = 0,
-                 use_als = False,
-                 user_emb = None,
-                 item_emb = None):
 
+class ActorEncoderWithAction(nn.Module, EncoderWithAction):
+    def __init__(
+            self, action_size, user_num, item_num, embedding_dim, hidden_dim, memory_size,
+            feature_size, state_repr_name="drr", freeze_emb=False, attention_hidden_size=0,
+            use_als=False, user_emb=None, item_emb=None
+    ):
+        super().__init__()
         self.state_encoder = ActorEncoder(
             user_num,
             item_num,
@@ -118,15 +123,14 @@ class ActorEncoderWithAction(nn.Module):
     def get_feature_size(self):
         return self.feature_size
 
+
 class ActorEncoderFactory(EncoderFactory):
     TYPE = 'custom'
 
     def __init__(
             self,
-            user_num,
-            item_num,
-            embedding_dim,
-            hidden_dim,
+            user_num, item_num,
+            embedding_dim, hidden_dim,
             memory_size,
             feature_size,
             state_repr_name = 'drr',
@@ -135,8 +139,6 @@ class ActorEncoderFactory(EncoderFactory):
             use_als = False,
             user_emb = None,
             item_emb = None
-
-
     ):
         self.user_num = user_num
         self.item_num = item_num
@@ -151,37 +153,42 @@ class ActorEncoderFactory(EncoderFactory):
         self.user_emb = user_emb
         self.item_emb = item_emb
 
-    def create(self, observation_shape, action_size=None, discrete_action=False):
-            if action_size is None:
-                return ActorEncoder(
-                    self.user_num,
-                    self.item_num,
-                    self.embedding_dim,
-                    self.hidden_dim,
-                    self.memory_size,
-                    self.feature_size,
-                    self.state_repr_name,
-                    self.freeze_emb,
-                    self.attention_hidden_size,
-                    self.use_als,
-                    self.user_emb,
-                    self.item_emb
-                )
-            else:
-                ActorEncoderWithAction(action_size, self.user_num,
-                    self.item_num,
-                    self.embedding_dim,
-                    self.hidden_dim,
-                    self.memory_size,
-                    self.feature_size,
-                    self.state_repr_name,
-                    self.freeze_emb,
-                    self.attention_hidden_size,
-                    self.use_als,
-                    self.user_emb,
-                    self.item_emb
-                )
+    def create(self, observation_shape: Sequence[int]) -> Encoder:
+        return ActorEncoder(
+            self.user_num,
+            self.item_num,
+            self.embedding_dim,
+            self.hidden_dim,
+            self.memory_size,
+            self.feature_size,
+            self.state_repr_name,
+            self.freeze_emb,
+            self.attention_hidden_size,
+            self.use_als,
+            self.user_emb,
+            self.item_emb
+        )
 
+    def create_with_action(
+        self,
+        observation_shape: Sequence[int],
+        action_size: int,
+        discrete_action: bool = False,
+    ) -> EncoderWithAction:
+        return ActorEncoderWithAction(
+            action_size, self.user_num,
+            self.item_num,
+            self.embedding_dim,
+            self.hidden_dim,
+            self.memory_size,
+            self.feature_size,
+            self.state_repr_name,
+            self.freeze_emb,
+            self.attention_hidden_size,
+            self.use_als,
+            self.user_emb,
+            self.item_emb
+        )
 
     def get_params(self, deep=False):
         return {
@@ -194,12 +201,3 @@ class ActorEncoderFactory(EncoderFactory):
             'state_repr_name':self.state_repr_name,
             'attention_hidden_size': self.attention_hidden_size
         }
-
-
-
-def load_embeddings(path_to_model="model_final.pt", model_params=[943, 1682, 8, 16, 5, False, 64]):
-    the_model = ActorEncoder(*model_params)
-    the_model.load_state_dict(torch.load(path_to_model))
-    user_emb = the_model.state_repr.user_embeddings.weight.data
-    item_emb = the_model.state_repr.item_embeddings.weight.data
-    return user_emb, item_emb

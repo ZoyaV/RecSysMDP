@@ -149,9 +149,9 @@ class NextItemOnDataExperiment:
 
         # Init RL algorithm
         if not self.learnable_model:
-            from recsys_mdp.experiments.utils.algorithm_constuctor import init_model
+            from recsys_mdp.experiments.utils.algorithm_constuctor import init_hidden_state_encoder
             from recsys_mdp.experiments.utils.algorithm_constuctor import init_algo
-            model = init_model(data=train_log, **algo_settings['model_parameters'])
+            model = init_hidden_state_encoder(data=train_log, **algo_settings['model_parameters'])
             algo = init_algo(model, **algo_settings['general_parameters'])
             self.model = algo
             self.learnable_model = True

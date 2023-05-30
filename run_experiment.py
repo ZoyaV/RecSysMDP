@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import yaml
 
-from recsys_mdp.experiments.utils.algorithm_constuctor import init_algo, init_model
+from recsys_mdp.experiments.utils.algorithm_constuctor import init_algo, init_hidden_state_encoder
 from recsys_mdp.experiments.utils.mdp_constructor import load_data, make_mdp
 from recsys_mdp.experiments.utils.scorers_constructor import init_logger
 from recsys_mdp.experiments.utils.helper import eval_algo
@@ -70,7 +70,7 @@ def run_experiment(
     test_mdp = to_d3rlpy_form_ND(states, rewards, actions, terminations, discrete=prediction_type)
 
     # Init RL algorithm
-    model = init_model(data, **algo_settings['model_parametrs'])
+    model = init_hidden_state_encoder(data, **algo_settings['model_parametrs'])
     algo = init_algo(model, **algo_settings['general_parametrs'])
 
     test_logger = init_logger(

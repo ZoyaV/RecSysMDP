@@ -2,7 +2,7 @@ import pickle
 
 import yaml
 
-from recsys_mdp.experiments.utils.algorithm_constuctor import init_algo, init_model
+from recsys_mdp.experiments.utils.algorithm_constuctor import init_algo, init_hidden_state_encoder
 from recsys_mdp.experiments.utils.mdp_constructor import load_data, make_mdp
 from recsys_mdp.utils.run.config import read_config
 from recsys_mdp.mdp.utils import to_d3rlpy_form_ND
@@ -25,7 +25,7 @@ def load_pretrained_model(conf_name, step=-1):
     states, rewards, actions, termations, state_tail = mdp_preparator.create_mdp()
     train_mdp = to_d3rlpy_form_ND(states, rewards, actions, termations, discrete=prediction_type)
 
-    model = init_model(data, **config['experiment']['algo_settings']['model_parametrs'])
+    model = init_hidden_state_encoder(data, **config['experiment']['algo_settings']['model_parametrs'])
     algo = init_algo(model, **config['experiment']['algo_settings']['general_parametrs'])
     algo.build_with_dataset(train_mdp)
     if step == -1:

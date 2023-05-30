@@ -12,7 +12,7 @@ import structlog
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
-from recsys_mdp.experiments.utils.algorithm_constuctor import init_model, init_algo
+from recsys_mdp.experiments.utils.algorithm_constuctor import init_hidden_state_encoder, init_algo
 from recsys_mdp.experiments.utils.cache import ExperimentCache
 from recsys_mdp.experiments.utils.helper import eval_algo, generate_episode
 from recsys_mdp.experiments.utils.mdp_constructor import (
@@ -30,14 +30,10 @@ from recsys_mdp.mdp.base import (
     RELEVANCE_INT_COL, TERMINATE_COL
 )
 from recsys_mdp.mdp.utils import to_d3rlpy_form_ND, isnone
-from recsys_mdp.metrics.logger import log_satiation
 from recsys_mdp.simulator.env import (
     NextItemEnvironment
 )
 from recsys_mdp.simulator.framestack import Framestack
-from recsys_mdp.simulator.user_state import (
-    USER_RESET_MODE_DISCONTINUE
-)
 from recsys_mdp.utils.base import get_cuda_device
 from recsys_mdp.utils.run.config import (
     TConfig, GlobalConfig, extracted
@@ -154,7 +150,7 @@ class NextItemExperiment:
 
         self.print_with_timestamp('<==')
         if self.logger:
-            self.logger.config.update(self.config.config)
+            self.logger.config.update(self.config.config, allow_val_change=True)
 
     def _generate_dataset(self, generation_epoch: int, ratings_column: str = None, **_):
         config = self.generation_phase
@@ -164,7 +160,6 @@ class NextItemExperiment:
             self.print_with_timestamp("Generating dataset...")
             samples = []
             for episode in count():
-                # trajectory = self._generate_episode(first_run=True, use_env_actions=True)
                 trajectory = generate_episode(
                     env=self.env, model=self.generation_model, framestack=self.framestack,
                     rng=self.rng, logger=self.logger,
@@ -231,7 +226,7 @@ class NextItemExperiment:
 
         # Init RL algorithm
         if not self.learnable_model:
-            model = init_model(
+            model = init_hidden_state_encoder(
                 data=log_df,
                 user_num=self.env.n_users, item_num=self.env.n_items + 1,
                 **algo_settings['model_parameters']
