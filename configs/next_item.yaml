@@ -39,9 +39,9 @@ env:
       - [0.58, 0.03]
       - [0.75, 0.05]
 
-observations:
-  discrete: true
-  history_size: 10
+framestack:
+  size: 10
+  empty_rating: [.6, 3]
 
 mdp:
   ratings_column: relevance_int
@@ -103,4 +103,5 @@ wandb_init: $_base.wandb_init
 cache:
   cache_root: cache
   enable: ???
+  experiment_config: ???
   keep_last_n_experiments: 4

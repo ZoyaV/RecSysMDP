@@ -34,6 +34,7 @@ from recsys_mdp.metrics.logger import log_satiation
 from recsys_mdp.simulator.env import (
     NextItemEnvironment
 )
+from recsys_mdp.simulator.framestack import Framestack
 from recsys_mdp.simulator.user_state import (
     USER_RESET_MODE_DISCONTINUE
 )
@@ -67,7 +68,8 @@ class NextItemExperiment:
     def __init__(
             self, config: TConfig, config_path: Path, seed: int,
             generation_phase: TConfig, learning_phase: TConfig,
-            env: TConfig, generation_model: TConfig, eval_model: TConfig,
+            env: TConfig, framestack: TConfig,
+            generation_model: TConfig, eval_model: TConfig,
             zoya_settings: TConfig,
             log: bool, cuda_device: bool | int | None,
             project: str = None, wandb_init: TConfig = None,
@@ -107,7 +109,15 @@ class NextItemExperiment:
         self.eval_model = self.config.resolve_object(
             eval_model, n_actions=self.env.n_items, use_gpu=get_cuda_device(cuda_device)
         )
+        assert self.generation_model.get_action_type() == self.eval_model.get_action_type()
+        self.discrete = (
+                self.generation_model.get_action_type() == d3rlpy.constants.ActionSpace.DISCRETE
+        )
 
+        self.framestack = self.config.resolve_object(
+            framestack | dict(discrete=self.discrete, empty_item=self.env.n_items),
+            object_type_or_factory=Framestack,
+        )
         self.model = self.generation_model
 
         self.learnable_model = False
@@ -115,8 +125,8 @@ class NextItemExperiment:
 
         generation_minimal_config = self.generation_minimal_config(**self.config.config)
         self.cache = self.config.resolve_object(
-            cache | dict(experiment_config=generation_minimal_config),
-            object_type_or_factory=ExperimentCache,
+            cache, object_type_or_factory=ExperimentCache,
+            enable=self.generation_phase.use_cache, experiment_config=generation_minimal_config
         )
         if self.cache.enabled:
             self.print_with_timestamp(f'Initialized cache in {self.cache.root}')
@@ -154,7 +164,12 @@ class NextItemExperiment:
             self.print_with_timestamp("Generating dataset...")
             samples = []
             for episode in count():
-                trajectory = self._generate_episode(first_run=True, use_env_actions=True)
+                # trajectory = self._generate_episode(first_run=True, use_env_actions=True)
+                trajectory = generate_episode(
+                    env=self.env, model=self.generation_model, framestack=self.framestack,
+                    rng=self.rng, logger=self.logger,
+                    first_run=True, use_env_actions=True
+                )
                 samples.extend(trajectory)
                 if episode >= config.episodes_per_epoch or len(samples) >= config.samples_per_epoch:
                     break
@@ -210,7 +225,7 @@ class NextItemExperiment:
         mdp_settings['episode_splitter_name'] = "interaction_interruption"
         _, _, algo_test_logger = self.data2mdp(test_log, top_k, mdp_settings, scorer)
 
-        self.mdp_prep = mdp_prep
+        self.preparator = mdp_prep
         self.algo_logger = algo_logger
         self.algo_test_logger = algo_test_logger
 
@@ -218,7 +233,7 @@ class NextItemExperiment:
         if not self.learnable_model:
             model = init_model(
                 data=log_df,
-                user_num=self.env.n_users, item_num=self.env.n_items,
+                user_num=self.env.n_users, item_num=self.env.n_items + 1,
                 **algo_settings['model_parameters']
             )
             algo = init_algo(model, **algo_settings['general_parameters'])
@@ -338,13 +353,55 @@ class NextItemExperiment:
         self.logger.define_metric('epoch')
         self.logger.define_metric('mae', step_metric='epoch')
 
-    def generation_minimal_config(self, seed, env, generation_phase, **_):
+    def generation_minimal_config(self, seed, env, generation_phase, framestack, **_):
         env_config, _ = self.config.resolve_object_requirements(
             env, object_type_or_factory=NextItemEnvironment
         )
         # remove global config object
         env_config, _ = extracted(env_config, 'global_config')
 
-        minimal_config = generation_phase | env_config
+        minimal_config = generation_phase | env_config | framestack
         minimal_config['seed'] = seed
         return minimal_config
+
+def generate_episode(
+        env, model, framestack, rng, logger, cold_start=False, user_id=None,
+        use_env_actions=False, log_sat=False, first_run=False
+):
+    orig_user_id = user_id
+    trajectory = []
+    N_BEST_ITEMS = 10
+    RANGE_SIZE= 15
+
+    user_id = env.reset(user_id=user_id)
+    # FIXME: obs keys
+    obs_keys = ['items', 'user']
+    obs = framestack.compile_observation(framestack.reset(user_id), keys=obs_keys)
+    item_id = 0
+    # episode generation
+    while True:
+        items_top = env.state.ranked_items(with_satiation=True, discrete=True)
+        if use_env_actions:
+            item_id = rng.choice(items_top[:RANGE_SIZE])
+        else:
+            item_id = model.predict(obs.reshape(1, -1))[0]
+
+        (continuous_relevance, discrete_relevance), terminated = env.step(item_id)
+        timestamp = env.timestamp
+        obs = framestack.compile_observation(
+            framestack.step(item_id, continuous_relevance, discrete_relevance), keys=obs_keys
+        )
+
+        trajectory.append((
+            timestamp,
+            user_id, item_id,
+            continuous_relevance, discrete_relevance,
+            terminated,
+            items_top[:N_BEST_ITEMS]
+        ))
+        if terminated:
+            break
+
+        if env.timestep % 4 == 0 and log_sat:
+            log_satiation(logger, env.state.satiation, orig_user_id)
+    return trajectory
