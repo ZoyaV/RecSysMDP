@@ -23,7 +23,7 @@ env:
   _base_: $_base.env
   n_users: 100
   n_items: 1000
-  max_episode_len: [50, 10]
+  max_episode_len: [120, 50]
   embeddings:
     n_dims: 8
     users: $_base.embeddings.10_clusters_for_8_dims
