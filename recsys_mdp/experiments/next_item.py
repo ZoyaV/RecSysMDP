@@ -265,58 +265,6 @@ class NextItemExperiment:
         obs = self.rng.integers(0, self.env.n_items, framestack_size).tolist() + [user_id]
         return obs
 
-    def _generate_episode(
-            self, cold_start=False, user_id=None,
-            use_env_actions=False, log_sat=False, first_run=False
-    ):
-        env, model = self.env, self.model
-        orig_user_id = user_id
-        user_id = env.reset(user_id=user_id)
-        trajectory = []
-        N_BEST_ITEMS = 10
-        RANGE_SIZE= 15
-        # Get random items from best for framestack
-        # TODO: How it will affect to episode lenghts?
-        # TODO: Make framestack making as function
-        if not cold_start:
-            fake_obs = self._framestack_from_last_best(user_id, N_BEST_ITEMS)
-        else:
-            fake_obs = self._framestack_random_act(user_id)
-
-        obs = np.asarray(fake_obs)
-        item_id = 0
-        # episode generation
-        while True:
-            if not use_env_actions:
-                item_id = model.predict(obs.reshape(1, -1))[0]
-            relevance, terminated = env.step(item_id)
-            continuous_relevance, discrete_relevance = relevance
-            timestamp = env.timestamp
-            if not first_run:
-                # generate new observation with framestack
-                _, obs = self.preparator.make_interaction(
-                    relevance=discrete_relevance, user=user_id, item=item_id,
-                    ts=timestamp, obs_prev=obs, relevance2reward=False
-                )
-
-            items_top = env.state.ranked_items(with_satiation=True, discrete=True)
-            if use_env_actions:
-                item_id = self.rng.choice(items_top[:RANGE_SIZE])
-            trajectory.append((
-                timestamp,
-                user_id, item_id,
-                continuous_relevance, discrete_relevance,
-                terminated,
-                items_top[:N_BEST_ITEMS]
-            ))
-            if terminated:
-                break
-
-            if env.timestep % 4 == 0 and log_sat:
-                log_satiation(self.logger, env.state.satiation, orig_user_id)
-        env.reset(user_id, USER_RESET_MODE_DISCONTINUE)
-        return trajectory
-
     def _learn_on_dataset(self, total_epoch, fitter, dataset_info = None):
         for epoch, metrics in fitter:
             if epoch == 1 or epoch % self.learning_phase.eval_schedule == 0:
