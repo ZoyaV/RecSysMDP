@@ -9,7 +9,7 @@ import d3rlpy
 import numpy as np
 import pandas as pd
 import structlog
-from d3rlpy.base import LearnableBase
+from d3rlpy.algos import AlgoBase
 from numpy.random import Generator
 
 from recsys_mdp.experiments.utils.algorithm_constuctor import (
@@ -61,8 +61,8 @@ class NextItemExperiment:
     cache: ExperimentCache | None
 
     env: NextItemEnvironment
-    generation_model: LearnableBase
-    eval_model: LearnableBase
+    generation_model: AlgoBase
+    eval_model: AlgoBase
 
     def __init__(
             self, config: TConfig, config_path: Path, seed: int,

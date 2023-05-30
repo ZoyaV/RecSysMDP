@@ -17,13 +17,12 @@ def flatten_dict(d: dict, parent_key: str = '', sep: str = '_'):
     return result
 
 
-class Logger():
+class Logger:
     def __init__(
             self, interactive_mdp, user_interests, fake_mdp,
             top_k, static_scorers, interactive_scorers, visual_loggers,
             wandb_logger=None
     ):
-        #self.model = model
         self.discrete = True
         self.interactive_mdp = interactive_mdp # d3rlpy mdp
         self.fake_mdp = fake_mdp # mdp for static metrics calculation, builded based on train
@@ -35,22 +34,27 @@ class Logger():
         self.wandb_logger = wandb_logger
 
     def get_value(self, model, obs, item = None):
+        # FIXME: find a way to remove direct putting on device
+        obs = torch.from_numpy(obs).to(device=model._impl._device)
+
         if self.discrete:
-            observations = torch.from_numpy(obs)
             with torch.no_grad():
                 algo = model.__class__.__name__
                 if "BC" in algo:
-                    predicted_rat = model.impl._imitator(observations.to(torch.float32))
+                    # obs = obs.astype(float)
+                    obs = obs.to(torch.float32)
+                    predicted_rat = model._impl._imitator(obs)
                 else:
-                    predicted_rat = model._impl._q_func(observations)
+                    predicted_rat = model._impl._q_func(obs)
 
-            predicted_rat = predicted_rat.cpu().numpy()
             predicted_rat = (
                     (predicted_rat - predicted_rat.min())
                     / (predicted_rat.max() - predicted_rat.min())
             )
         else:
-            predicted_rat = model.predict(obs).cpu().numpy()
+            predicted_rat = model.predict(obs)
+
+        predicted_rat = predicted_rat.cpu().numpy()
 
         if item is None:
             return predicted_rat
