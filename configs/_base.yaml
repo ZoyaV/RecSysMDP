@@ -20,7 +20,8 @@ user_states:
     satiation_drift: .2
     item_listening_trace_decay: .9
     item_repeat_penalty_power: .15
-    early_stop_delta: 0.005
+    early_stop_min_prob: 0.008
+    early_stop_delta: 0.008
     similarity_metric: l2
     item_to_cluster_classification: softmax
     relevance_boosting: [0.2, 4.0]

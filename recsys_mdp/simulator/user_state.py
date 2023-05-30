@@ -31,6 +31,7 @@ class UserState:
     item_repeat_penalty_power: float
 
     satisfaction: float
+    early_stop_min_prob: float
     early_stop_delta: float
     initial_satisfaction: float = 4
 
@@ -46,6 +47,7 @@ class UserState:
             satiation_drift: float,
             item_listening_trace_decay: float,
             item_repeat_penalty_power: float,
+            early_stop_min_prob: float,
             early_stop_delta: float,
             similarity_metric: str,
             item_to_cluster_classification: str,
@@ -61,6 +63,7 @@ class UserState:
         self.satiation_drift = satiation_drift
         self.item_listening_trace_decay = item_listening_trace_decay
         self.item_repeat_penalty_power = item_repeat_penalty_power
+        self.early_stop_min_prob = early_stop_min_prob
         self.early_stop_delta = early_stop_delta
         self.relevance_boosting_k = tuple(relevance_boosting)
         self.boosting_softness = tuple(boosting_softness)
@@ -121,7 +124,7 @@ class UserState:
         return continuous_relevance, discrete_relevance
 
     def sample_stop_listening(self):
-        min_prob = 0.001
+        min_prob = self.early_stop_min_prob
         k = self.early_stop_delta
         dissatisfaction = 5 - self.satisfaction
 
