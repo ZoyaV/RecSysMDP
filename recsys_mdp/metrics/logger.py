@@ -36,22 +36,27 @@ class Logger():
 
     def get_value(self, model, obs, item = None):
         if self.discrete:
-            observations_cuda = torch.from_numpy(obs).cpu()
+            observations = torch.from_numpy(obs)
             with torch.no_grad():
                 algo = model.__class__.__name__
-               # print(algo)
                 if "BC" in algo:
-                    predicted_rat = model.impl._imitator(observations_cuda.to(torch.float32)).cpu().detach().numpy()
+                    predicted_rat = model.impl._imitator(observations.to(torch.float32))
                 else:
-                    predicted_rat = model._impl._q_func(observations_cuda).cpu().detach().numpy()
-                predicted_rat = (predicted_rat - predicted_rat.min()) / (predicted_rat.max() - predicted_rat.min())
+                    predicted_rat = model._impl._q_func(observations)
+
+            predicted_rat = predicted_rat.cpu().numpy()
+            predicted_rat = (
+                    (predicted_rat - predicted_rat.min())
+                    / (predicted_rat.max() - predicted_rat.min())
+            )
         else:
-            predicted_rat = model.predict(obs)
+            predicted_rat = model.predict(obs).cpu().numpy()
+
         if item is None:
             return predicted_rat
         else:
-           # print(predicted_rat[0].shape)
             return predicted_rat[0][item]
+
     def static_log(self, model):
         if len(self.static_scorers) == 0:
             return {"none" : None}
