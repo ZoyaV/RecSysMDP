@@ -95,6 +95,7 @@ class NextItemExperiment:
         self.seed = seed
         self.rng = np.random.default_rng(seed)
         d3rlpy.seed(seed)
+        self.cuda_device = get_cuda_device(cuda_device)
 
         self.generation_phase = GenerationPhaseParameters(**generation_phase)
         self.learning_phase = LearningPhaseParameters(**learning_phase)
@@ -103,10 +104,10 @@ class NextItemExperiment:
         self.env = self.config.resolve_object(env)
         # TODO: call model.create_impl to init dimensions
         self.generation_model = self.config.resolve_object(
-            generation_model, n_actions=self.env.n_items, use_gpu=get_cuda_device(cuda_device)
+            generation_model, n_actions=self.env.n_items, use_gpu=self.cuda_device
         )
         self.eval_model = self.config.resolve_object(
-            eval_model, n_actions=self.env.n_items, use_gpu=get_cuda_device(cuda_device)
+            eval_model, n_actions=self.env.n_items, use_gpu=self.cuda_device
         )
         assert self.generation_model.get_action_type() == self.eval_model.get_action_type()
         self.discrete = (
@@ -243,7 +244,7 @@ class NextItemExperiment:
                 initial_item_embeddings=initial_item_embeddings,
                 **algo_settings['model_parameters']
             )
-            algo = init_algo(model, **algo_settings['general_parameters'])
+            algo = init_algo(model, use_gpu=self.cuda_device, **algo_settings['general_parameters'])
             self.model = algo
             self.learnable_model = True
 

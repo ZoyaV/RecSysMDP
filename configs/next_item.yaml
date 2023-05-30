@@ -98,7 +98,6 @@ zoya_settings:
     general_parameters:
       algo: DCQL
       batch_size: 1024
-      use_gpu: False
 
     model_parameters:
 #      use_als: False
