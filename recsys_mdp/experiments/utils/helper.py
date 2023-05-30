@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 from numpy.random import Generator
 
@@ -6,6 +8,49 @@ from recsys_mdp.simulator.user_state import USER_RESET_MODE_DISCONTINUE, USER_RE
 
 
 def generate_episode(
+        env, model, framestack, rng, logger, cold_start=False, user_id=None,
+        use_env_actions=False, log_sat=False, first_run=False
+):
+    orig_user_id = user_id
+    trajectory = []
+    N_BEST_ITEMS = 10
+    RANGE_SIZE= 15
+
+    user_id = env.reset(user_id=user_id)
+    # FIXME: obs keys
+    obs_keys = ['items', 'user']
+    obs = framestack.compile_observation(framestack.reset(user_id), keys=obs_keys)
+    item_id = 0
+    # episode generation
+    while True:
+        items_top = env.state.ranked_items(with_satiation=True, discrete=True)
+        if use_env_actions:
+            item_id = rng.choice(items_top[:RANGE_SIZE])
+        else:
+            item_id = model.predict(obs.reshape(1, -1))[0]
+
+        (continuous_relevance, discrete_relevance), terminated = env.step(item_id)
+        timestamp = env.timestamp
+        obs = framestack.compile_observation(
+            framestack.step(item_id, continuous_relevance, discrete_relevance), keys=obs_keys
+        )
+
+        trajectory.append((
+            timestamp,
+            user_id, item_id,
+            continuous_relevance, discrete_relevance,
+            terminated,
+            items_top[:N_BEST_ITEMS]
+        ))
+        if terminated:
+            break
+
+        if env.timestep % 4 == 0 and log_sat:
+            log_satiation(logger, env.state.satiation, orig_user_id)
+    return trajectory
+
+
+def generate_episode_old(
         env, model, framestack_size=10, user_id=None, log_sat=False, logger=None,
         get_best_for_start=True, use_best=False,
         rng: Generator = None
@@ -85,14 +130,14 @@ def generate_episode(
     return trajectory
 
 
-def eval_returns(env, model, user_id=None, logger=None, rng: Generator = None):
+def eval_returns(env, model, framestack, user_id=None, logger=None, rng: Generator = None):
     cont_returns, disc_returns, steps_hit_rate, coverages = [], [], [], []
     true_discrete_return = []
     episode_lenghts= []
     n_episodes = 20 if user_id is not None else 50
     for ep in range(20):
         trajectory = generate_episode(
-            env, model, user_id=user_id, log_sat=True, logger=logger, rng=rng
+            env, model, framestack=framestack, user_id=user_id, log_sat=True, logger=logger, rng=rng
         )
         episode_lenghts.append(len(trajectory))
         coverage = len({step[2] for step in trajectory})
@@ -116,7 +161,8 @@ def eval_returns(env, model, user_id=None, logger=None, rng: Generator = None):
 
 
 def eval_algo(
-        algo, logger, train_logger, env=None, looking_for=None, dataset_info=None, rng=None
+        algo, logger, train_logger, env=None, framestack=None,
+        looking_for=None, dataset_info=None, rng=None
 ):
     if env:
         env.hard_reset(mode=USER_RESET_MODE_INIT)
@@ -125,7 +171,7 @@ def eval_algo(
         looking_for.append(None)
         for i in looking_for:
             online_res[f"user {i}"] = eval_returns(
-                env, algo, user_id=i, logger=logger.wandb_logger, rng=rng
+                env, algo, framestack=framestack, user_id=i, logger=logger.wandb_logger, rng=rng
             )
         if dataset_info is not None:
             for i, name in enumerate(['mean', 'mean+', 'mean-', 'median']):

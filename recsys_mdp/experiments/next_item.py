@@ -14,10 +14,10 @@ from numpy.random import Generator
 
 from recsys_mdp.experiments.utils.algorithm_constuctor import init_model, init_algo
 from recsys_mdp.experiments.utils.cache import ExperimentCache
-from recsys_mdp.experiments.utils.helper import eval_algo
+from recsys_mdp.experiments.utils.helper import eval_algo, generate_episode
 from recsys_mdp.experiments.utils.mdp_constructor import (
     make_mdp, split_dataframe,
-    prepare_log_df, restore_log_df, cache_log_df
+    prepare_log_df
 )
 from recsys_mdp.experiments.utils.phases import (
     GenerationPhaseParameters,
@@ -323,7 +323,8 @@ class NextItemExperiment:
                 self.print_with_timestamp(f'Epoch: {epoch} | Total epoch: {total_epoch}')
                 eval_algo(
                     self.model, self.algo_test_logger,
-                    train_logger=self.algo_logger, env=self.env,
+                    train_logger=self.algo_logger,
+                    env=self.env, framestack=self.framestack,
                     looking_for=[0, 1, 6], dataset_info=dataset_info,
                     rng=self.rng
                 )
@@ -363,45 +364,3 @@ class NextItemExperiment:
         minimal_config = generation_phase | env_config | framestack
         minimal_config['seed'] = seed
         return minimal_config
-
-def generate_episode(
-        env, model, framestack, rng, logger, cold_start=False, user_id=None,
-        use_env_actions=False, log_sat=False, first_run=False
-):
-    orig_user_id = user_id
-    trajectory = []
-    N_BEST_ITEMS = 10
-    RANGE_SIZE= 15
-
-    user_id = env.reset(user_id=user_id)
-    # FIXME: obs keys
-    obs_keys = ['items', 'user']
-    obs = framestack.compile_observation(framestack.reset(user_id), keys=obs_keys)
-    item_id = 0
-    # episode generation
-    while True:
-        items_top = env.state.ranked_items(with_satiation=True, discrete=True)
-        if use_env_actions:
-            item_id = rng.choice(items_top[:RANGE_SIZE])
-        else:
-            item_id = model.predict(obs.reshape(1, -1))[0]
-
-        (continuous_relevance, discrete_relevance), terminated = env.step(item_id)
-        timestamp = env.timestamp
-        obs = framestack.compile_observation(
-            framestack.step(item_id, continuous_relevance, discrete_relevance), keys=obs_keys
-        )
-
-        trajectory.append((
-            timestamp,
-            user_id, item_id,
-            continuous_relevance, discrete_relevance,
-            terminated,
-            items_top[:N_BEST_ITEMS]
-        ))
-        if terminated:
-            break
-
-        if env.timestep % 4 == 0 and log_sat:
-            log_satiation(logger, env.state.satiation, orig_user_id)
-    return trajectory
