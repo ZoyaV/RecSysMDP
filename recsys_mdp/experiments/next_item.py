@@ -60,11 +60,15 @@ class NextItemExperiment:
     learning_phase: LearningPhaseParameters
     cache: ExperimentCache | None
 
+    env: NextItemEnvironment
+    generation_model: LearnableBase
+    eval_model: LearnableBase
+
     def __init__(
             self, config: TConfig, config_path: Path, seed: int,
             generation_phase: TConfig, learning_phase: TConfig,
+            env: TConfig, generation_model: TConfig, eval_model: TConfig,
             zoya_settings: TConfig,
-            model: TConfig, env: TConfig,
             log: bool, cuda_device: bool | int | None,
             project: str = None, wandb_init: TConfig = None,
             cache: TConfig = None,
@@ -95,13 +99,17 @@ class NextItemExperiment:
         self.learning_phase = LearningPhaseParameters(**learning_phase)
         self.zoya_settings = zoya_settings
 
-        self.env: NextItemEnvironment = self.config.resolve_object(
-            env, object_type_or_factory=NextItemEnvironment
+        self.env = self.config.resolve_object(env)
+        # TODO: call model.create_impl to init dimensions
+        self.generation_model = self.config.resolve_object(
+            generation_model, n_actions=self.env.n_items, use_gpu=get_cuda_device(cuda_device)
         )
-        self.model: LearnableBase = self.config.resolve_object(
-            model | dict(use_gpu=get_cuda_device(cuda_device)),
-            n_actions=self.env.n_items
+        self.eval_model = self.config.resolve_object(
+            eval_model, n_actions=self.env.n_items, use_gpu=get_cuda_device(cuda_device)
         )
+
+        self.model = self.generation_model
+
         self.learnable_model = False
         self.preparator = None
 

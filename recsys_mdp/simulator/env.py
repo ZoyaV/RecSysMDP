@@ -46,8 +46,10 @@ class NextItemEnvironment:
             ),
             object_type_or_factory=Embeddings
         )
+
+        user_state, _ = self.global_config.resolve_object_requirements(user_state)
         self.states = [
-            UserState(user_id, embeddings=self.embeddings, rng=self.rng, **user_state)
+            UserState(user_id=user_id, embeddings=self.embeddings, rng=self.rng, **user_state)
             for user_id in range(self.n_users)
         ]
 

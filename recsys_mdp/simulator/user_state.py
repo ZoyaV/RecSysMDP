@@ -39,7 +39,8 @@ class UserState:
     embeddings: Embeddings
 
     def __init__(
-            self, user_id: int, embeddings: Embeddings,
+            self, *,
+            user_id: int, embeddings: Embeddings,
             base_satiation: float,
             base_satiation_speed: float | tuple[float, float],
             satiation_drift: float,

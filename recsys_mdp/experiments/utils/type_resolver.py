@@ -9,8 +9,9 @@ class TypesResolver(LazyTypeResolver):
     def __init__(self):
         super().__init__()
         self.resolvers_by_prefix = [
-            ('env.embeddings.', _resolve_env_embeddings),
             ('model.', _resolve_model),
+            ('env', _resolve_env_related_types),
+            ('', _resolve_the_rest)
         ]
 
     def resolve(self, type_tag: str) -> TTypeOrFactory:
@@ -26,7 +27,17 @@ class TypesResolver(LazyTypeResolver):
         return resolved_type
 
 
-def _resolve_env_embeddings(type_tag: str):
+def _resolve_the_rest(type_tag: str):
+    pass
+
+
+def _resolve_env_related_types(type_tag: str):
+    if type_tag == 'env':
+        from recsys_mdp.simulator.env import NextItemEnvironment
+        return NextItemEnvironment
+    if type_tag == 'env.user_state':
+        from recsys_mdp.simulator.user_state import UserState
+        return UserState
     if type_tag == 'env.embeddings.random':
         from recsys_mdp.simulator.embeddings import RandomEmbeddings
         return RandomEmbeddings
