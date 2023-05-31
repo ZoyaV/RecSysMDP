@@ -43,9 +43,26 @@ framestack:
   size: 10
   empty_rating: [.6, 3]
 
+embeddings:
+  _type_: data.embeddings
+  init_with_als: true
+  size: 16
+
+hidden_state_encoder:
+#  embedding_dim: ???
+  hidden_dim: 256
+  memory_size: 10
+  feature_size: 512
+  #drr adrr
+  state_repr_name: full_history
+  freeze_emb: False
+  attention_hidden_size: 32
+  state_keys:
+    - user
+    - item
+#    - score
+
 mdp:
-  ratings_column: relevance_int
-  framestack_size: 10
   reward_function_name: ones_reward #relevance_based_reward #"ones_reward"
   action_function_name: next_item_action
   episode_splitter_name: interaction_interruption #full_user_interaction #"interaction_interruption"
@@ -61,58 +78,6 @@ eval_model:
 scoring:
   top_k: 10
   metrics: [ndcg, stat_hitrate, PC, ihitrate]
-  tresh: [0.7, 0.5, 0.9]
-  prediction_type: discrete
-
-init_embeddings_with_als: true
-hidden_state_encoder:
-#      use_als: False
-  embedding_dim: 16
-  hidden_dim: 256
-  memory_size: 10
-  feature_size: 512
-  #drr adrr
-  state_repr_name: full_history
-  freeze_emb: False
-  attention_hidden_size: 32
-  state_keys:
-    - user
-    - item
-#        - score
-
-zoya_settings:
-  top_k: 10
-  ratings_column: relevance_int
-  mdp_settings:
-    framestack_size: 10
-    reward_function_name: ones_reward #relevance_based_reward #"ones_reward"
-    action_function_name: next_item_action
-    episode_splitter_name: interaction_interruption #full_user_interaction #"interaction_interruption"
-
-  scorer:
-    metrics: [ndcg, stat_hitrate, PC, ihitrate]
-    tresh: [0.7, 0.5, 0.9]
-    prediction_type: discrete
-
-  algo_settings:
-    general_parameters:
-      algo: DCQL
-      batch_size: 1024
-
-    model_parameters:
-#      use_als: False
-      embedding_dim: 16
-      hidden_dim: 256
-      memory_size: 10
-      feature_size: 512
-      #drr adrr
-      state_repr_name: full_history
-      freeze_emb: False
-      attention_hidden_size: 32
-      state_keys:
-        - user
-        - item
-#        - score
 
 wandb_init: $_base.wandb_init
 cache:

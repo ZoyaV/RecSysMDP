@@ -10,15 +10,15 @@ from recsys_mdp.mdp.base import (
 )
 
 
-def prepare_log_df(log_df: pd.DataFrame, ratings_column: str = None) -> pd.DataFrame:
+def prepare_log_df(log_df: pd.DataFrame, column_for_rating: str = None) -> pd.DataFrame:
     # ensure correct column types
     log_df[TIMESTAMP_COL] = pd.to_datetime(log_df[TIMESTAMP_COL])
     log_df[USER_ID_COL] = log_df[USER_ID_COL].astype(int)
     log_df[ITEM_ID_COL] = log_df[ITEM_ID_COL].astype(int)
     log_df[RELEVANCE_INT_COL] = log_df[RELEVANCE_INT_COL].astype(int)
 
-    if ratings_column is not None:
-        log_df[RATING_COL] = log_df[ratings_column]
+    if column_for_rating is not None:
+        log_df[RATING_COL] = log_df[column_for_rating]
 
     # ensure correct time-based sorting
     log_df = log_df.sort_values(TIMESTAMP_COL)

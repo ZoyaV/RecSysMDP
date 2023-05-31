@@ -28,6 +28,9 @@ class TypesResolver(LazyTypeResolver):
 
 
 def _resolve_the_rest(type_tag: str):
+    if type_tag == 'data.embeddings':
+        from recsys_mdp.models.embeddings import OfflineEmbeddings
+        return OfflineEmbeddings
     pass
 
 

@@ -6,3 +6,7 @@ RELEVANCE_INT_COL = 'relevance_int'
 RATING_COL = 'rating'
 REWARD_COL = 'reward'
 TERMINATE_COL = 'terminate'
+
+
+def relevance_col_for_rating(discrete: bool):
+    return RELEVANCE_INT_COL if discrete else RELEVANCE_CONT_COL

@@ -6,9 +6,6 @@ from d3rlpy.models.encoders import EncoderFactory
 from d3rlpy.models.torch import Encoder, EncoderWithAction
 
 from recsys_mdp.mdp.utils import isnone
-from recsys_mdp.models.state_representation import (
-    StateReprModuleWithAttention, StateReprModule, FullHistory
-)
 
 
 DEFAULT_STATE_KEYS = ['user', 'item', 'score']
@@ -30,6 +27,7 @@ class ActorEncoder(nn.Module, Encoder):
         self.state_repr_name = state_repr_name
         self.state_keys = isnone(state_keys, DEFAULT_STATE_KEYS)
         if state_repr_name == 'drr':
+            from recsys_mdp.models.state_representation import StateReprModuleWithAttention
             self.state_repr = StateReprModuleWithAttention(
                 user_num, item_num, embedding_dim, memory_size, freeze_emb,
                 attention_hidden_size,
@@ -37,6 +35,7 @@ class ActorEncoder(nn.Module, Encoder):
                 initial_item_embeddings=initial_item_embeddings
             )
         elif state_repr_name == 'adrr':
+            from recsys_mdp.models.state_representation import StateReprModule
             self.state_repr = StateReprModule(
                 user_num, item_num, embedding_dim,
                 memory_size,freeze_emb,
@@ -44,6 +43,7 @@ class ActorEncoder(nn.Module, Encoder):
                 initial_item_embeddings=initial_item_embeddings
             )
         elif state_repr_name == 'full_history':
+            from recsys_mdp.models.state_representation import FullHistory
             self.state_repr = FullHistory(
                 user_num, item_num, embedding_dim,
                 memory_size, freeze_emb,

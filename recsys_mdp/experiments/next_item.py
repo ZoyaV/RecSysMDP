@@ -3,18 +3,18 @@ from __future__ import annotations
 import logging
 from itertools import count
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import d3rlpy
 import numpy as np
 import pandas as pd
 import structlog
 from d3rlpy.algos import AlgoBase
+from d3rlpy.models.encoders import EncoderFactory
 from numpy.random import Generator
 
 from recsys_mdp.experiments.utils.algorithm_constuctor import (
-    init_hidden_state_encoder, init_algo,
-    init_als_embeddings
+    init_hidden_state_encoder,
 )
 from recsys_mdp.experiments.utils.cache import ExperimentCache
 from recsys_mdp.experiments.utils.helper import eval_algo, generate_episode
@@ -30,7 +30,7 @@ from recsys_mdp.experiments.utils.scorers_constructor import init_logger
 from recsys_mdp.experiments.utils.type_resolver import TypesResolver
 from recsys_mdp.mdp.base import (
     TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
-    RELEVANCE_INT_COL, TERMINATE_COL
+    RELEVANCE_INT_COL, TERMINATE_COL, relevance_col_for_rating
 )
 from recsys_mdp.mdp.utils import to_d3rlpy_form_ND, isnone
 from recsys_mdp.simulator.env import (
@@ -55,33 +55,46 @@ class NextItemExperiment:
     init_time: float
     seed: int
     rng: Generator
+    cuda_device: int | bool
 
     generation_phase: GenerationPhaseParameters
     learning_phase: LearningPhaseParameters
     cache: ExperimentCache | None
 
     env: NextItemEnvironment
+    framestack: Framestack
+    embeddings: Any
+    hidden_state_encoder: EncoderFactory | TConfig
+
     generation_model: AlgoBase
-    eval_model: AlgoBase
+    eval_model: AlgoBase | TConfig
+
+    scoring: TConfig
+    mdp: Any
+
+    discrete: bool
+    column_for_rating: str
 
     def __init__(
-            self, config: TConfig, config_path: Path, seed: int,
+            self,
+            config: TConfig, config_path: Path, seed: int,
             generation_phase: TConfig, learning_phase: TConfig,
             env: TConfig, framestack: TConfig,
+            embeddings: TConfig, hidden_state_encoder: TConfig,
             generation_model: TConfig, eval_model: TConfig,
-            zoya_settings: TConfig,
+            mdp: TConfig, scoring: TConfig,
             log: bool, cuda_device: bool | int | None,
             project: str = None, wandb_init: TConfig = None,
             cache: TConfig = None,
             **_
     ):
-        self.init_time = timer()
-        self.print_with_timestamp('==> Init')
-
         self.config = GlobalConfig(
             config=config, config_path=config_path, type_resolver=TypesResolver()
         )
 
+        # LOGGING
+        self.init_time = timer()
+        self.print_with_timestamp('==> Init')
         self.logger = self.config.resolve_object(
             isnone(wandb_init, {}),
             object_type_or_factory=get_logger,
@@ -92,37 +105,40 @@ class NextItemExperiment:
             wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
         )
 
+        # MATH: RANDOM SEEDING, CUDA DEVICES
         self.seed = seed
         self.rng = np.random.default_rng(seed)
         d3rlpy.seed(seed)
         self.cuda_device = get_cuda_device(cuda_device)
 
+        # PHASES
         self.generation_phase = GenerationPhaseParameters(**generation_phase)
         self.learning_phase = LearningPhaseParameters(**learning_phase)
-        self.zoya_settings = zoya_settings
 
         self.env = self.config.resolve_object(env)
-        # TODO: call model.create_impl to init dimensions
+
         self.generation_model = self.config.resolve_object(
             generation_model, n_actions=self.env.n_items, use_gpu=self.cuda_device
         )
-        self.eval_model = self.config.resolve_object(
-            eval_model, n_actions=self.env.n_items, use_gpu=self.cuda_device
-        )
-        assert self.generation_model.get_action_type() == self.eval_model.get_action_type()
         self.discrete = (
-                self.generation_model.get_action_type() == d3rlpy.constants.ActionSpace.DISCRETE
+            self.generation_model.get_action_type() == d3rlpy.constants.ActionSpace.DISCRETE
         )
-
+        self.column_for_rating = relevance_col_for_rating(self.discrete)
         self.framestack = self.config.resolve_object(
             framestack | dict(discrete=self.discrete, empty_item=self.env.n_items),
             object_type_or_factory=Framestack,
         )
-        self.model = self.generation_model
+        self.embeddings = self.config.resolve_object(embeddings, size=self.framestack.size)
+        self.hidden_state_encoder = hidden_state_encoder
 
+        self.eval_model = eval_model
         self.learnable_model = False
-        self.preparator = None
 
+        self.scoring = scoring
+        self.mdp = mdp
+        self.mdp_preparator = None
+
+        # CACHING
         generation_minimal_config = self.generation_minimal_config(**self.config.config)
         self.cache = self.config.resolve_object(
             cache, object_type_or_factory=ExperimentCache,
@@ -134,18 +150,16 @@ class NextItemExperiment:
     def run(self):
         self.print_with_timestamp('==> Run')
         self.set_metrics()
-        total_epoch = 0
-        generation_epoch = 0
+        total_epoch = 1
+        generation_epoch = 1
 
         self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> generating')
-        dataset = self._generate_dataset(generation_epoch, **self.zoya_settings)
+        dataset = self.generate_dataset(generation_epoch)
         dataset_info = None
         # dataset_info = _get_df_info(dataset)
 
         self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> learning')
-        fitter = self._init_rl_setting(
-             dataset, **self.zoya_settings
-        )
+        fitter = self._init_rl_setting(dataset)
         total_epoch += self._learn_on_dataset(
             total_epoch, fitter, dataset_info
         )
@@ -154,12 +168,12 @@ class NextItemExperiment:
         if self.logger:
             self.logger.config.update(self.config.config, allow_val_change=True)
 
-    def _generate_dataset(self, generation_epoch: int, ratings_column: str = None, **_):
-        config = self.generation_phase
+    def generate_dataset(self, generation_epoch: int):
         log_df = self.cache.try_restore_log_df(generation_epoch, logger=self.print_with_timestamp)
 
         if log_df is None:
             self.print_with_timestamp("Generating dataset...")
+            config = self.generation_phase
             samples = []
             for episode in count():
                 trajectory = generate_episode(
@@ -178,51 +192,49 @@ class NextItemExperiment:
                 TERMINATE_COL, "best_from_env"
             ])
 
-        log_df = prepare_log_df(log_df, ratings_column=ratings_column)
+        log_df = prepare_log_df(log_df, column_for_rating=self.column_for_rating)
         self.cache.try_cache_log_df(
             log_df=log_df, generation_epoch=generation_epoch, logger=self.print_with_timestamp
         )
         return log_df
 
-    def _init_rl_setting(
-            self, log_df: pd.DataFrame,
-            top_k: int, ratings_column,
-            mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
-    ):
+    def _init_rl_setting(self, log_df: pd.DataFrame):
+        if not isinstance(self.eval_model, AlgoBase):
+            # init RL model
+            self.embeddings.fit(log_df)
+
+            from recsys_mdp.models.models import ActorEncoderFactory
+            self.hidden_state_encoder = ActorEncoderFactory(
+                user_num=self.env.n_users, item_num=self.env.n_items + 1,
+                initial_user_embeddings=self.embeddings.users,
+                initial_item_embeddings=self.embeddings.items,
+                embedding_dim=self.embeddings.size,
+                **self.hidden_state_encoder
+            )
+            self.eval_model = self.config.resolve_object(
+                self.eval_model | dict(
+                    encoder_factory=self.hidden_state_encoder,
+                    actor_encoder_factory=self.hidden_state_encoder,
+                    critic_encoder_factory=self.hidden_state_encoder,
+                ),
+                n_actions=self.env.n_items, use_gpu=self.cuda_device,
+            )
+
         train_log, test_log = split_dataframe(log_df, time_sorted=True)
 
-        mdp_prep, train_mdp, algo_logger = self.data2mdp(train_log, top_k, mdp_settings, scorer)
-        mdp_settings['reward_function_name'] = "relevance_based_reward"
-        mdp_settings['episode_splitter_name'] = "interaction_interruption"
-        _, _, algo_test_logger = self.data2mdp(test_log, top_k, mdp_settings, scorer)
+        mdp_prep, train_mdp, algo_logger = self.data2mdp(train_log, self.mdp, self.scoring)
+        test_mdp_config = self.mdp.copy()
+        test_mdp_config['reward_function_name'] = "relevance_based_reward"
+        test_mdp_config['episode_splitter_name'] = "interaction_interruption"
+        _, _, algo_test_logger = self.data2mdp(test_log, test_mdp_config, self.scoring)
 
-        self.preparator = mdp_prep
+        self.mdp_preparator = mdp_prep
         self.algo_logger = algo_logger
         self.algo_test_logger = algo_test_logger
 
-        # Init RL algorithm
-        if not self.learnable_model:
-            initial_user_embeddings, initial_item_embeddings = None, None
-            init_with_als = False
-            if init_with_als:
-                emb_dim = None
-                initial_user_embeddings, initial_item_embeddings = init_als_embeddings(
-                    data=log_df, emb_dim=emb_dim
-                )
-
-            model = init_hidden_state_encoder(
-                user_num=self.env.n_users, item_num=self.env.n_items + 1,
-                initial_user_embeddings=initial_user_embeddings,
-                initial_item_embeddings=initial_item_embeddings,
-                **algo_settings['model_parameters']
-            )
-            algo = init_algo(model, use_gpu=self.cuda_device, **algo_settings['general_parameters'])
-            self.model = algo
-            self.learnable_model = True
-
         # Run experiment
         config = self.learning_phase
-        fitter = self.model.fitter(
+        fitter = self.eval_model.fitter(
             dataset=train_mdp, n_epochs=config.epochs,
             verbose=False, save_metrics=False, show_progress=False,
         )
@@ -250,7 +262,7 @@ class NextItemExperiment:
             if epoch == 1 or epoch % self.learning_phase.eval_schedule == 0:
                 self.print_with_timestamp(f'Epoch: {epoch} | Total epoch: {total_epoch}')
                 eval_algo(
-                    self.model, self.algo_test_logger,
+                    self.eval_model, self.algo_test_logger,
                     train_logger=self.algo_logger,
                     env=self.env, framestack=self.framestack,
                     looking_for=[0, 1, 6], dataset_info=dataset_info,
@@ -259,16 +271,14 @@ class NextItemExperiment:
             total_epoch += 1
         return total_epoch
 
-    def data2mdp(self, log, top_k, mdp_settings, scorer):
+    def data2mdp(self, log_df, mdp_settings, scorer):
         # TODO: one preparator shuld transform different datasets?
-        preparator = make_mdp(data=log, **mdp_settings)
+        preparator = make_mdp(data=log_df, framestack_size=self.framestack.size, **mdp_settings)
         states, rewards, actions, terminations, state_tail = preparator.create_mdp()
-        mdp = to_d3rlpy_form_ND(
-            states, rewards, actions, terminations,
-            discrete=scorer['prediction_type'] == "discrete"
-        )
+        mdp = to_d3rlpy_form_ND(states, rewards, actions, terminations, discrete=self.discrete)
         algo_logger = init_logger(
-            mdp, state_tail, log, top_k, wandb_logger=self.logger, **scorer
+            test_mdp=mdp, state_tail=state_tail, data=log_df,
+            wandb_logger=self.logger, discrete=self.discrete, **scorer
         )
         return preparator, mdp, algo_logger
 

@@ -1,8 +1,35 @@
 import numpy as np
+import pandas as pd
+import torch
 from scipy.sparse import coo_matrix
 from implicit.als import AlternatingLeastSquares
 
 from recsys_mdp.mdp.base import USER_ID_COL, ITEM_ID_COL, RATING_COL
+
+
+# TODO: We can merge both together
+
+
+class AlsEmbeddings:
+    model: AlternatingLeastSquares
+
+    def __init__(self, embeddings_size, **model_config):
+        self.model = AlternatingLeastSquares(factors=embeddings_size, **model_config)
+
+    def fit_embeddings_on_dataframe(self, log_df: pd.DataFrame):
+        users = log_df[USER_ID_COL].values
+        items = log_df[ITEM_ID_COL].values
+        rating = log_df[RATING_COL].values
+
+        users, items = self.fit_embeddings(users, items, rating)
+        return torch.from_numpy(users), torch.from_numpy(items)
+
+    def fit_embeddings(self, users, items, ratings):
+        sparse_matrix = coo_matrix((ratings, (users, items)))
+        self.model.fit(sparse_matrix)
+        user_embeddings = self.model.user_factors
+        item_embeddings = self.model.item_factors
+        return user_embeddings, item_embeddings
 
 
 class ALSRecommender:
@@ -24,6 +51,7 @@ class ALSRecommender:
         self.item_mapping_inv = {v: k for k, v in self.item_mapping.items()}
 
         assert False, f'From Petr: check if I used a correct rating column below and remove assert'
+        # noinspection PyUnreachableCode
         # Создание матрицы взаимодействий
         interactions = coo_matrix((
             data[RATING_COL],

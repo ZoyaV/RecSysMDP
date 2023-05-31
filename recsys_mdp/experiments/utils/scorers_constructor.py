@@ -75,11 +75,11 @@ def init_scorers(state_tail, test_values, top_k, tresh, metrics, prediction_type
 
 
 def init_logger(
-        test_mdp, state_tail, data, top_k, tresh, metrics, prediction_type,
+        test_mdp, state_tail, data, top_k, metrics, discrete: bool,
         wandb_logger=None
 ):
     fake_mdp, users_interests = get_test_observation(
-        state_tail, data[ITEM_ID_COL].values, data[USER_ID_COL].values, prediction_type
+        state_tail, data[ITEM_ID_COL].values, data[USER_ID_COL].values, discrete
     )
 
     static = dict()
