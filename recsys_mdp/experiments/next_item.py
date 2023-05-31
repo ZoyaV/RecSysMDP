@@ -65,9 +65,11 @@ class NextItemExperiment:
     framestack: Framestack
     embeddings: Any
     hidden_state_encoder: EncoderFactory | None
+    hidden_state_encoder_config: TConfig
 
     generation_model: AlgoBase
     eval_model: AlgoBase | None
+    eval_model_config: TConfig
 
     scoring: TConfig
     mdp: Any
@@ -265,7 +267,7 @@ class NextItemExperiment:
     def _learn_on_dataset(self, total_epoch, fitter, dataset_info = None):
         for epoch, metrics in fitter:
             if epoch == 1 or epoch % self.learning_phase.eval_schedule == 0:
-                self.print_with_timestamp(f'Epoch: {epoch} | Total epoch: {total_epoch}')
+                self.print_with_timestamp(f'Epoch: {epoch} | Total epoch: {total_epoch} => eval...')
                 eval_algo(
                     self.eval_model, self.algo_test_logger,
                     eval_phase=self.learning_phase,
@@ -274,6 +276,7 @@ class NextItemExperiment:
                     dataset_info=dataset_info,
                     rng=self.rng
                 )
+                self.print_with_timestamp(f'Epoch: {epoch} | Total epoch: {total_epoch} => done')
             total_epoch += 1
         return total_epoch
 

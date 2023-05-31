@@ -46,6 +46,7 @@ env:
 framestack:
   size: 10
   empty_rating: [.37, 3]
+#  keys: # item|items...
 
 embeddings:
   _type_: data.embeddings
@@ -62,9 +63,9 @@ hidden_state_encoder:
   freeze_emb: False
   attention_hidden_size: 32
   state_keys:
-    - user
     - item
 #    - score
+    - user
 
 mdp:
   reward_function_name: ones_reward #relevance_based_reward #"ones_reward"

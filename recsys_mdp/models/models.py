@@ -8,7 +8,7 @@ from d3rlpy.models.torch import Encoder, EncoderWithAction
 from recsys_mdp.mdp.utils import isnone
 
 
-DEFAULT_STATE_KEYS = ['user', 'item', 'score']
+DEFAULT_STATE_KEYS = ['item', 'score', 'user']
 
 
 class ActorEncoder(nn.Module, Encoder):
