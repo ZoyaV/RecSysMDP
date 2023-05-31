@@ -39,9 +39,9 @@ def run_experiment(
     if args.wandb_entity:
         set_wandb_entity(args.wandb_entity)
 
-    if not args.multithread:
-        # prevent math parallelization as it usually only slows things down for us
-        set_single_threaded_math(with_torch=args.with_torch)
+    if args.math_threads < 1:
+        # manually set math parallelization as it usually only slows things down for us
+        set_number_cpu_threads_for_math(num_threads=args.math_threads,with_torch=args.with_torch)
 
     config_path = Path(args.config_filepath)
     config = read_config(config_path)
@@ -95,13 +95,13 @@ def run_single_run_experiment(run_params: RunParams) -> None:
         runner.run()
 
 
-def set_single_threaded_math(with_torch: bool = False):
-    os.environ['OMP_NUM_THREADS'] = '1'
-    os.environ['MKL_NUM_THREADS'] = '1'
+def set_number_cpu_threads_for_math(num_threads: int, with_torch: bool = False):
+    os.environ['OMP_NUM_THREADS'] = f'{num_threads}'
+    os.environ['MKL_NUM_THREADS'] = f'{num_threads}'
 
     if with_torch:
         import torch
-        torch.set_num_threads(1)
+        torch.set_num_threads(num_threads)
 
 
 def default_run_arg_parser() -> ArgumentParser:
@@ -118,6 +118,6 @@ def default_run_arg_parser() -> ArgumentParser:
     parser.add_argument('--sweep_id', dest='wandb_sweep_id', default=None)
     parser.add_argument('-n', '--n_sweep_agents', type=int, default=None)
 
-    parser.add_argument('--multithread', dest='multithread', action='store_true', default=False)
+    parser.add_argument('--math_threads', dest='math_threads', type=int, default=1)
     parser.add_argument('--with_torch', dest='with_torch', action='store_true', default=True)
     return parser
