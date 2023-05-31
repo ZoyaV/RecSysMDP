@@ -139,18 +139,16 @@ class NextItemExperiment:
 
         self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> generating')
         dataset = self._generate_dataset(generation_epoch, **self.zoya_settings)
+        dataset_info = None
+        # dataset_info = _get_df_info(dataset)
 
         self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> learning')
-        fitter, dataset_info = self._init_rl_setting(
+        fitter = self._init_rl_setting(
              dataset, **self.zoya_settings
         )
-        # TODO: need to be a parameter
-        dataset_info = None
-        for generation_epoch in range(self.generation_phase.epochs):
-            self.print_with_timestamp(f'Epoch: {generation_epoch} ==> learning')
-            total_epoch += self._learn_on_dataset(
-                total_epoch, fitter, dataset_info
-            )
+        total_epoch += self._learn_on_dataset(
+            total_epoch, fitter, dataset_info
+        )
 
         self.print_with_timestamp('<==')
         if self.logger:
@@ -191,32 +189,6 @@ class NextItemExperiment:
             top_k: int, ratings_column,
             mdp_settings: TConfig, scorer: TConfig, algo_settings: TConfig
     ):
-        mean_dreturn = np.mean(log_df[RELEVANCE_INT_COL])
-        median_dreturn = np.median(log_df[RELEVANCE_INT_COL])
-        std_dreturn = np.std(log_df[RELEVANCE_INT_COL])
-
-        mean_return = np.mean(log_df[RELEVANCE_CONT_COL])
-        median_return = np.median(log_df[RELEVANCE_CONT_COL])
-        std_return = np.std(log_df[RELEVANCE_CONT_COL])
-
-        dataset_info = [
-            {
-                "discrete_return": mean_dreturn,
-                "continuous_return": mean_return,
-            },
-            {
-                "discrete_return": mean_dreturn + std_dreturn,
-                "continuous_return": mean_return + std_return,
-            },
-            {
-                "discrete_return": mean_dreturn - std_dreturn,
-                "continuous_return": mean_return - std_return,
-            },
-            {
-                "discrete_return": median_dreturn,
-                "continuous_return": median_return
-            }]
-
         train_log, test_log = split_dataframe(log_df, time_sorted=True)
 
         mdp_prep, train_mdp, algo_logger = self.data2mdp(train_log, top_k, mdp_settings, scorer)
@@ -254,7 +226,7 @@ class NextItemExperiment:
             dataset=train_mdp, n_epochs=config.epochs,
             verbose=False, save_metrics=False, show_progress=False,
         )
-        return fitter, dataset_info
+        return fitter
 
     def _framestack_from_last_best(self, user_id, N=10):
         top_framestack = []
@@ -320,3 +292,33 @@ class NextItemExperiment:
         minimal_config = generation_phase | env_config | framestack
         minimal_config['seed'] = seed
         return minimal_config
+
+
+def _get_df_info(log_df):
+    mean_dreturn = np.mean(log_df[RELEVANCE_INT_COL])
+    median_dreturn = np.median(log_df[RELEVANCE_INT_COL])
+    std_dreturn = np.std(log_df[RELEVANCE_INT_COL])
+
+    mean_return = np.mean(log_df[RELEVANCE_CONT_COL])
+    median_return = np.median(log_df[RELEVANCE_CONT_COL])
+    std_return = np.std(log_df[RELEVANCE_CONT_COL])
+
+    dataset_info = [
+        {
+            "discrete_return": mean_dreturn,
+            "continuous_return": mean_return,
+        },
+        {
+            "discrete_return": mean_dreturn + std_dreturn,
+            "continuous_return": mean_return + std_return,
+        },
+        {
+            "discrete_return": mean_dreturn - std_dreturn,
+            "continuous_return": mean_return - std_return,
+        },
+        {
+            "discrete_return": median_dreturn,
+            "continuous_return": median_return
+        }
+    ]
+    return dataset_info
