@@ -39,9 +39,9 @@ def run_experiment(
     if args.wandb_entity:
         set_wandb_entity(args.wandb_entity)
 
-    if args.math_threads < 1:
+    if args.math_threads > 0:
         # manually set math parallelization as it usually only slows things down for us
-        set_number_cpu_threads_for_math(num_threads=args.math_threads,with_torch=args.with_torch)
+        set_number_cpu_threads_for_math(num_threads=args.math_threads, with_torch=args.with_torch)
 
     config_path = Path(args.config_filepath)
     config = read_config(config_path)
