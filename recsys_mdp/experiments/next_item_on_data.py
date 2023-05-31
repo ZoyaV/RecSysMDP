@@ -112,7 +112,7 @@ class NextItemOnDataExperiment:
             if epoch == 1 or epoch %  self.learning_phase.eval_schedule == 0:
                 eval_algo(
                     self.model, self.algo_test_logger, train_logger=self.algo_logger, env=None,
-                    looking_for=None, dataset_info = dataset_info
+                    dataset_info = dataset_info
                 )
             total_epoch += 1
         return total_epoch

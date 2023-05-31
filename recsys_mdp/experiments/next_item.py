@@ -64,10 +64,10 @@ class NextItemExperiment:
     env: NextItemEnvironment
     framestack: Framestack
     embeddings: Any
-    hidden_state_encoder: EncoderFactory | TConfig
+    hidden_state_encoder: EncoderFactory | None
 
     generation_model: AlgoBase
-    eval_model: AlgoBase | TConfig
+    eval_model: AlgoBase | None
 
     scoring: TConfig
     mdp: Any
@@ -129,10 +129,11 @@ class NextItemExperiment:
             object_type_or_factory=Framestack,
         )
         self.embeddings = self.config.resolve_object(embeddings, size=self.framestack.size)
-        self.hidden_state_encoder = hidden_state_encoder
+        self.hidden_state_encoder = None
+        self.hidden_state_encoder_config = hidden_state_encoder
 
-        self.eval_model = eval_model
-        self.learnable_model = False
+        self.eval_model = None
+        self.eval_model_config = eval_model
 
         self.scoring = scoring
         self.mdp = mdp
@@ -153,16 +154,20 @@ class NextItemExperiment:
         total_epoch = 1
         generation_epoch = 1
 
-        self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> generating')
-        dataset = self.generate_dataset(generation_epoch)
-        dataset_info = None
-        # dataset_info = _get_df_info(dataset)
+        for generation_epoch in range(1, self.generation_phase.epochs+1):
+            self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> generating')
+            dataset = self.generate_dataset(generation_epoch)
+            dataset_info = None
+            # dataset_info = _get_df_info(dataset)
 
-        self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> learning')
-        fitter = self._init_rl_setting(dataset)
-        total_epoch += self._learn_on_dataset(
-            total_epoch, fitter, dataset_info
-        )
+            self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> learning')
+            fitter = self._init_rl_setting(dataset)
+            total_epoch = self._learn_on_dataset(
+                total_epoch, fitter, dataset_info
+            )
+
+            if generation_epoch == 1 and self.generation_phase.switch_to_eval_model:
+                self.generation_model = self.eval_model
 
         self.print_with_timestamp('<==')
         if self.logger:
@@ -199,7 +204,7 @@ class NextItemExperiment:
         return log_df
 
     def _init_rl_setting(self, log_df: pd.DataFrame):
-        if not isinstance(self.eval_model, AlgoBase):
+        if self.eval_model is None or self.learning_phase.reinitialize:
             # init RL model
             self.embeddings.fit(log_df)
 
@@ -209,10 +214,10 @@ class NextItemExperiment:
                 initial_user_embeddings=self.embeddings.users,
                 initial_item_embeddings=self.embeddings.items,
                 embedding_dim=self.embeddings.size,
-                **self.hidden_state_encoder
+                **self.hidden_state_encoder_config
             )
             self.eval_model = self.config.resolve_object(
-                self.eval_model | dict(
+                self.eval_model_config | dict(
                     encoder_factory=self.hidden_state_encoder,
                     actor_encoder_factory=self.hidden_state_encoder,
                     critic_encoder_factory=self.hidden_state_encoder,
@@ -263,9 +268,10 @@ class NextItemExperiment:
                 self.print_with_timestamp(f'Epoch: {epoch} | Total epoch: {total_epoch}')
                 eval_algo(
                     self.eval_model, self.algo_test_logger,
+                    eval_phase=self.learning_phase,
                     train_logger=self.algo_logger,
                     env=self.env, framestack=self.framestack,
-                    looking_for=[0, 1, 6], dataset_info=dataset_info,
+                    dataset_info=dataset_info,
                     rng=self.rng
                 )
             total_epoch += 1

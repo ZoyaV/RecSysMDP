@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 from numpy.random import Generator
 
+from recsys_mdp.experiments.utils.phases import LearningPhaseParameters
 from recsys_mdp.metrics.logger import log_satiation
 from recsys_mdp.simulator.user_state import USER_RESET_MODE_DISCONTINUE, USER_RESET_MODE_INIT
 
@@ -50,14 +51,18 @@ def generate_episode(
     return trajectory
 
 
-def eval_returns(env, model, framestack, user_id=None, logger=None, rng: Generator = None):
+def eval_returns(
+        env, model, framestack, eval_phase: LearningPhaseParameters,
+        user_id=None, logger=None, rng: Generator = None
+):
     cont_returns, disc_returns, steps_hit_rate, coverages = [], [], [], []
     true_discrete_return = []
     episode_lenghts= []
-    n_episodes = 20 if user_id is not None else 50
-    for ep in range(20):
+    n_episodes = eval_phase.eval_episodes if user_id is not None else eval_phase.eval_episodes_all
+    for ep in range(n_episodes):
         trajectory = generate_episode(
-            env, model, framestack=framestack, user_id=user_id, log_sat=True, logger=logger, rng=rng
+            env, model, framestack=framestack, user_id=user_id, log_sat=True,
+            logger=logger, rng=rng
         )
         episode_lenghts.append(len(trajectory))
         coverage = len({step[2] for step in trajectory})
@@ -81,17 +86,18 @@ def eval_returns(env, model, framestack, user_id=None, logger=None, rng: Generat
 
 
 def eval_algo(
-        algo, logger, train_logger, env=None, framestack=None,
-        looking_for=None, dataset_info=None, rng=None
+        algo, logger, train_logger, eval_phase: LearningPhaseParameters,
+        env=None, framestack=None, dataset_info=None, rng=None,
 ):
     if env:
         env.hard_reset(mode=USER_RESET_MODE_INIT)
 
         online_res = dict()
-        looking_for.append(None)
+        looking_for = eval_phase.eval_users + [None]
         for i in looking_for:
             online_res[f"user {i}"] = eval_returns(
-                env, algo, framestack=framestack, user_id=i, logger=logger.wandb_logger, rng=rng
+                env, algo, framestack=framestack, eval_phase=eval_phase,
+                user_id=i, logger=logger.wandb_logger, rng=rng
             )
         if dataset_info is not None:
             for i, name in enumerate(['mean', 'mean+', 'mean-', 'median']):

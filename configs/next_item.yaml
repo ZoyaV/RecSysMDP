@@ -9,20 +9,24 @@ seed: 42
 cuda_device: ...
 
 generation_phase:
-  epochs: 1
+  epochs: 2
   episodes_per_epoch: 3000
   samples_per_epoch: 10000
   use_cache: true
+  switch_to_eval_model: true
 
 learning_phase:
   epochs: 250
   eval_schedule: 5
-  eval_episodes: 20
+  eval_episodes: 10
+  eval_episodes_all: 40
+  eval_users: [0, 1, 2]
+  reinitialize: true
 
 env:
   _base_: $_base.env
   n_users: 100
-  n_items: 1000
+  n_items: 200
   max_episode_len: [120, 50]
   embeddings:
     n_dims: 8
@@ -31,7 +35,7 @@ env:
   user_state:
     _base_: $_base.user_states.default
     base_satiation_speed: [0.1, .4]
-    satiation_drift: .2
+    satiation_drift: 1.0
     relevance_boosting: [0.2, 4.0]
     discrete_actions:
       - [0.2, 0.08]
@@ -41,11 +45,11 @@ env:
 
 framestack:
   size: 10
-  empty_rating: [.6, 3]
+  empty_rating: [.37, 3]
 
 embeddings:
   _type_: data.embeddings
-  init_with_als: true
+  init_with_als: false
   size: 16
 
 hidden_state_encoder:
