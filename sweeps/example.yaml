@@ -8,7 +8,7 @@ parameters:
   # Keep seeds presented every time and keep them on top
   # I recommend just uncommenting the needed number of seeds to use
   seed.:
-    values: [40, 41, 42] #, 45, 46] #, 47, 48, 49] #, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
+    values: [40, 41, 42] # 43, 44, 45, 46] #, 47, 48, 49] #, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
 
   # Then you can optionally overwrite some attributes with
   # non-usual values or instead to "freeze" frequently changed
