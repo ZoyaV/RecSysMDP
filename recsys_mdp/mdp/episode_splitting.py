@@ -8,7 +8,7 @@ import pandas as pd
 from recsys_mdp.mdp.base import TERMINATE_COL, TIMESTAMP_COL
 
 
-def split_by_time(user_log: pd.DataFrame, threshold_minutes: int = 20):
+def by_pause(user_log: pd.DataFrame, threshold_minutes: int = 20):
     """
     Divides the user's log into separate episodes where the pause duration
     between two consecutive interactions in an episode is under the passed threshold.
@@ -30,7 +30,7 @@ def split_by_time(user_log: pd.DataFrame, threshold_minutes: int = 20):
     )
 
 
-def split_by_user(user_log: pd.DataFrame):
+def by_user(user_log: pd.DataFrame):
     """
     Divides story by episodes - entire user story = 1 episode
 
@@ -42,7 +42,7 @@ def split_by_user(user_log: pd.DataFrame):
     )
 
 
-def split_by_generated_episodes(user_log: pd.DataFrame):
+def by_terminate(user_log: pd.DataFrame):
     """Divides story into episodes as they were originally generated."""
     if TERMINATE_COL not in user_log.columns:
         # no split

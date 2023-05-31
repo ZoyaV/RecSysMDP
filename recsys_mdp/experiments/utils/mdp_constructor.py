@@ -85,62 +85,57 @@ def split_dataframe(df: pd.DataFrame, split_ratio: float = .8, time_sorted: bool
     return df[df[TIMESTAMP_COL] <= split_timestamp], df[df[TIMESTAMP_COL] > split_timestamp]
 
 
-def load_reward_function(func_name):
-    # Load reward function
-    if func_name == 'condition_reward':
-        from recsys_mdp.mdp.rewarding import condition_reward
-        return condition_reward
-    elif func_name == 'relevance_based_reward':
-        from recsys_mdp.mdp.rewarding import relevance_based_reward
-        return relevance_based_reward
-    elif func_name == 'monotony_reward':
-        from recsys_mdp.mdp.rewarding import monotony_reward
-        return monotony_reward
-    elif func_name == 'summary_reward':
-        from recsys_mdp.mdp.rewarding import summary_reward
-        return summary_reward
-    elif func_name == 'ones_reward':
-        from recsys_mdp.mdp.rewarding import ones_reward
-        return ones_reward
+def resolve_reward_function(reward):
+    if reward == 'irrelevant':
+        from recsys_mdp.mdp.rewarding import irrelevant
+        return irrelevant
+    elif reward == 'relevant':
+        from recsys_mdp.mdp.rewarding import relevant
+        return relevant
+    elif reward == 'one':
+        from recsys_mdp.mdp.rewarding import const_one
+        return const_one
+    elif reward == 'sparse_return':
+        from recsys_mdp.mdp.rewarding import sparse_return
+        return sparse_return
+    elif reward == 'sparse_length':
+        from recsys_mdp.mdp.rewarding import sparse_episode_length
+        return sparse_episode_length
     else:
-        raise ValueError(f'Unknown reward func name {func_name}')
+        raise ValueError(f'Unknown reward func name {reward}')
 
 
-def load_action_function(func_name):
+def resolve_action_function(action):
+    if action == 'item':
+        from recsys_mdp.mdp.acting import item
+        return item
+    elif action == 'continuous_rating':
+        from recsys_mdp.mdp.acting import continuous_rating
+        return continuous_rating
+    elif action == 'discrete_rating':
+        from recsys_mdp.mdp.acting import discrete_rating
+        return discrete_rating
+
+    else:
+        raise ValueError(f'Unknown action func name {action}')
+
+
+def load_episode_splitter(episode):
     # Load action function
-    if func_name == 'next_item_action':
-        from recsys_mdp.mdp.acting import next_item_action
-        return next_item_action
-    elif func_name == 'continuous_relevance_action':
-        from recsys_mdp.mdp.acting import continuous_relevance_action
-        return continuous_relevance_action
-    elif func_name == 'discrete_relevance_action':
-        from recsys_mdp.mdp.acting import discrete_relevance_action
-        return discrete_relevance_action
-
+    if episode == 'pause':
+        from recsys_mdp.mdp.episode_splitting import by_pause
+        return by_pause
+    elif episode == 'user':
+        from recsys_mdp.mdp.episode_splitting import by_user
+        return by_user
     else:
-        raise ValueError(f'Unknown action func name {func_name}')
+        raise ValueError(f'Unknown episode splitter name {episode}')
 
 
-def load_episode_splitter(splitter_name):
-    # Load action function
-    if splitter_name == 'interaction_interruption':
-        from recsys_mdp.mdp.episode_splitting import split_by_time
-        return split_by_time
-    elif splitter_name == 'full_user_interaction':
-        from recsys_mdp.mdp.episode_splitting import split_by_user
-        return split_by_user
-    else:
-        raise ValueError(f'Unknown episode splitter name {splitter_name}')
-
-
-def make_mdp(
-        data, framestack_size,
-        action_function_name, reward_function_name, episode_splitter_name
-):
-    reward_function = load_reward_function(reward_function_name)
-    action_function = load_action_function(action_function_name)
-    episode_splitter = load_episode_splitter(episode_splitter_name)
+def make_mdp(data, framestack_size, action, reward, episode):
+    reward_function = resolve_reward_function(reward)
+    action_function = resolve_action_function(action)
+    episode_splitter = load_episode_splitter(episode)
 
     from recsys_mdp.mdp.mdp_former import MDPFormer
     mdp_preparator_class = MDPFormer(

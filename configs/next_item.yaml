@@ -68,9 +68,9 @@ hidden_state_encoder:
     - user
 
 mdp:
-  reward_function_name: ones_reward #relevance_based_reward #"ones_reward"
-  action_function_name: next_item_action
-  episode_splitter_name: interaction_interruption #full_user_interaction #"interaction_interruption"
+  reward: one
+  action: item
+  episode: pause
 
 generation_model:
   _base_: $_base.models.discrete_random

@@ -231,8 +231,8 @@ class NextItemExperiment:
 
         mdp_prep, train_mdp, algo_logger = self.data2mdp(train_log, self.mdp, self.scoring)
         test_mdp_config = self.mdp.copy()
-        test_mdp_config['reward_function_name'] = "relevance_based_reward"
-        test_mdp_config['episode_splitter_name'] = "interaction_interruption"
+        test_mdp_config['reward'] = "relevant"
+        test_mdp_config['episode'] = "pause"
         _, _, algo_test_logger = self.data2mdp(test_log, test_mdp_config, self.scoring)
 
         self.mdp_preparator = mdp_prep
