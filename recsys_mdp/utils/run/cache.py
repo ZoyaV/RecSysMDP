@@ -2,21 +2,25 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from recsys_mdp.mdp.utils import isnone
+
 
 class CacheDirectory:
     root: Path
 
-    def __init__(self, cache_root: str, unique_id: str, keep_last_n_entries: int):
+    def __init__(self, cache_root: str, unique_id: str, keep_last_n_entries: int = None):
         cache_root = Path(cache_root)
-        self.root = cache_root / unique_id
+        cache_root.mkdir(parents=True, exist_ok=True)
 
+        # clean up old cache, while keeping only the last N
+        keep_last_n_entries = isnone(keep_last_n_entries, 1)
+        _clean_up_dir(cache_root, keep_last_n=keep_last_n_entries - 1)
+
+        self.root = cache_root / unique_id
         # ensure all dirs along the path are created
         self.root.mkdir(parents=True, exist_ok=True)
         # bump current cache folder modified time
         self.root.touch(exist_ok=True)
-
-        # clean up old cache, while keeping only the last N
-        _clean_up_dir(cache_root, keep_last_n=keep_last_n_entries)
 
 
 def _clean_up_dir(path: Path, keep_last_n: int = None):
