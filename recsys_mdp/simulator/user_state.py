@@ -34,6 +34,10 @@ class UserState:
     early_stop_min_prob: float
     early_stop_delta: float
     initial_satisfaction: float = 4
+    deterministic_early_stop: bool = False,
+
+    discrete_actions_distr: list[tuple[float, float]]
+    deterministic_actions: bool = False,
 
     relevance_boosting_k: tuple[float, float]
     metric: str
@@ -54,6 +58,8 @@ class UserState:
             relevance_boosting: tuple[float, float],
             boosting_softness: tuple[float, float],
             discrete_actions: list[tuple[float, float]],
+            deterministic_actions: bool = False,
+            deterministic_early_stop: bool = False,
             rng: Generator
     ):
         self.user_id = user_id
@@ -65,9 +71,11 @@ class UserState:
         self.item_repeat_penalty_power = item_repeat_penalty_power
         self.early_stop_min_prob = early_stop_min_prob
         self.early_stop_delta = early_stop_delta
+        self.deterministic_early_stop = deterministic_early_stop
         self.relevance_boosting_k = tuple(relevance_boosting)
         self.boosting_softness = tuple(boosting_softness)
         self.discrete_actions_distr = discrete_actions
+        self.deterministic_actions = deterministic_actions
         self.metric = similarity_metric
         self.embeddings = embeddings
 
@@ -123,13 +131,18 @@ class UserState:
         self.satisfaction = lin_sum(self.satisfaction, .9, discrete_relevance)
         return continuous_relevance, discrete_relevance
 
-    def sample_stop_listening(self):
+    def sample_stop_listening(self, timestep: int):
         min_prob = self.early_stop_min_prob
         k = self.early_stop_delta
         dissatisfaction = 5 - self.satisfaction
 
         # early stop increases with increasing speed based on dissatisfaction
         probability = min_prob + k * dissatisfaction * (dissatisfaction + 1) / 2
+
+        if self.deterministic_early_stop:
+            max_time_steps = (1 - probability) / probability
+            return timestep >= max_time_steps
+
         return self.rng.random() < probability
 
     def sample_satiation(self, seed: int) -> np.ndarray:
@@ -187,7 +200,11 @@ class UserState:
         return ranked_items
 
     def sample_discrete_response(self, relevance) -> int:
-        marks = np.array([self.rng.normal(*distr) for distr in self.discrete_actions_distr])
+        if self.deterministic_actions:
+            marks = np.array([center for center, std in self.discrete_actions_distr])
+        else:
+            marks = np.array([self.rng.normal(*distr) for distr in self.discrete_actions_distr])
+
         return 2 + np.argmin(np.abs(marks - relevance))
 
     def relevance_boosting(self, item_to_cluster_relevance: np.ndarray = None) -> float:

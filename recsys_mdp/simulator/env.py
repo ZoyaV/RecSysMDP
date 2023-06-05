@@ -93,7 +93,7 @@ class NextItemEnvironment:
         self.timestamp += track_random_duration(self.rng)
 
         terminated = self.timestep >= self.current_max_episode_len
-        terminated |= self.state.sample_stop_listening()
+        terminated |= self.state.sample_stop_listening(self.timestep)
 
         return relevance, terminated
 

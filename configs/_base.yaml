@@ -31,6 +31,8 @@ user_states:
       - [0.37, 0.1]
       - [0.58, 0.03]
       - [0.75, 0.05]
+    deterministic_actions: False
+    deterministic_early_stop: False
 
 models:
   random:
