@@ -5,6 +5,7 @@ RELEVANCE_CONT_COL = 'relevance_cont'
 RELEVANCE_INT_COL = 'relevance_int'
 RATING_COL = 'rating'
 REWARD_COL = 'reward'
+TRUNCATED_COL = 'truncated'
 TERMINATE_COL = 'terminate'
 
 

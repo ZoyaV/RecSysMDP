@@ -1,86 +1,78 @@
 import torch
 import torch.nn as nn
-from torch.nn.functional import softmax
+
+
+class CategoricalEncoder(nn.Module):
+    def __init__(
+            self, n_elements: int, n_dims: int,
+            learn: bool = True, initial_embeddings: torch.Tensor = None
+    ):
+        super().__init__()
+        self.output_dim = n_dims
+
+        assert initial_embeddings is not None or learn, 'Cannot freeze undefined embeddings'
+        self.net = nn.Embedding(
+            n_elements + 1, self.output_dim,
+            # dummy element — we use an additional last element
+            padding_idx=n_elements,
+            _weight=initial_embeddings,
+            _freeze=not learn,
+        )
+
+    def forward(self, ids: torch.Tensor):
+        if ids.dtype != torch.long:
+            ids = ids.long()
+        print(f'{ids.dim()=}')
+        print(f'{ids=}')
+        return self.net(ids)
 
 
 class StateReprModuleWithAttention(nn.Module):
     def __init__(
             self,
-            user_num,
-            item_num,
             embedding_dim,
             memory_size,
-            freeze_emb,
             attention_hidden_size,
-            initial_user_embeddings=None,
-            initial_item_embeddings=None
     ):
         super().__init__()
-        assert (initial_user_embeddings is None) == (initial_item_embeddings is None)
-        self.initial_user_embeddings = initial_user_embeddings
-        self.initial_item_embeddings = initial_item_embeddings
-
-        self.freeze_emb = freeze_emb
-
-        self.user_embeddings = nn.Embedding(user_num, embedding_dim)
-        self.item_embeddings = nn.Embedding(
-            item_num + 1, embedding_dim, padding_idx=int(item_num)
-        )
-        self.drr_ave = torch.nn.Conv1d(
+        self.drr_ave = nn.Conv1d(
             in_channels=memory_size, out_channels=1, kernel_size=1
         )
-        self.attention_net = nn.Sequential(
+        self.attention = nn.Sequential(
             nn.Linear(embedding_dim * 2, attention_hidden_size),
             nn.ReLU(),
             nn.Linear(attention_hidden_size, 1),
+            nn.Softmax(dim=-1)
         )
+        self.output_dim = ...
         self.initialize()
 
     def initialize(self):
-        """weight init"""
-        nn.init.normal_(self.user_embeddings.weight, std=0.01)
-        self.item_embeddings.weight.data[-1].zero_()
-        nn.init.normal_(self.item_embeddings.weight, std=0.01)
         nn.init.uniform_(self.drr_ave.weight)
         self.drr_ave.bias.data.zero_()
-
-        if self.initial_item_embeddings is not None:
-            self.item_embeddings.weight.data.copy_(self.initial_item_embeddings)
-            self.user_embeddings.weight.data.copy_(self.initial_user_embeddings)
-
-        if self.freeze_emb:
-            self.user_embeddings.weight.requires_grad = False
-            self.item_embeddings.weight.requires_grad = False
 
     @property
     def out_embeddings(self):
         return 3
 
-    def forward(self, user, memory):
-        """
-        :param user: user batch
-        :param memory: memory batch
-        :return: vector of dimension 3 * embedding_dim
-        """
-        user_embedding = self.user_embeddings(user.long())
-        item_embeddings = self.item_embeddings(memory.long())
+    def forward(self, user_id, item_ids):
+        user, items = self.observation_encoder(user_id=user_id, item_ids=item_ids)
 
         # Compute attention weights
-        attention_input = torch.cat(
-            [user_embedding.unsqueeze(1).expand_as(item_embeddings),
-             item_embeddings], dim=-1)
-        attention_scores = self.attention_net(attention_input)
-        attention_weights = softmax(attention_scores, dim=1)
+        attention = self.attention(torch.cat([user, items], dim=-1))
 
         # Compute weighted average of item embeddings
-        weighted_item_embeddings = item_embeddings * attention_weights
+        attended_items = items * attention
 
         # Compute average DRR values for each item
-        drr_ave = self.drr_ave(weighted_item_embeddings).squeeze(1)
+        drr_ave = self.drr_ave(attended_items).squeeze(1)
+
         # print(drr_ave.shape)
         # Concatenate user embedding, weighted item embeddings, and DRR values
         state = torch.cat(
-            [user_embedding, user_embedding * drr_ave, drr_ave], dim=-1)
+            [user, user * drr_ave, drr_ave],
+            dim=-1
+        )
         return state
 
 
@@ -123,22 +115,8 @@ class StateReprModule(nn.Module):
 
     def initialize(self):
         """weight init"""
-        nn.init.normal_(self.user_embeddings.weight, std=0.01)
-        self.item_embeddings.weight.data[-1].zero_()
-
-        nn.init.normal_(self.item_embeddings.weight, std=0.01)
         nn.init.uniform_(self.drr_ave.weight)
-
         self.drr_ave.bias.data.zero_()
-
-        if self.initial_item_embeddings is not None:
-            self.item_embeddings.weight.data.copy_(self.initial_item_embeddings)
-            self.user_embeddings.weight.data.copy_(self.initial_user_embeddings)
-
-        if self.freeze_emb:
-            self.item_embeddings.weight.requires_grad = False
-            self.user_embeddings.weight.requires_grad = False
-
     @property
     def out_embeddings(self):
         return 3
@@ -159,102 +137,18 @@ class StateReprModule(nn.Module):
         )
 
 
-class FullHistory(nn.Module):
+class ConcatState(nn.Module):
     """
     Compute state for RL environment. Based on `DRR paper
     <https://arxiv.org/pdf/1810.12027.pdf>`_
 
-    Computes State is a concatenation of user embedding,
-    weighted average pooling of `memory_size` latest relevant items
-    and their pairwise product.
+    Computes state as a plain concatenation of user embedding and previous interactions.
     """
 
-    def __init__(
-            self,
-            user_num,
-            item_num,
-            embedding_dim,
-            memory_size,
-            freeze_emb,
-            state_keys,
-            initial_user_embeddings = None,
-            initial_item_embeddings = None,
-    ):
+    def __init__(self):
         super().__init__()
 
-        self.memory_size = memory_size
-        assert (initial_user_embeddings is None) == (initial_item_embeddings is None)
-        self.initial_user_embeddings = initial_user_embeddings
-        self.initial_item_embeddings = initial_item_embeddings
-        self.freeze_emb = freeze_emb
-        self.state_keys = state_keys
-
-        print(f'State keys: {self.state_keys}')
-
-        self.user_embeddings = nn.Embedding(user_num, embedding_dim)
-        self.item_embeddings = nn.Embedding(
-            item_num + 1, embedding_dim, padding_idx=int(item_num)
-        )
-        #TODO: co-style, make size of score emb flexible
-        self.score_embeddings = nn.Embedding(
-            6, 1
-        )
-        self.drr_ave = torch.nn.Conv1d(
-            in_channels=memory_size, out_channels=1, kernel_size=1
-        )
-
-        self.initialize()
-
-    @property
-    def out_embeddings(self):
-        if 'user' in self.state_keys:
-            return self.memory_size + 1
-        else:
-            return self.memory_size
-
-    def initialize(self):
-        """weight init"""
-        nn.init.normal_(self.user_embeddings.weight, std=0.01)
-        self.item_embeddings.weight.data[-1].zero_()
-
-        nn.init.normal_(self.item_embeddings.weight, std=0.01)
-        nn.init.uniform_(self.drr_ave.weight)
-
-        self.drr_ave.bias.data.zero_()
-
-        if self.initial_item_embeddings is not None:
-            self.item_embeddings.weight.data.copy_(self.initial_item_embeddings)
-            self.user_embeddings.weight.data.copy_(self.initial_user_embeddings)
-
-        if self.freeze_emb:
-            self.item_embeddings.weight.requires_grad = False
-            self.user_embeddings.weight.requires_grad = False
-
-    def forward(self, user, memory, scorers = None):
-        """
-        :param user: user batch
-        :param memory: memory batch
-        :return: vector of dimension 3 * embedding_dim
-        """
-        if 'item' not in self.state_keys:
-            raise Exception("Memory is a required parameter!")
-        item_embeddings = self.item_embeddings(memory.long())
-
-        if 'score' in self.state_keys:
-            scorers_embeddings = scorers/5
-            # item_embeddings = item_embeddings * scorers_embeddings
-
-        if 'user' in self.state_keys:
-            user_embedding = self.user_embeddings(user.long())[:,None,:]
-            item_embeddings = torch.cat((item_embeddings, user_embedding), axis = 1)
-
-        batch, i, j = item_embeddings.shape
-        out =  item_embeddings.reshape(-1, i * j)
-        if 'score' in self.state_keys:
-            # TODO: co-style with score shape
-            batch, i = scorers_embeddings.shape
-            j = 1
-            # print(batch, i, j)
-            score = scorers_embeddings.reshape(batch, i * j)
-            out = torch.cat((out, score), axis = 1)
-        return out
+    # noinspection PyMethodMayBeStatic
+    def forward(self, user: torch.Tensor, interaction_history: torch.Tensor):
+        interaction_history = interaction_history.flatten(start_dim=1)
+        return torch.cat([user, interaction_history], dim=1)

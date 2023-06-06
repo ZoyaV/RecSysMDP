@@ -19,6 +19,8 @@ def prepare_log_df(log_df: pd.DataFrame, column_for_rating: str = None) -> pd.Da
 
     if column_for_rating is not None:
         log_df[RATING_COL] = log_df[column_for_rating]
+    else:
+        assert RATING_COL in log_df.columns
 
     # ensure correct time-based sorting
     log_df = log_df.sort_values(TIMESTAMP_COL)

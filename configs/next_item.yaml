@@ -27,6 +27,7 @@ env:
   _base_: $_base.env
   n_users: 100
   n_items: 200
+  max_rating: 5
   max_episode_len: [120, 50]
   embeddings:
     n_dims: 8
@@ -42,30 +43,30 @@ env:
       - [0.37, 0.1]
       - [0.58, 0.03]
       - [0.75, 0.05]
+  dummy:
+    item_id: ???
+    rating: [.37, 3]
 
 framestack:
   size: 10
-  empty_rating: [.37, 3]
-#  keys: # item|items...
+  keys:
+    - user_id
+    - item_ids
+    - ratings
 
 embeddings:
   _type_: data.embeddings
-  init_with_als: false
-  size: 16
+  n_dims: 16
+  n_users: ???
+  n_items: ???
+  init_with_als: True
+  learn: True
 
-hidden_state_encoder:
-#  embedding_dim: ???
+state_encoder:
+  output_dim: 512
   hidden_dim: 256
-  memory_size: 10
-  feature_size: 512
-  #drr adrr
-  state_repr_name: full_history
-  freeze_emb: False
-  attention_hidden_size: 32
-  state_keys:
-    - item
-#    - score
-    - user
+  state_encoding_method: concat
+  attention_hidden_dim: 32
 
 mdp:
   reward: one

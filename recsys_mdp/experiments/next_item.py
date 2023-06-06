@@ -13,9 +13,6 @@ from d3rlpy.algos import AlgoBase
 from d3rlpy.models.encoders import EncoderFactory
 from numpy.random import Generator
 
-from recsys_mdp.experiments.utils.algorithm_constuctor import (
-    init_hidden_state_encoder,
-)
 from recsys_mdp.experiments.utils.cache import ExperimentCache
 from recsys_mdp.experiments.utils.helper import eval_algo, generate_episode
 from recsys_mdp.experiments.utils.mdp_constructor import (
@@ -29,10 +26,11 @@ from recsys_mdp.experiments.utils.phases import (
 from recsys_mdp.experiments.utils.scorers_constructor import init_logger
 from recsys_mdp.experiments.utils.type_resolver import TypesResolver
 from recsys_mdp.mdp.base import (
-    TIMESTAMP_COL, USER_ID_COL, ITEM_ID_COL, RELEVANCE_CONT_COL,
-    RELEVANCE_INT_COL, TERMINATE_COL, relevance_col_for_rating
+    RELEVANCE_CONT_COL,
+    RELEVANCE_INT_COL, USER_ID_COL, ITEM_ID_COL, RATING_COL
 )
 from recsys_mdp.mdp.utils import to_d3rlpy_form_ND, isnone
+from recsys_mdp.models.models import ActorEncoderFactory
 from recsys_mdp.simulator.env import (
     NextItemEnvironment
 )
@@ -65,7 +63,7 @@ class NextItemExperiment:
     framestack: Framestack
     embeddings: Any
     hidden_state_encoder: EncoderFactory | None
-    hidden_state_encoder_config: TConfig
+    state_encoder: TConfig
 
     generation_model: AlgoBase
     eval_model: AlgoBase | None
@@ -82,7 +80,7 @@ class NextItemExperiment:
             config: TConfig, config_path: Path, seed: int,
             generation_phase: TConfig, learning_phase: TConfig,
             env: TConfig, framestack: TConfig,
-            embeddings: TConfig, hidden_state_encoder: TConfig,
+            embeddings: TConfig, state_encoder: TConfig,
             generation_model: TConfig, eval_model: TConfig,
             mdp: TConfig, scoring: TConfig,
             log: bool, cuda_device: bool | int | None,
@@ -118,21 +116,21 @@ class NextItemExperiment:
         self.learning_phase = LearningPhaseParameters(**learning_phase)
 
         self.env = self.config.resolve_object(env)
-
         self.generation_model = self.config.resolve_object(
             generation_model, n_actions=self.env.n_items, use_gpu=self.cuda_device
         )
         self.discrete = (
             self.generation_model.get_action_type() == d3rlpy.constants.ActionSpace.DISCRETE
         )
-        self.column_for_rating = relevance_col_for_rating(self.discrete)
-        self.framestack = self.config.resolve_object(
-            framestack | dict(discrete=self.discrete, empty_item=self.env.n_items),
-            object_type_or_factory=Framestack,
+        self.env.set_rating_type(discrete=self.discrete)
+
+        self.framestack = self.config.resolve_object(framestack, object_type_or_factory=Framestack)
+        self.embeddings = self.config.resolve_object(
+            embeddings, n_users=self.env.n_users, n_items=self.env.n_items
         )
-        self.embeddings = self.config.resolve_object(embeddings, size=self.framestack.size)
-        self.hidden_state_encoder = None
-        self.hidden_state_encoder_config = hidden_state_encoder
+        self.state_encoder = state_encoder
+
+        self.generation_model.create_impl(self.framestack.shape, self.env.n_items)
 
         self.eval_model = None
         self.eval_model_config = eval_model
@@ -154,7 +152,6 @@ class NextItemExperiment:
         self.print_with_timestamp('==> Run')
         self.set_metrics()
         total_epoch = 1
-        generation_epoch = 1
 
         for generation_epoch in range(1, self.generation_phase.epochs+1):
             self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> generating')
@@ -185,21 +182,14 @@ class NextItemExperiment:
             for episode in count():
                 trajectory = generate_episode(
                     env=self.env, model=self.generation_model, framestack=self.framestack,
-                    rng=self.rng, logger=self.logger,
-                    first_run=True, use_env_actions=True
                 )
                 samples.extend(trajectory)
                 if episode >= config.episodes_per_epoch or len(samples) >= config.samples_per_epoch:
                     break
 
-            log_df = pd.DataFrame(samples, columns=[
-                TIMESTAMP_COL,
-                USER_ID_COL, ITEM_ID_COL,
-                RELEVANCE_CONT_COL, RELEVANCE_INT_COL,
-                TERMINATE_COL, "best_from_env"
-            ])
+            log_df = pd.DataFrame(samples)
 
-        log_df = prepare_log_df(log_df, column_for_rating=self.column_for_rating)
+        log_df = prepare_log_df(log_df)
         self.cache.try_cache_log_df(
             log_df=log_df, generation_epoch=generation_epoch, logger=self.print_with_timestamp
         )
@@ -207,25 +197,7 @@ class NextItemExperiment:
 
     def _init_rl_setting(self, log_df: pd.DataFrame):
         if self.eval_model is None or self.learning_phase.reinitialize:
-            # init RL model
-            self.embeddings.fit(log_df)
-
-            from recsys_mdp.models.models import ActorEncoderFactory
-            self.hidden_state_encoder = ActorEncoderFactory(
-                user_num=self.env.n_users, item_num=self.env.n_items + 1,
-                initial_user_embeddings=self.embeddings.users,
-                initial_item_embeddings=self.embeddings.items,
-                embedding_dim=self.embeddings.size,
-                **self.hidden_state_encoder_config
-            )
-            self.eval_model = self.config.resolve_object(
-                self.eval_model_config | dict(
-                    encoder_factory=self.hidden_state_encoder,
-                    actor_encoder_factory=self.hidden_state_encoder,
-                    critic_encoder_factory=self.hidden_state_encoder,
-                ),
-                n_actions=self.env.n_items, use_gpu=self.cuda_device,
-            )
+            self.initialize_eval_model(log_df)
 
         train_log, test_log = split_dataframe(log_df, time_sorted=True)
 
@@ -246,23 +218,6 @@ class NextItemExperiment:
             verbose=False, save_metrics=False, show_progress=False,
         )
         return fitter
-
-    def _framestack_from_last_best(self, user_id, N=10):
-        top_framestack = []
-        framestack_size = self.zoya_settings['mdp_settings']['framestack_size']
-        for i in range(framestack_size):
-            items_top = self.env.state.ranked_items(with_satiation=True, discrete=True)
-            item_id = self.rng.choice(items_top[:N])
-            top_framestack.append(item_id)
-            _, _ = self.env.step(item_id)
-        # add scores as all is best
-        obs = top_framestack + [5] * framestack_size + [user_id]
-        return obs
-
-    def _framestack_random_act(self, user_id):
-        framestack_size = self.zoya_settings['mdp_settings']['framestack_size']
-        obs = self.rng.integers(0, self.env.n_items, framestack_size).tolist() + [user_id]
-        return obs
 
     def _learn_on_dataset(self, total_epoch, fitter, dataset_info = None):
         for epoch, metrics in fitter:
@@ -291,15 +246,45 @@ class NextItemExperiment:
         )
         return preparator, mdp, algo_logger
 
-    def print_with_timestamp(self, *args):
-        print_with_timestamp(self.init_time, *args)
+    def initialize_eval_model(self, log_df: pd.DataFrame):
+        self.embeddings.fit(log_df)
+        observation_components = self.get_observation_components()
+        hidden_state_encoder = ActorEncoderFactory(
+            observation_components=observation_components,
+            **self.state_encoder
+        )
+        self.eval_model = self.config.resolve_object(
+            self.eval_model_config | dict(
+                encoder_factory=hidden_state_encoder,
+                actor_encoder_factory=hidden_state_encoder,
+                critic_encoder_factory=hidden_state_encoder,
+            ),
+            n_actions=self.env.n_items, use_gpu=self.cuda_device,
+        )
 
-    def set_metrics(self):
-        if not self.logger:
-            return
+    def get_observation_components(self):
+        from recsys_mdp.models.models import ObservationComponent
+        from recsys_mdp.models.state_representation import CategoricalEncoder
 
-        self.logger.define_metric('epoch')
-        self.logger.define_metric('mae', step_metric='epoch')
+        result = {}
+        for component, indices_range in self.framestack.components.items():
+            params = dict(name=component, indices_range=indices_range)
+            encoder = None
+            if component == USER_ID_COL:
+                encoder = CategoricalEncoder(
+                    n_elements=self.env.n_users, n_dims=self.embeddings.n_dims,
+                    learn=self.embeddings.learn, initial_embeddings=self.embeddings.users
+                )
+            elif component == ITEM_ID_COL:
+                encoder = CategoricalEncoder(
+                    n_elements=self.env.n_items, n_dims=self.embeddings.n_dims,
+                    learn=self.embeddings.learn, initial_embeddings=self.embeddings.items
+                )
+            elif component == RATING_COL and self.discrete:
+                encoder = CategoricalEncoder(n_elements=self.env.n_ratings, n_dims=3)
+
+            result[component] = ObservationComponent(encoder=encoder, **params)
+        return result
 
     def generation_minimal_config(self, seed, env, generation_phase, framestack, **_):
         env_config, _ = self.config.resolve_object_requirements(
@@ -311,6 +296,16 @@ class NextItemExperiment:
         minimal_config = generation_phase | env_config | framestack
         minimal_config['seed'] = seed
         return minimal_config
+
+    def set_metrics(self):
+        if not self.logger:
+            return
+
+        self.logger.define_metric('epoch')
+        self.logger.define_metric('mae', step_metric='epoch')
+
+    def print_with_timestamp(self, *args):
+        print_with_timestamp(self.init_time, *args)
 
 
 def _get_df_info(log_df):

@@ -13,8 +13,9 @@ from recsys_mdp.mdp.base import USER_ID_COL, ITEM_ID_COL, RATING_COL
 class AlsEmbeddings:
     model: AlternatingLeastSquares
 
-    def __init__(self, embeddings_size, **model_config):
-        self.model = AlternatingLeastSquares(factors=embeddings_size, **model_config)
+    def __init__(self, n_dims: int, n_users: int, n_items: int, **model_config):
+        self.model = AlternatingLeastSquares(factors=n_dims, **model_config)
+        self.data_shape = (n_users + 1, n_items + 1)
 
     def fit_embeddings_on_dataframe(self, log_df: pd.DataFrame):
         users = log_df[USER_ID_COL].values
@@ -25,7 +26,7 @@ class AlsEmbeddings:
         return torch.from_numpy(users), torch.from_numpy(items)
 
     def fit_embeddings(self, users, items, ratings):
-        sparse_matrix = coo_matrix((ratings, (users, items)))
+        sparse_matrix = coo_matrix((ratings, (users, items)), shape=self.data_shape)
         self.model.fit(sparse_matrix)
         user_embeddings = self.model.user_factors
         item_embeddings = self.model.item_factors
