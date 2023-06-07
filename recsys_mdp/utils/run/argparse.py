@@ -57,7 +57,7 @@ def parse_str(s: str) -> Any:
     for caster in (boolify, int, float, literal_eval):
         try:
             return caster(s)
-        except ValueError:
+        except (ValueError, SyntaxError):
             pass
     return s
 
