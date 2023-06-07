@@ -4,6 +4,7 @@ import numpy as np
 from numpy.random import Generator
 
 from recsys_mdp.experiments.utils.phases import LearningPhaseParameters
+from recsys_mdp.mdp.base import OBSERVATION_COL
 from recsys_mdp.metrics.logger import log_satiation
 from recsys_mdp.simulator.user_state import USER_RESET_MODE_DISCONTINUE, USER_RESET_MODE_INIT
 
@@ -13,14 +14,13 @@ def generate_episode(env, model, framestack, user_id=None, log_sat=False,):
     user_id, info = env.reset(user_id=user_id)
     obs = framestack.reset(**info)
     while True:
-        obs = np.expand_dims(obs, axis=0)
-        item_id = model.predict(obs)[0]
-
+        item_id = model.predict(np.expand_dims(obs, axis=0))[0]
         rating, terminate, truncated, info = env.step(item_id)
-        obs = framestack.step(**info)
-        trajectory.append(info)
+        trajectory.append(info | {OBSERVATION_COL: obs})
         if terminate or truncated:
             break
+
+        obs = framestack.step(**info)
     return trajectory
 
 

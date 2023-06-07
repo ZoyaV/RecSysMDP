@@ -45,7 +45,7 @@ env:
       - [0.75, 0.05]
   dummy:
     item_id: ???
-    rating: [.37, 3]
+    rating: [.5, 6]
 
 framestack:
   size: 10

@@ -36,6 +36,7 @@ class NextItemEnvironment:
     current_max_episode_len: int
 
     dummy: dict[str, Any]
+    compiled_dummies: dict[str, Any]
 
     def __init__(
             self, global_config: GlobalConfig, seed: int,
@@ -78,6 +79,7 @@ class NextItemEnvironment:
 
     def set_rating_type(self, discrete: bool):
         self.discrete = discrete
+        self.compiled_dummies = self.compile_dummy_values()
 
     def hard_reset(self, mode: str = USER_RESET_MODE_INIT):
         self.global_timestep = self.timestep = 0
@@ -105,11 +107,10 @@ class NextItemEnvironment:
         self.timestamp += pause_random_duration(self.rng)
         self.current_max_episode_len = self.rng.integers(*self.max_episode_len)
 
-        info = {
+        info = self.compiled_dummies | {
             TIMESTAMP_COL: self.timestamp,
             USER_ID_COL: self.state.user_id,
         }
-        self._apply_dummy_values(info)
 
         # if you need something in addition, add it here conditionally
         supply_info = isnone(supply_info, [])
@@ -149,11 +150,17 @@ class NextItemEnvironment:
             ITEM_ID_COL: self.n_items
         })
 
-    def _apply_dummy_values(self, info: dict[str, Any]):
-        for key, value in self.dummy.items():
-            if isinstance(value, (list, tuple)):
-                value = value[self.discrete]
-            info[key] = value
+    def compile_dummy_values(self):
+        return {
+            # convention: dummy values passed as tuple/list treated as (cont_val, disc_val)
+            key: value[self.discrete] if isinstance(value, (list, tuple)) else value
+            for key, value in self.dummy.items()
+        } | {
+            RELEVANCE_CONT_COL: self.dummy[RATING_COL][0],
+            RELEVANCE_INT_COL: self.dummy[RATING_COL][1],
+            TRUNCATED_COL: False,
+            TERMINATE_COL: False,
+        }
 
 
 def random_datetime(

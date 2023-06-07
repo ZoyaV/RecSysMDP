@@ -1,36 +1,47 @@
-import pickle
-
 import numpy as np
-import pandas as pd
+from d3rlpy.dataset import MDPDataset
 
-from recsys_mdp.mdp.base import USER_ID_COL, TIMESTAMP_COL, ITEM_ID_COL, RATING_COL
-from recsys_mdp.mdp.episode_splitting import by_pause, to_episode_ranges
-from recsys_mdp.mdp.utils import isnone
+from recsys_mdp.mdp.base import USER_ID_COL, OBSERVATION_COL
+from recsys_mdp.mdp.episode_splitting import to_episode_ranges
 
 
 class MDPFormer:
-    def __init__(
-            self,
-            reward_function,
-            action_function,
-            episode_splitter,
-            load_from_file: bool = False, path: str = None,
-            dataframe: pd.DataFrame = None,
-            framestack: int = 5,
-    ):
-        self.framestack = framestack
+    def __init__(self, reward_function, action_function, episode_splitter):
         self.reward_function = reward_function
         self.action_function = action_function
-        self.split_condition = isnone(episode_splitter, by_pause)
+        self.split_condition = episode_splitter
 
-        self.states = None
-        self.rewards = None
-        self.actions = None
-        self.terminations = None
-        self.dataframe = dataframe
+    def make_mdp(self, log_df, discrete_action: bool):
+        observations, rewards, actions, terminates = [], [], [], []
 
-        if load_from_file:
-            self.__load(path)
+        # as GroupBy preserves the order within each group, we can safely omit sorting
+        for user_id, user_log_df in log_df.groupby(USER_ID_COL):
+            episode_split_indices = self.split_condition(user_log_df)
+            for ep_start_ind, ep_end_ind in to_episode_ranges(user_log_df, episode_split_indices):
+                episode = log_df.iloc[ep_start_ind:ep_end_ind]
+
+                # list of (episode_len, obs_size)
+                observations.append(np.stack(episode[OBSERVATION_COL].values, axis=0))
+                # list of (episode_len,)
+                actions.append(self.get_episode_action(episode))
+                rewards.append(self.get_episode_reward(episode))
+                terminates.append(self.get_episode_terminates(episode))
+
+        # shape: (n_interactions, obs_size)
+        observations = np.concatenate(observations, axis=0)
+        # shape: (n_interactions, 1)
+        actions = np.expand_dims(np.concatenate(actions, axis=0), axis=1)
+        rewards = np.expand_dims(np.concatenate(rewards, axis=0), axis=1)
+        terminates = np.expand_dims(np.concatenate(terminates, axis=0), axis=1)
+
+        dataset = MDPDataset(
+            observations=observations,
+            actions=actions,
+            rewards=rewards,
+            terminals=terminates,
+            discrete_action=discrete_action
+        )
+        return dataset
 
     def get_episode_action(self, df):
         return self.action_function(df)
@@ -40,144 +51,6 @@ class MDPFormer:
 
     # noinspection PyMethodMayBeStatic
     def get_episode_terminates(self, df):
-        terminates = np.zeros(df.shape[0])
+        terminates = np.zeros(df.shape[0], dtype=int)
         terminates[-1] = 1
         return terminates
-
-    def _get_user_episodes(self, user_log: pd.DataFrame):
-        """
-        Transforms the user's log to MDP trajectories aka episodes
-        :return:
-        """
-        states, rewards, actions, terminations = [], [], [], []
-
-        episode_split_indices = self.split_condition(user_log)
-        for ep_start_ind, ep_end_ind in to_episode_ranges(user_log, episode_split_indices):
-            episode = user_log.iloc[ep_start_ind:ep_end_ind]
-            if len(episode) < self.framestack:
-                # throw out too short trajectories
-                continue
-            rewards.append(self.get_episode_reward(episode))
-            states.append(episode['history'].values.tolist())
-            actions.append(self.get_episode_action(episode))
-            terminations.append(self.get_episode_terminates(episode))
-
-        return states, rewards, actions, terminations
-
-    def make_interaction(self, rating, user, item, ts, obs_prev, relevance2reward=False):
-        history = []
-        history_size = (len(obs_prev) - 1) // 2 # len(items stack) + len(scorers stack) + 1(item)
-        history += obs_prev[:history_size].copy()  # items history
-        history += obs_prev[history_size:history_size*2].copy()  # scorers history
-        history += [obs_prev[-1]]  # user id
-        if relevance2reward:
-            # FIXME: smells like kostyl'
-            ratings_df = pd.DataFrame({RATING_COL: [rating]})
-            reward = self.reward_function(ratings_df)[0]
-            rating = reward
-
-        interaction = {
-            USER_ID_COL: user,
-            RATING_COL: rating,
-            ITEM_ID_COL: item,
-            TIMESTAMP_COL: ts,
-            'history': history,
-        }
-
-        obs_prev[:history_size - 1] = obs_prev[1:history_size]
-        obs_prev[history_size - 1] = item
-        #  print(obs[:framestack_size])
-        obs_prev[history_size:history_size * 2 - 1] = obs_prev[history_size + 1:history_size * 2]
-        obs_prev[history_size * 2 - 1] = rating
-
-        return interaction, obs_prev
-
-    def _interaction_history(self, user_df):
-        """
-        :param user_df:
-        :return: return history with self.framestack size for each (user-item) interaction
-        """
-        interactions = []
-        framestack_queue = []
-        ratings_queue = []
-
-        # Fill first framestack_size items to history
-        for index, row in user_df.iterrows():
-            framestack_queue.append(row[ITEM_ID_COL])
-            ratings_queue.append(row[RATING_COL])
-            if len(framestack_queue) >= self.framestack:
-                break
-        # Make interaction history for each user-item interaction
-        t = 0
-
-        obs_prev = []
-
-        obs_prev += framestack_queue.copy() #items history
-        obs_prev += ratings_queue.copy()
-        obs_prev += user_df.iloc[:1][USER_ID_COL].values.tolist()  # user id
-        for index, row in user_df.iterrows():
-            t += 1
-            if t < self.framestack:
-                continue
-
-            interaction, obs_prev = self.make_interaction(
-                row[RATING_COL], row[USER_ID_COL],
-                row[ITEM_ID_COL], row[TIMESTAMP_COL], obs_prev
-            )
-            interactions.append(interaction)
-
-        df = pd.DataFrame(interactions)
-        return df
-
-    def create_mdp(self):
-        """
-        convert dataset to MDP
-        :return:
-        """
-        unique_users = self.dataframe[USER_ID_COL].unique()
-        full_states, full_rewards, full_actions, full_terminates = [], [], [], []
-        state_tale = []
-        for user_id in unique_users:
-            user_df = (
-                self
-                .dataframe[self.dataframe[USER_ID_COL] == user_id]
-                .sort_values(TIMESTAMP_COL)
-            )
-
-            if user_df.shape[0] < self.framestack:
-                # lack of interactions
-                continue
-
-            interaction_history = self._interaction_history(user_df)
-            states, rewards, actions, terminates = self._get_user_episodes(interaction_history)
-            if len(states) < 1:
-                continue
-
-            state_tale.append(states[-1][-1])
-            full_states += states
-            full_rewards += rewards
-            full_actions += actions
-            full_terminates += terminates
-
-        self.states = full_states
-        self.rewards = full_rewards
-        self.actions = full_actions
-        self.terminations = full_terminates
-        return full_states, full_rewards, full_actions, full_terminates, state_tale
-
-    def save(self, path):
-        data = (self.states, self.rewards, self.actions, self.terminations)
-        random_part = np.random.randint(0, 100)
-        with open(path + "_%d.pkl" % random_part, 'wb') as f:
-            pickle.dump(data, f)
-            print("Saved to %s" % path)
-        with open(path + "_%d_df.pkl" % random_part, 'wb') as f:
-            pickle.dump(self.dataframe, f)
-        print("Saved at %s" % (path + "_%d.pkl" % random_part))
-
-    def __load(self, path):
-        with open(path + ".pkl", 'rb') as f:
-            self.states, self.rewards, self.actions, self.terminations = pickle.load(f)
-        with open(path + "_df.pkl", 'rb') as f:
-            self.dataframe = pickle.load(f)
-        print("Data loaded!")

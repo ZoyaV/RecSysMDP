@@ -2,24 +2,23 @@ import numpy as np
 from d3rlpy.dataset import MDPDataset
 
 
-def to_d3rlpy_form_ND(
-        original_states, original_rewards, original_actions,
-        original_termates, discrete = False
+def to_d3rlpy_mdp_dataset(
+        states, rewards, actions, terminates, discrete_action: bool
 ):
-    # TODO: rework via np.stack
-    full_states = []
-    full_rewards = []
-    full_actions = []
-    full_termates = []
-    for i, episode in enumerate(original_states):
-        if isinstance(episode, np.ndarray):
-            episode = episode.tolist()
-        full_states += episode
-        full_rewards += original_rewards[i].tolist()
-        full_actions += original_actions[i].tolist()
-        full_termates += original_termates[i].tolist()
+    print(f'{len(states)=} | {states[0].shape=}')
+    states = np.concatenate(states, axis=0)
+    # full_states = []
+    # full_rewards = []
+    # full_actions = []
+    # full_termates = []
+    # for i, episode in enumerate(original_states):
+    #     full_states += episode
+    #     full_rewards += original_rewards[i].tolist()
+    #     full_actions += original_actions[i].tolist()
+    #     full_termates += original_termates[i].tolist()
 
-    states = np.asarray(full_states)
+    print(f'{states.shape=}')
+
     rewards = np.asarray(full_rewards).reshape(-1, 1)
     actions = np.asarray(full_actions).reshape(-1, 1)
     termates = np.asarray(full_termates).reshape(-1, 1)
@@ -29,7 +28,7 @@ def to_d3rlpy_form_ND(
         actions=actions,
         rewards=rewards,
         terminals=termates,
-        discrete_action = discrete
+        discrete_action = discrete_action
     )
     return dataset
 

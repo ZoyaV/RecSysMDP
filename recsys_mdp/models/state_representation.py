@@ -22,8 +22,6 @@ class CategoricalEncoder(nn.Module):
     def forward(self, ids: torch.Tensor):
         if ids.dtype != torch.long:
             ids = ids.long()
-        print(f'{ids.dim()=}')
-        print(f'{ids=}')
         return self.net(ids)
 
 
@@ -138,17 +136,13 @@ class StateReprModule(nn.Module):
 
 
 class ConcatState(nn.Module):
-    """
-    Compute state for RL environment. Based on `DRR paper
-    <https://arxiv.org/pdf/1810.12027.pdf>`_
-
-    Computes state as a plain concatenation of user embedding and previous interactions.
-    """
+    """Computes state as a plain concatenation of user embedding and previous interactions."""
 
     def __init__(self):
         super().__init__()
 
     # noinspection PyMethodMayBeStatic
-    def forward(self, user: torch.Tensor, interaction_history: torch.Tensor):
+    def forward(self, pair: tuple[torch.Tensor, torch.Tensor]):
+        user, interaction_history = pair
         interaction_history = interaction_history.flatten(start_dim=1)
         return torch.cat([user, interaction_history], dim=1)

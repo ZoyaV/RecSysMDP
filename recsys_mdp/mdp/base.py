@@ -7,6 +7,7 @@ RATING_COL = 'rating'
 REWARD_COL = 'reward'
 TRUNCATED_COL = 'truncated'
 TERMINATE_COL = 'terminate'
+OBSERVATION_COL = 'observation'
 
 
 def relevance_col_for_rating(discrete: bool):

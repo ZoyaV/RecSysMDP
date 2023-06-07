@@ -10,7 +10,7 @@ import pandas as pd
 from d3rlpy.base import LearnableBase
 from numpy.random import Generator
 
-from recsys_mdp.experiments.utils.mdp_constructor import make_mdp
+from recsys_mdp.experiments.utils.mdp_constructor import get_mdp_former
 from recsys_mdp.experiments.utils.type_resolver import TypesResolver
 from recsys_mdp.utils.run.wandb import get_logger
 from recsys_mdp.utils.run.config import (
@@ -34,7 +34,7 @@ from recsys_mdp.mdp.base import (
     RELEVANCE_INT_COL, TERMINATE_COL, RATING_COL
 )
 
-from recsys_mdp.mdp.utils import to_d3rlpy_form_ND, isnone
+from recsys_mdp.mdp.utils import to_d3rlpy_mdp_dataset, isnone
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run
@@ -119,11 +119,11 @@ class NextItemOnDataExperiment:
 
     def data2mdp(self, log, top_k, mdp_settings, scorer):
         # TODO: one preparator shuld transform different datasets?
-        preparator = make_mdp(data=log, **mdp_settings)
+        preparator = get_mdp_former(**mdp_settings)
         states, rewards, actions, terminations, state_tail = preparator.create_mdp()
-        mdp = to_d3rlpy_form_ND(
+        mdp = to_d3rlpy_mdp_dataset(
             states, rewards, actions, terminations,
-            discrete=scorer['prediction_type'] == "discrete"
+            discrete_action=scorer['prediction_type'] == "discrete"
         )
         algo_logger = init_logger(
             mdp, state_tail, log, top_k, wandb_logger=self.logger, **scorer

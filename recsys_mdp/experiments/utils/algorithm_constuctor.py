@@ -1,8 +1,3 @@
-def init_hidden_state_encoder(**encoder):
-    from recsys_mdp.models.models import ActorEncoderFactory
-    return ActorEncoderFactory(**encoder)
-
-
 def init_algo(actor_encoder_factory, use_gpu, batch_size, algo):
 
     if algo == 'CQL':

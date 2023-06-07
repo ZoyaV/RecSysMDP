@@ -134,17 +134,14 @@ def load_episode_splitter(episode):
         raise ValueError(f'Unknown episode splitter name {episode}')
 
 
-def make_mdp(data, framestack_size, action, reward, episode):
+def get_mdp_former(action, reward, episode):
     reward_function = resolve_reward_function(reward)
     action_function = resolve_action_function(action)
     episode_splitter = load_episode_splitter(episode)
 
     from recsys_mdp.mdp.mdp_former import MDPFormer
-    mdp_preparator_class = MDPFormer(
-        load_from_file=False, dataframe=data,
-        framestack=framestack_size,
+    return MDPFormer(
         reward_function=reward_function,
         action_function=action_function,
         episode_splitter=episode_splitter,
     )
-    return mdp_preparator_class

@@ -16,7 +16,7 @@ from numpy.random import Generator
 from recsys_mdp.experiments.utils.cache import ExperimentCache
 from recsys_mdp.experiments.utils.helper import eval_algo, generate_episode
 from recsys_mdp.experiments.utils.mdp_constructor import (
-    make_mdp, split_dataframe,
+    get_mdp_former, split_dataframe,
     prepare_log_df
 )
 from recsys_mdp.experiments.utils.phases import (
@@ -29,7 +29,7 @@ from recsys_mdp.mdp.base import (
     RELEVANCE_CONT_COL,
     RELEVANCE_INT_COL, USER_ID_COL, ITEM_ID_COL, RATING_COL
 )
-from recsys_mdp.mdp.utils import to_d3rlpy_form_ND, isnone
+from recsys_mdp.mdp.utils import to_d3rlpy_mdp_dataset, isnone
 from recsys_mdp.models.models import ActorEncoderFactory
 from recsys_mdp.simulator.env import (
     NextItemEnvironment
@@ -155,12 +155,12 @@ class NextItemExperiment:
 
         for generation_epoch in range(1, self.generation_phase.epochs+1):
             self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> generating')
-            dataset = self.generate_dataset(generation_epoch)
+            log_df = self.generate_dataset(generation_epoch)
             dataset_info = None
-            # dataset_info = _get_df_info(dataset)
+            # dataset_info = _get_df_info(log_df)
 
             self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> learning')
-            fitter = self._init_rl_setting(dataset)
+            fitter = self._init_rl_setting(log_df)
             total_epoch = self._learn_on_dataset(
                 total_epoch, fitter, dataset_info
             )
@@ -237,13 +237,13 @@ class NextItemExperiment:
 
     def data2mdp(self, log_df, mdp_settings, scorer):
         # TODO: one preparator shuld transform different datasets?
-        preparator = make_mdp(data=log_df, framestack_size=self.framestack.size, **mdp_settings)
-        states, rewards, actions, terminations, state_tail = preparator.create_mdp()
-        mdp = to_d3rlpy_form_ND(states, rewards, actions, terminations, discrete=self.discrete)
-        algo_logger = init_logger(
-            test_mdp=mdp, state_tail=state_tail, data=log_df,
-            wandb_logger=self.logger, discrete=self.discrete, **scorer
-        )
+        preparator = get_mdp_former(**mdp_settings)
+        mdp = preparator.make_mdp(log_df, discrete_action=self.discrete)
+        algo_logger = None
+        # algo_logger = init_logger(
+        #     test_mdp=mdp, state_tail=None, data=log_df,
+        #     wandb_logger=self.logger, discrete=self.discrete, **scorer
+        # )
         return preparator, mdp, algo_logger
 
     def initialize_eval_model(self, log_df: pd.DataFrame):

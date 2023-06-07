@@ -40,3 +40,11 @@ def get_cuda_device(cuda_device: int | None) -> int | bool:
         if not cuda_available:
             cuda_device = False
     return cuda_device
+
+
+def load_checkpoint(model, model_name, step=-1):
+    if step == -1:
+        path = f'checkpoints/{model_name}/{model_name}.pt'
+    else:
+        path = f'checkpoints/{model_name}/{model_name}_{step}.pt'
+    model.load_model(path)

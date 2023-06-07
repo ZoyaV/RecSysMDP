@@ -9,6 +9,7 @@ from d3rlpy.models.encoders import EncoderFactory
 from d3rlpy.models.torch import Encoder, EncoderWithAction
 
 from recsys_mdp.mdp.base import USER_ID_COL, ITEM_ID_COL
+from recsys_mdp.utils.run.config import extracted
 
 
 class ObservationComponent:
@@ -49,8 +50,9 @@ class StateEncoder(nn.Module, Encoder):
     ):
         super().__init__()
         self.output_dim = output_dim
-        self.observation_components = observation_components
-        self.user_component = observation_components.get(USER_ID_COL, None)
+        self.observation_components, self.user_component = extracted(
+            observation_components, USER_ID_COL
+        )
         self.net = nn.Sequential(
             resolve_observation_encoder(observation_encoder, **state_encoding_config),
             nn.LazyLinear(hidden_dim),
@@ -68,24 +70,25 @@ class StateEncoder(nn.Module, Encoder):
             nn.init.kaiming_uniform_(params, nonlinearity='relu')
 
     def forward(self, x: torch.Tensor):
-        # shape: (batch, flatten_raw_observation) float
-        # shape: (batch, 1, encoded_user)
-        print(f'{x.dim()=}')
-        print(f'{x=}')
+        # x shape: (batch, flatten_raw_observation) float
 
-        user = self.user_component.encode(x) if self.user_component is not None else None
-        print(f'{user.dim()=}')
-        print(f'{user=}')
+        user = None
+        if self.user_component is not None:
+            # (batch, user_ids=1, user_embedding)
+            user = self.user_component.encode(x)
+            # remove `user_ids` dim
+            user = torch.flatten(user, start_dim=1)
 
         # each: (batch, interaction_timestep, part_embedding_size)
         interaction_history_by_components = [
             component.encode(x)
             for component in self.observation_components.values()
         ]
-        interaction_history = np.concatenate(interaction_history_by_components, axis=-1)
+        interaction_history = torch.cat(interaction_history_by_components, dim=2)
 
-        state = self.state_repr(user, interaction_history)
-        return self.net(state)
+        # have to pass a single object as it's required by Sequential module
+        pair = user, interaction_history
+        return self.net(pair)
 
     def get_feature_size(self):
         return self.output_dim
