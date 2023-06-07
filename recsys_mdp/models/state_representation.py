@@ -115,6 +115,7 @@ class StateReprModule(nn.Module):
         """weight init"""
         nn.init.uniform_(self.drr_ave.weight)
         self.drr_ave.bias.data.zero_()
+
     @property
     def out_embeddings(self):
         return 3
@@ -138,8 +139,9 @@ class StateReprModule(nn.Module):
 class ConcatState(nn.Module):
     """Computes state as a plain concatenation of user embedding and previous interactions."""
 
-    def __init__(self):
+    def __init__(self, user_dim: int, interaction_dim: int, n_interactions: int):
         super().__init__()
+        self.output_dim = user_dim + n_interactions * interaction_dim
 
     # noinspection PyMethodMayBeStatic
     def forward(self, pair: tuple[torch.Tensor, torch.Tensor]):

@@ -39,22 +39,29 @@ class ObservationComponent:
     def total_output(self):
         return self.output_dim * (self.end - self.start)
 
+    @property
+    def n_items(self):
+        return self.end - self.start
+
 
 class StateEncoder(nn.Module, Encoder):
     def __init__(
             self, *,
             observation_components: dict[str, ObservationComponent],
             observation_encoder: str,
-            hidden_dim, output_dim, **state_encoding_config
+            hidden_dim, output_dim, **observation_encoder_config
     ):
         super().__init__()
         self.output_dim = output_dim
         self.observation_components, self.user_component = extracted(
             observation_components, USER_ID_COL
         )
+        observation_encoder = self._make_observation_encoder(
+            observation_encoder, observation_encoder_config
+        )
         self.net = nn.Sequential(
-            resolve_observation_encoder(observation_encoder, **state_encoding_config),
-            nn.LazyLinear(hidden_dim),
+            observation_encoder,
+            nn.Linear(observation_encoder.output_dim, hidden_dim),
             nn.LayerNorm(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, self.output_dim),
@@ -91,6 +98,16 @@ class StateEncoder(nn.Module, Encoder):
 
     def get_feature_size(self):
         return self.output_dim
+
+    def _make_observation_encoder(self, name, config):
+        user_dim = self.user_component.output_dim
+        interaction_dim = np.sum([c.output_dim for c in self.observation_components.values()])
+        n_interactions = next(iter(self.observation_components.values())).n_items
+        return resolve_observation_encoder(
+            name=name,
+            user_dim=user_dim, interaction_dim=interaction_dim, n_interactions=n_interactions,
+            **config
+        )
 
 
 class ActorEncoderWithAction(nn.Module, EncoderWithAction):
@@ -186,7 +203,7 @@ class ActorEncoderFactory(EncoderFactory):
         )
 
 
-def resolve_observation_encoder(name, **config):
+def resolve_observation_encoder(name, user_dim, interaction_dim, n_interactions, **config):
     if name == 'drr':
         from recsys_mdp.models.state_representation import StateReprModuleWithAttention
         return StateReprModuleWithAttention(
@@ -205,4 +222,6 @@ def resolve_observation_encoder(name, **config):
         )
     elif name == 'concat':
         from recsys_mdp.models.state_representation import ConcatState
-        return ConcatState()
+        return ConcatState(
+            user_dim=user_dim, interaction_dim=interaction_dim, n_interactions=n_interactions
+        )
