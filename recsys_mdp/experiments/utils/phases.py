@@ -21,8 +21,8 @@ class GenerationPhaseParameters:
     ):
         self.epochs = epochs
         assert episodes_per_epoch is not None or samples_per_epoch is not None
-        self.episodes_per_epoch = episodes_per_epoch
-        self.samples_per_epoch = samples_per_epoch
+        self.episodes_per_epoch = isnone(episodes_per_epoch, 1_000_000_000)
+        self.samples_per_epoch = isnone(samples_per_epoch, 1_000_000_000)
         self.use_cache = use_cache
         self.switch_to_eval_model = switch_to_eval_model
 

@@ -45,9 +45,9 @@ def eval_returns(
 
     avg_cont_relevance = log_df[RELEVANCE_CONT_COL].mean()
     avg_int_relevance = log_df[RELEVANCE_INT_COL].mean()
-    avg_return = log_df[RATING_COL].sum()
-    avg_reward = avg_return / n_samples
+    avg_return = log_df[RATING_COL].sum() / n_episodes
     avg_episode_len = n_samples / n_episodes
+    avg_reward = avg_return / avg_episode_len
     avg_coverage = log_df[ITEM_ID_COL].unique().shape[0]
 
     return {

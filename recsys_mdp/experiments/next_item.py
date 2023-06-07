@@ -29,7 +29,7 @@ from recsys_mdp.mdp.base import (
     RELEVANCE_CONT_COL,
     RELEVANCE_INT_COL, USER_ID_COL, ITEM_ID_COL, RATING_COL
 )
-from recsys_mdp.mdp.utils import to_d3rlpy_mdp_dataset, isnone
+from recsys_mdp.mdp.utils import isnone
 from recsys_mdp.models.models import ActorEncoderFactory
 from recsys_mdp.simulator.env import (
     NextItemEnvironment
