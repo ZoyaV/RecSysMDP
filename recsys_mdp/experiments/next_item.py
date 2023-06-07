@@ -177,14 +177,16 @@ class NextItemExperiment:
 
         if log_df is None:
             self.print_with_timestamp("Generating dataset...")
-            config = self.generation_phase
+            max_episodes = self.generation_phase.episodes_per_epoch
+            max_samples = self.generation_phase.samples_per_epoch
             samples = []
+
             for episode in count():
                 trajectory = generate_episode(
                     env=self.env, model=self.generation_model, framestack=self.framestack,
                 )
                 samples.extend(trajectory)
-                if episode >= config.episodes_per_epoch or len(samples) >= config.samples_per_epoch:
+                if episode >= max_episodes or len(samples) >= max_samples:
                     break
 
             log_df = pd.DataFrame(samples)
@@ -239,11 +241,10 @@ class NextItemExperiment:
         # TODO: one preparator shuld transform different datasets?
         preparator = get_mdp_former(**mdp_settings)
         mdp = preparator.make_mdp(log_df, discrete_action=self.discrete)
-        algo_logger = None
-        # algo_logger = init_logger(
-        #     test_mdp=mdp, state_tail=None, data=log_df,
-        #     wandb_logger=self.logger, discrete=self.discrete, **scorer
-        # )
+        algo_logger = init_logger(
+            test_mdp=mdp, state_tail=None, data=log_df,
+            wandb_logger=self.logger, discrete=self.discrete, **scorer
+        )
         return preparator, mdp, algo_logger
 
     def initialize_eval_model(self, log_df: pd.DataFrame):

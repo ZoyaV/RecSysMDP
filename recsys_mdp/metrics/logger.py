@@ -35,7 +35,7 @@ class Logger:
 
     def get_value(self, model, obs, item = None):
         # FIXME: find a way to remove direct putting on device
-        obs = torch.from_numpy(obs).to(device=model._impl._device)
+        obs = torch.from_numpy(obs).to(device=model.impl.device)
 
         if self.discrete:
             with torch.no_grad():
@@ -43,9 +43,9 @@ class Logger:
                 if "BC" in algo:
                     # obs = obs.astype(float)
                     obs = obs.to(torch.float32)
-                    predicted_rat = model._impl._imitator(obs)
+                    predicted_rat = model.impl.imitator(obs)
                 else:
-                    predicted_rat = model._impl._q_func(obs)
+                    predicted_rat = model.impl.q_func(obs)
 
             predicted_rat = (
                     (predicted_rat - predicted_rat.min())
@@ -62,8 +62,9 @@ class Logger:
             return predicted_rat[0][item]
 
     def static_log(self, model):
+        return {}
         if len(self.static_scorers) == 0:
-            return {"none" : None}
+            return {}
         obs = self.fake_mdp
         predicted_rat = self.get_value(model, obs)
 
@@ -78,6 +79,7 @@ class Logger:
 
 
     def interactive_log(self, model):
+        return {}
         interaction_result = []
         for episode in self.interactive_mdp:
             user = int(episode.observations[0][-1])

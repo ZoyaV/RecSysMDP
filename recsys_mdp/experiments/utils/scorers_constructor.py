@@ -1,6 +1,7 @@
 import numpy as np
 
 from recsys_mdp.mdp.base import ITEM_ID_COL, USER_ID_COL
+from recsys_mdp.mdp.utils import isnone
 from recsys_mdp.metrics.d3rlpy_loggers import (
     base_ndcg, tsne_embeddings, episode_hit_rate, tsne_encoder
 )
@@ -28,6 +29,7 @@ def init_hit_rate(state_tail, test_items, test_users_or, top_k, discrete):
 
 
 def get_test_observation(state_tail, test_items, test_users_or, discrete):
+    return [], []
     state_tail = np.asarray(state_tail)
     test_states = []
     true_items = dict()
@@ -86,6 +88,7 @@ def init_logger(
     interactive = dict()
     visualizations = []
 
+    metrics = isnone(metrics, [])
     if 'coverage' in metrics:
         static['coverage'] = log_covarage
     if 'ndcg' in metrics:
@@ -101,7 +104,6 @@ def init_logger(
     if 'PC' in metrics:
         interactive['preference_correlation'] = preference_correlation
 
-    #print(visualizations)
     logger = Logger(
         interactive_mdp=test_mdp, user_interests=users_interests,
         fake_mdp=fake_mdp, top_k=top_k,

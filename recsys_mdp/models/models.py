@@ -24,7 +24,6 @@ class ObservationComponent:
         self.encoder = encoder
 
     def encode(self, x: torch.Tensor, take_slice: bool = True) -> torch.Tensor:
-        print(f'{take_slice=} | {self.start}:{self.end} | ')
         if take_slice:
             # slice over the last dim to skip batch dimension
             x = x[..., self.start:self.end]

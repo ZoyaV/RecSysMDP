@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 from numpy.random import Generator
 
 from recsys_mdp.experiments.utils.phases import LearningPhaseParameters
-from recsys_mdp.mdp.base import OBSERVATION_COL
+from recsys_mdp.mdp.base import (
+    OBSERVATION_COL, RELEVANCE_CONT_COL, RELEVANCE_INT_COL, RATING_COL,
+    ITEM_ID_COL
+)
 from recsys_mdp.metrics.logger import log_satiation
 from recsys_mdp.simulator.user_state import USER_RESET_MODE_DISCONTINUE, USER_RESET_MODE_INIT
 
@@ -28,32 +32,34 @@ def eval_returns(
         env, model, framestack, eval_phase: LearningPhaseParameters,
         user_id=None, logger=None, rng: Generator = None
 ):
-    cont_returns, disc_returns, steps_hit_rate, coverages = [], [], [], []
-    true_discrete_return = []
-    episode_lenghts= []
     n_episodes = eval_phase.eval_episodes if user_id is not None else eval_phase.eval_episodes_all
+    interactions = []
     for ep in range(n_episodes):
         trajectory = generate_episode(
             env, model, framestack=framestack, user_id=user_id, log_sat=True
         )
-        episode_lenghts.append(len(trajectory))
-        coverage = len({step[2] for step in trajectory})
-        step_hit_rate = [step[2] in step[-1] for step in trajectory]
-        cont_returns.append(np.mean([step[3] for step in trajectory]))
-        disc_returns.append(np.mean([step[4] for step in trajectory]))
-        true_discrete_return.append(np.sum([step[4] for step in trajectory]))
-        coverages.append(coverage)
-        steps_hit_rate.append(np.mean(step_hit_rate))
+        interactions.extend(trajectory)
 
-        # from temp_utils import log_distributions
-        # log_distributions(true_items, predicted_items, "True best items", "Predicted best items")
+    log_df = pd.DataFrame(interactions)
+    n_samples, n_items = log_df.shape[0], env.n_items
+
+    avg_cont_relevance = log_df[RELEVANCE_CONT_COL].mean()
+    avg_int_relevance = log_df[RELEVANCE_INT_COL].mean()
+    avg_return = log_df[RATING_COL].sum()
+    avg_reward = avg_return / n_samples
+    avg_episode_len = n_samples / n_episodes
+    avg_coverage = log_df[ITEM_ID_COL].unique().shape[0]
+
     return {
-        'continuous_return': np.mean(cont_returns),
-        'discrete_return': np.mean(disc_returns),
-        'true_discrete_return': np.mean(true_discrete_return),
-        'coverage': np.mean(coverages),
-        'step_hit_rate': np.mean(steps_hit_rate),
-        'trajectory_len': np.mean(episode_lenghts)
+        'cont_relevance': avg_cont_relevance,
+        'int_relevance': avg_int_relevance,
+        'return': avg_return,
+        'reward': avg_reward,
+        'episode_length': avg_episode_len,
+        'coverage': avg_coverage,
+        # FIXME: rework this metric calculation
+        #  NB: hit_rate == recommended item is in actual top 10 items
+        # 'step_hit_rate': np.mean(steps_hit_rate),
     }
 
 
@@ -65,6 +71,7 @@ def eval_algo(
         env.hard_reset(mode=USER_RESET_MODE_INIT)
 
         online_res = dict()
+        # noinspection PyTypeChecker
         looking_for = eval_phase.eval_users + [None]
         for i in looking_for:
             online_res[f"user {i}"] = eval_returns(

@@ -83,7 +83,11 @@ eval_model:
 
 scoring:
   top_k: 10
-  metrics: [ndcg, stat_hitrate, PC, ihitrate]
+  metrics:
+    - ndcg
+    - stat_hitrate
+    - PC
+    - ihitrate
 
 wandb_init: $_base.wandb_init
 cache:
