@@ -170,9 +170,9 @@ def random_datetime(
         year=rng.integers(start_year, end_year, endpoint=True),
         month=rng.integers(1, 12, endpoint=True),
         day=rng.integers(1, 28, endpoint=True),
-        hour=rng.integers(1, 24, endpoint=True),
-        minute=rng.integers(1, 60, endpoint=True),
-        second=rng.integers(1, 60, endpoint=True)
+        hour=rng.integers(24),
+        minute=rng.integers(60),
+        second=rng.integers(60)
     )
 
 
