@@ -35,66 +35,142 @@ user_states:
     deterministic_early_stop: False
 
 models:
-  random:
-    _type_: model.random
+  # DISCRETE
   discrete_random:
     _type_: model.discrete_random
-  cql:
-    _type_: model.cql
-    _base_: default
-    actor_learning_rate: 1e-3
-    critic_learning_rate: 3e-3
-    temp_learning_rate: 1e-4
-    alpha_learning_rate: 1e-4
-    alpha_threshold: 10.0
-    conservative_weight: 5.0
-    initial_temperature: 1.0
-    initial_alpha: 1.0
-    n_action_samples: 10
-    soft_q_backup: False
-  bc:
-    _type_: model.bc
-    _base_: default
-    learning_rate: 5e-4
+
   discrete_bc:
+    _base_: discrete_bc_default
+#    learning_rate: 5e-4
+    encoder_factory: ???
+    use_gpu: ???
+  discrete_bc_default:
     _type_: model.discrete_bc
-    _base_: default
-    learning_rate: 5e-4
-  ddpg:
-    _type_: model.ddpg
-    _base_: default
-    temp_learning_rate: 1e-4
-    initial_temperature: 1.0
+    learning_rate: 1e-3
+    encoder_factory: default
+    batch_size: 100
+    n_frames: 1
+    beta: 0.5
+
   discrete_cql:
+    _base_: discrete_cql_default
+    encoder_factory: ???
+    use_gpu: ???
+  discrete_cql_default:
     _type_: model.discrete_cql
-    _base_: default
-  sac:
-    _type_: model.sac
-    _base_: default
-  sdac:
-    _type_: model.sdac
-    _base_: default
+    learning_rate: 6.25e-5
+    encoder_factory: default
+    q_func_factory: mean
+    batch_size: 32
+    n_frames: 1
+    n_steps: 1
+    gamma: 0.99
+    n_critics: 1
+    target_update_interval: 8000
+
   discrete_sac:
+    _base_: discrete_sac_default
+    actor_encoder_factory: ???
+    critic_encoder_factory: ???
+    use_gpu: ???
+  discrete_sac_default:
     _type_: model.discrete_sac
-    _base_: default
-  default:
-    actor_learning_rate: 1e-4
+    actor_learning_rate: 3e-4
     critic_learning_rate: 3e-4
-    temp_learning_rate: 1e-4  #?
-    alpha_learning_rate: 1e-4 # ?
-    q_func_factory: "mean"
+    temp_learning_rate: 3e-4
+    actor_encoder_factory: default
+    critic_encoder_factory: default
+    q_func_factory: mean
+    batch_size: 64
+    n_frames: 1
+    n_steps: 1
+    gamma: 0.99
+    n_critics: 2
+    initial_temperature: 1.0
+    target_update_interval: 8000
+
+  sdac:
+    _base_: sdac_default
+    actor_encoder_factory: ???
+    critic_encoder_factory: ???
+    use_gpu: ???
+  sdac_default:
+    _type_: model.sdac
+    actor_learning_rate: 3e-4
+    critic_learning_rate: 3e-4
+    temp_learning_rate: 3e-4
+    actor_encoder_factory: default
+    critic_encoder_factory: default
+    q_func_factory: mean
     batch_size: 256
     n_frames: 1
     n_steps: 1
     gamma: 0.99
     tau: 0.005
     n_critics: 2
-    initial_temperature: 1.0  #?
-    initial_alpha: 1.0  #?
-    alpha_threshold: 10.0 # ?
-    conservative_weight: 5.0 # ?
-    n_action_samples: 10  #?
-    soft_q_backup: False  #?
+    initial_temperature: 1.0
+
+  # CONTINUOUS
+  random:
+    _type_: model.random
+  cql:
+    _base_: cql_default
+    actor_learning_rate: 1e-3
+    critic_learning_rate: 3e-3
+    actor_encoder_factory: ???
+    critic_encoder_factory: ???
+    batch_size: 64
+    use_gpu: ???
+  cql_default:
+    _type_: model.cql
+    actor_learning_rate: 1e-4
+    critic_learning_rate: 3e-4
+    temp_learning_rate: 1e-4
+    alpha_learning_rate: 1e-4
+    actor_encoder_factory: default
+    critic_encoder_factory: default
+    q_func_factory: mean
+    batch_size: 256
+    n_frames: 1
+    n_steps: 1
+    gamma: 0.99
+    tau: 0.005
+    n_critics: 2
+    initial_temperature: 1.0
+    initial_alpha: 1.0
+    alpha_threshold: 10.0
+    conservative_weight: 5.0
+    n_action_samples: 10
+    soft_q_backup: False
+  bc:
+    _type_: model.bc
+    learning_rate: 5e-4
+    FILL_DEFAULTS: FROM D3RLPY
+    use_gpu: ???
+  ddpg:
+    _type_: model.ddpg
+    temp_learning_rate: 1e-4
+    initial_temperature: 1.0
+    FILL_DEFAULTS: FROM D3RLPY
+    use_gpu: ???
+  sac:
+    _base_: sac_default
+    use_gpu: ???
+  sac_default:
+    _type_: model.sac
+    actor_learning_rate: 3e-4
+    critic_learning_rate: 3e-4
+    temp_learning_rate: 3e-4
+    actor_encoder_factory: default
+    critic_encoder_factory: default
+    q_func_factory: mean
+    batch_size: 256
+    n_frames: 1
+    n_steps: 1
+    gamma: 0.99
+    tau: 0.005
+    n_critics: 2
+    initial_temperature: 1.0
 
 embeddings:
   random:

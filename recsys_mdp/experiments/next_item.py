@@ -117,7 +117,7 @@ class NextItemExperiment:
 
         self.env = self.config.resolve_object(env)
         self.generation_model = self.config.resolve_object(
-            generation_model, n_actions=self.env.n_items, use_gpu=self.cuda_device
+            generation_model, use_gpu=self.cuda_device
         )
         self.discrete = (
             self.generation_model.get_action_type() == d3rlpy.constants.ActionSpace.DISCRETE
@@ -228,7 +228,7 @@ class NextItemExperiment:
         )
         return fitter
 
-    def _learn_on_dataset(self, total_epoch, fitter, dataset_info = None):
+    def _learn_on_dataset(self, total_epoch, fitter, dataset_info=None):
         for epoch, metrics in fitter:
             if epoch == 1 or epoch % self.learning_phase.eval_schedule == 0:
                 self.print_with_timestamp(f'Epoch: {epoch} | Total epoch: {total_epoch} => eval...')
@@ -262,12 +262,11 @@ class NextItemExperiment:
             **self.state_encoder
         )
         self.eval_model = self.config.resolve_object(
-            self.eval_model_config | dict(
-                encoder_factory=hidden_state_encoder,
-                actor_encoder_factory=hidden_state_encoder,
-                critic_encoder_factory=hidden_state_encoder,
-            ),
-            n_actions=self.env.n_items, use_gpu=self.cuda_device,
+            self.eval_model_config,
+            use_gpu=self.cuda_device,
+            encoder_factory=hidden_state_encoder,
+            actor_encoder_factory=hidden_state_encoder,
+            critic_encoder_factory=hidden_state_encoder,
         )
 
     def get_observation_components(self):

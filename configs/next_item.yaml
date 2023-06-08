@@ -10,14 +10,14 @@ cuda_device: ...
 
 generation_phase:
   epochs: 2
-  episodes_per_epoch: 3000
+  episodes_per_epoch:
   samples_per_epoch: 10000
-  use_cache: true
+  use_cache: false
   switch_to_eval_model: true
-  accumulate_datasets: true
+  accumulate_datasets: false
 
 learning_phase:
-  epochs: 250
+  epochs: 100
   eval_schedule: 20
   eval_episodes: 20
   eval_episodes_all: 100
@@ -74,12 +74,8 @@ mdp:
   action: item
   episode: pause
 
-generation_model:
-  _base_: $_base.models.discrete_random
-
-eval_model:
-  _base_: $_base.models.discrete_cql
-  batch_size: 1024
+generation_model: models.discrete_random
+eval_model: models.discrete_cql
 
 scoring:
   top_k: 10
@@ -95,4 +91,17 @@ cache:
   cache_root: cache
   enable: ???
   experiment_config: ???
-  keep_last_n_experiments: 4
+  keep_last_n_experiments: 10
+
+models:
+  discrete_random:
+    _base_: $_base.models.discrete_random
+  discrete_bc:
+    _base_: $_base.models.discrete_bc
+  discrete_cql:
+    _base_: $_base.models.discrete_cql
+  discrete_sac:
+    _base_: $_base.models.discrete_sac
+  sdac:
+    _base_: $_base.models.sdac
+
