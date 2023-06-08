@@ -100,14 +100,14 @@ class UserState:
         self.item_listening_trace *= self.item_listening_trace_decay**7
 
         if mode == USER_RESET_MODE_CONTINUE:
-            self.drift_satiation()
+            self.drift_satiation(seed=sample_int(self.rng), drift=self.satiation_drift)
         elif mode == USER_RESET_MODE_INIT:
             # return to the initial mood
-            self.satiation = self.sample_satiation(self.init_mood_seed)
+            self.drift_satiation(seed=self.init_mood_seed, drift=1.0)
             self.item_listening_trace[:] = 0
         elif mode == USER_RESET_MODE_DISCONTINUE:
             # re-sample new mood
-            self.satiation = self.sample_satiation(sample_int(self.rng))
+            self.drift_satiation(seed=sample_int(self.rng), drift=1.0)
         else:
             raise ValueError(f'User reset mode "{mode}" does not supported.')
 
@@ -150,13 +150,13 @@ class UserState:
         rng = np.random.default_rng(seed)
         return self.base_satiation + rng.uniform(size=n_clusters)
 
-    def drift_satiation(self):
+    def drift_satiation(self, seed: int, drift: float):
         # continue based on previous mood, but slightly drift to another mood;
         # in average, it directs to the expected mean satiation
         mood = self.satiation
-        new_mood = self.sample_satiation(sample_int(self.rng))
+        new_mood = self.sample_satiation(seed)
         # calculate new satiation vector
-        new_satiation = lin_sum(x=mood, lr=self.satiation_drift, y=new_mood)
+        new_satiation = lin_sum(x=mood, lr=drift, y=new_mood)
 
         # but update only those parts that are object to satiation
         # to prevent specific scenarios stop working expected way
