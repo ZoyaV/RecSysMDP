@@ -152,10 +152,17 @@ class NextItemExperiment:
         self.print_with_timestamp('==> Run')
         self.set_metrics()
         total_epoch = 1
+        # noinspection PyTypeChecker
+        log_df: pd.DataFrame = None
 
         for generation_epoch in range(1, self.generation_phase.epochs+1):
             self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> generating')
-            log_df = self.generate_dataset(generation_epoch)
+            _log_df = self.generate_dataset(generation_epoch)
+            if log_df is not None and self.generation_phase.accumulate_datasets:
+                log_df = pd.concat([log_df, _log_df], ignore_index=True)
+            else:
+                log_df = _log_df
+
             dataset_info = None
             # dataset_info = _get_df_info(log_df)
 
@@ -172,7 +179,7 @@ class NextItemExperiment:
         if self.logger:
             self.logger.config.update(self.config.config, allow_val_change=True)
 
-    def generate_dataset(self, generation_epoch: int):
+    def generate_dataset(self, generation_epoch: int) -> pd.DataFrame:
         log_df = self.cache.try_restore_log_df(generation_epoch, logger=self.print_with_timestamp)
 
         if log_df is None:

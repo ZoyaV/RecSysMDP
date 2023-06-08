@@ -14,12 +14,13 @@ generation_phase:
   samples_per_epoch: 10000
   use_cache: true
   switch_to_eval_model: true
+  accumulate_datasets: true
 
 learning_phase:
   epochs: 250
-  eval_schedule: 5
-  eval_episodes: 10
-  eval_episodes_all: 40
+  eval_schedule: 20
+  eval_episodes: 20
+  eval_episodes_all: 100
   eval_users: [0, 1, 2]
   reinitialize: true
 
@@ -59,7 +60,7 @@ embeddings:
   n_dims: 16
   n_users: ???
   n_items: ???
-  init_with_als: True
+  init_with_als: False
   learn: True
 
 state_encoder:
@@ -75,7 +76,6 @@ mdp:
 
 generation_model:
   _base_: $_base.models.discrete_random
-  batch_size: 32
 
 eval_model:
   _base_: $_base.models.discrete_cql
@@ -89,7 +89,8 @@ scoring:
     - PC
     - ihitrate
 
-wandb_init: $_base.wandb_init
+wandb_init:
+  _base_: $_base.wandb_init
 cache:
   cache_root: cache
   enable: ???
