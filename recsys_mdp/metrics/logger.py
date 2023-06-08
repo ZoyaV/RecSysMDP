@@ -127,9 +127,8 @@ class Logger:
             results[iscorer_key] = self.interactive_scorers[iscorer_key](interaction_result)
         return results
 
-    def visual_log(self, model, log_resuls = None):
-
-        if len( self.visual_loggers) > 0:
+    def visual_log(self, model, results=None):
+        if len(self.visual_loggers) > 0:
             obs = self.interactive_mdp.observations
             predcted_items = model.predict(obs)
             unique_items = torch.from_numpy(np.arange(1,1000)).long()
@@ -148,12 +147,11 @@ class Logger:
         for visual_logger in self.visual_loggers:
             visual_logger(**visual_info)
 
-        # set sep='/' to make groups in wandb UI
-        flattened_dict = flatten_dict(log_resuls, sep='_')
+        results = flatten_dict(results, sep='/')
 
         #print(flattened_dict)
         if self.wandb_logger:
-            self.wandb_logger.log(flattened_dict)
+            self.wandb_logger.log(results)
 
 
 def log_satiation(logger, satiation, user_id):
