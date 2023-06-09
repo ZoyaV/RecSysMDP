@@ -14,6 +14,10 @@ d3rlpy_logs/
 #   for caching generated data
 /cache/
 
+# local and remote configs that are dedicated for experimenting
+local.yaml
+remote.yaml
+
 ### ================ DEFAULT PYTHON IGNORES ====================
 
 # Byte-compiled / optimized / DLL files

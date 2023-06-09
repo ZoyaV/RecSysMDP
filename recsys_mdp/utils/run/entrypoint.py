@@ -97,11 +97,19 @@ def run_single_run_experiment(run_params: RunParams) -> None:
 
 def set_number_cpu_threads_for_math(num_threads: int, with_torch: bool = False):
     os.environ['OMP_NUM_THREADS'] = f'{num_threads}'
+    os.environ['OPENBLAS_NUM_THREADS'] = f'{num_threads}'
     os.environ['MKL_NUM_THREADS'] = f'{num_threads}'
-
     if with_torch:
         import torch
         torch.set_num_threads(num_threads)
+
+    # Math libraries also loves to set cpu affinity, restricting
+    # on which CPU cores your sub-processes can run... tell them explicitly to shut up
+    # Setting these variables doesn't affect the number of threads, btw
+    os.environ['OPENBLAS_MAIN_FREE'] = '1'
+    os.environ['OMP_PLACES'] = '{0:128}'
+    # duplicates OMP_PLACES
+    # os.environ['GOMP_CPU_AFFINITY'] = '{0-128}'
 
 
 def default_run_arg_parser() -> ArgumentParser:

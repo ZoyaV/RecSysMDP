@@ -7,12 +7,12 @@ from pathlib import Path
 import wandb
 
 from recsys_mdp.utils.run.argparse import parse_arg_list
+from recsys_mdp.utils.run.config import extracted, read_config
 from recsys_mdp.utils.run.entrypoint import RunParams, run_single_run_experiment
 from recsys_mdp.utils.run.wandb import (
     set_wandb_sweep_threading,
     turn_off_gui_for_matplotlib
 )
-from recsys_mdp.utils.run.config import extracted, read_config
 
 
 def run_sweep(
@@ -83,6 +83,10 @@ def _wandb_agent_entry_point(run_params: RunParams) -> None:
     try:
         # we tell matplotlib to not touch GUI at all in each of the spawned sub-processes
         turn_off_gui_for_matplotlib()
+
+        # If setting cpu affinity via Math libs env variables doesn't work, use this
+        # It works only on linux, win, bsd, not on macos. But it won't raise any exception.
+        # os.system("taskset -p --cpu-list 0-128 %d" % os.getpid())
 
         # we know here that it's a sweep-induced run and can expect single sweep run config
         # to be passed via wandb.config, hence we have to take it and apply all overrides;
