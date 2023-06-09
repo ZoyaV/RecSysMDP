@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
 
@@ -5,7 +7,8 @@ import torch.nn as nn
 class CategoricalEncoder(nn.Module):
     def __init__(
             self, n_elements: int, n_dims: int,
-            learn: bool = True, initial_embeddings: torch.Tensor = None
+            learn: bool = True, initial_embeddings: torch.Tensor = None,
+            use_gpu: int | None = None
     ):
         super().__init__()
         self.output_dim = n_dims
@@ -18,6 +21,7 @@ class CategoricalEncoder(nn.Module):
             _weight=initial_embeddings,
             _freeze=not learn,
         )
+        self.to(device=use_gpu)
 
     def forward(self, ids: torch.Tensor):
         if ids.dtype != torch.long:

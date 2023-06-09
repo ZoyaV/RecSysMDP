@@ -284,17 +284,20 @@ class NextItemExperiment:
             if component == USER_ID_COL:
                 encoder = CategoricalEncoder(
                     n_elements=self.env.n_users, n_dims=self.embeddings.n_dims,
-                    learn=self.embeddings.learn, initial_embeddings=self.embeddings.users
+                    learn=self.embeddings.learn, initial_embeddings=self.embeddings.users,
+                    use_gpu=self.cuda_device
                 )
             elif component == ITEM_ID_COL:
                 encoder = CategoricalEncoder(
                     n_elements=self.env.n_items, n_dims=self.embeddings.n_dims,
-                    learn=self.embeddings.learn, initial_embeddings=self.embeddings.items
+                    learn=self.embeddings.learn, initial_embeddings=self.embeddings.items,
+                    use_gpu=self.cuda_device
                 )
             elif component == RATING_COL and self.discrete:
-                encoder = CategoricalEncoder(n_elements=self.env.n_ratings, n_dims=3)
+                encoder = CategoricalEncoder(
+                    n_elements=self.env.n_ratings, n_dims=3, use_gpu=self.cuda_device
+                )
 
-            encoder.to(device=self.cuda_device)
             result[component] = ObservationComponent(encoder=encoder, **params)
         return result
 
