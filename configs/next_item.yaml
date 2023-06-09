@@ -94,6 +94,12 @@ cache:
   keep_last_n_experiments: 10
 
 models:
+  fast_nn:
+    _type_: model.fast_nn
+    env: ???
+    seed: ???
+    n_samples: .2
+    kth_best: 1
   discrete_random:
     _base_: $_base.models.discrete_random
   discrete_bc:

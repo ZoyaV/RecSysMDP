@@ -53,6 +53,10 @@ def _resolve_model(type_tag: str):
     prefix = 'model.'
     type_tag = type_tag[len(prefix):]
 
+    if type_tag == 'fast_nn':
+        from recsys_mdp.models.fast_nn import FastNearestNeighbor
+        return FastNearestNeighbor
+
     discrete_prefix = 'discrete_'
     if type_tag.startswith(discrete_prefix):
         type_tag = type_tag[len(discrete_prefix):]

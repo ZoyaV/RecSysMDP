@@ -117,7 +117,9 @@ class NextItemExperiment:
 
         self.env = self.config.resolve_object(env)
         self.generation_model = self.config.resolve_object(
-            generation_model, use_gpu=self.cuda_device
+            generation_model, use_gpu=self.cuda_device,
+            # for FastNN model
+            env=self.env
         )
         self.discrete = (
             self.generation_model.get_action_type() == d3rlpy.constants.ActionSpace.DISCRETE
@@ -167,8 +169,8 @@ class NextItemExperiment:
             # dataset_info = _get_df_info(log_df)
 
             self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> learning')
-            fitter = self._init_rl_setting(log_df)
-            total_epoch = self._learn_on_dataset(
+            fitter = self.init_rl_setting(log_df)
+            total_epoch = self.learn_on_dataset(
                 total_epoch, fitter, dataset_info
             )
 
@@ -204,7 +206,7 @@ class NextItemExperiment:
         )
         return log_df
 
-    def _init_rl_setting(self, log_df: pd.DataFrame):
+    def init_rl_setting(self, log_df: pd.DataFrame):
         if self.eval_model is None or self.learning_phase.reinitialize:
             self.initialize_eval_model(log_df)
 
@@ -228,7 +230,7 @@ class NextItemExperiment:
         )
         return fitter
 
-    def _learn_on_dataset(self, total_epoch, fitter, dataset_info=None):
+    def learn_on_dataset(self, total_epoch, fitter, dataset_info=None):
         for epoch, metrics in fitter:
             if epoch == 1 or epoch % self.learning_phase.eval_schedule == 0:
                 self.print_with_timestamp(f'Epoch: {epoch} | Total epoch: {total_epoch} => eval...')
@@ -267,6 +269,8 @@ class NextItemExperiment:
             encoder_factory=hidden_state_encoder,
             actor_encoder_factory=hidden_state_encoder,
             critic_encoder_factory=hidden_state_encoder,
+            # for FastNN model
+            env=self.env
         )
 
     def get_observation_components(self):
