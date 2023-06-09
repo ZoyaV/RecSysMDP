@@ -148,12 +148,16 @@ class UserState:
     def sample_satiation(self, seed: int) -> np.ndarray:
         n_clusters = self.embeddings.n_item_clusters
         rng = np.random.default_rng(seed)
-        return self.base_satiation + rng.uniform(size=n_clusters)
+        # we want E[satiation] = 1 => E[U[0, 2]] = 1
+        # => shifting both sides towards `1` keeps mean unchanged
+        mood = rng.uniform(self.base_satiation, 2 - self.base_satiation, size=n_clusters)
+        return normalize_mood(mood)
 
     def drift_satiation(self, seed: int, drift: float):
         # continue based on previous mood, but slightly drift to another mood;
         # in average, it directs to the expected mean satiation
-        mood = self.satiation
+        mood = normalize_mood(self.satiation)
+
         new_mood = self.sample_satiation(seed)
         # calculate new satiation vector
         new_satiation = lin_sum(x=mood, lr=drift, y=new_mood)
@@ -244,3 +248,8 @@ class UserState:
 
     def sample_initial_satisfaction(self):
         return self.rng.normal(self.initial_satisfaction, 0.15)
+
+
+def normalize_mood(satiation: np.ndarray):
+    # makes satiation.sum() equal to the number of clusters (=shape[0])
+    return satiation / satiation.mean()
