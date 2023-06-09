@@ -41,7 +41,10 @@ def run_experiment(
 
     if args.math_threads > 0:
         # manually set math parallelization as it usually only slows things down for us
-        set_number_cpu_threads_for_math(num_threads=args.math_threads, with_torch=args.with_torch)
+        set_number_cpu_threads_for_math(
+            num_threads=args.math_threads, cpu_affinity=args.cpu_affinity,
+            with_torch=args.with_torch
+        )
 
     config_path = Path(args.config_filepath)
     config = read_config(config_path)
@@ -95,7 +98,10 @@ def run_single_run_experiment(run_params: RunParams) -> None:
         runner.run()
 
 
-def set_number_cpu_threads_for_math(num_threads: int, with_torch: bool = False):
+def set_number_cpu_threads_for_math(
+        num_threads: int, cpu_affinity: str, with_torch: bool = False
+):
+    # Set cpu threads for math libraries
     os.environ['OMP_NUM_THREADS'] = f'{num_threads}'
     os.environ['OPENBLAS_NUM_THREADS'] = f'{num_threads}'
     os.environ['MKL_NUM_THREADS'] = f'{num_threads}'
@@ -106,10 +112,11 @@ def set_number_cpu_threads_for_math(num_threads: int, with_torch: bool = False):
     # Math libraries also loves to set cpu affinity, restricting
     # on which CPU cores your sub-processes can run... tell them explicitly to shut up
     # Setting these variables doesn't affect the number of threads, btw
-    os.environ['OPENBLAS_MAIN_FREE'] = '1'
-    os.environ['OMP_PLACES'] = '{0:128}'
+    os.environ['OMP_PLACES'] = cpu_affinity
     # duplicates OMP_PLACES
     # os.environ['GOMP_CPU_AFFINITY'] = '{0-128}'
+    # dunno what does this mean
+    # os.environ['OPENBLAS_MAIN_FREE'] = '1'
 
 
 def default_run_arg_parser() -> ArgumentParser:
@@ -128,4 +135,5 @@ def default_run_arg_parser() -> ArgumentParser:
 
     parser.add_argument('--math_threads', dest='math_threads', type=int, default=1)
     parser.add_argument('--with_torch', dest='with_torch', action='store_true', default=True)
+    parser.add_argument('--cpu_affinity', dest='cpu_affinity', default='{0:63}')
     return parser
