@@ -45,6 +45,7 @@ def run_experiment(
             num_threads=args.math_threads, cpu_affinity=args.cpu_affinity,
             with_torch=args.with_torch
         )
+        start_core = int(args.cpu_affinity.split(':')[0][1:])
 
     config_path = Path(args.config_filepath)
     config = read_config(config_path)
@@ -63,6 +64,7 @@ def run_experiment(
             n_agents=args.n_sweep_agents,
             sweep_run_params=run_params,
             run_arg_parser=arg_parser,
+            individual_cpu_cores=(start_core, args.ind_cpu_affinity)
         )
     else:
         # single run
@@ -136,4 +138,6 @@ def default_run_arg_parser() -> ArgumentParser:
     parser.add_argument('--math_threads', dest='math_threads', type=int, default=1)
     parser.add_argument('--with_torch', dest='with_torch', action='store_true', default=True)
     parser.add_argument('--cpu_affinity', dest='cpu_affinity', default='{0:63}')
+    # set how many cores to fix after each process
+    parser.add_argument('--icpu_affinity', dest='ind_cpu_affinity', type=int, default=None)
     return parser
