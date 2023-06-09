@@ -38,7 +38,7 @@ def normalize(x: np.ndarray) -> np.ndarray:
     return x / normalizer
 
 
-def softmax(x: np.ndarray, temp=.12) -> np.ndarray:
+def softmax(x: np.ndarray, temp=.06) -> np.ndarray:
     """Computes softmax values for a vector `x` with a given temperature."""
     temp = np.clip(temp, 1e-5, 1e+3)
     e_x = np.exp((x - np.max(x, axis=-1)) / temp)
