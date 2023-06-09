@@ -144,7 +144,7 @@ class UserState:
             return timestep >= max_time_steps
 
         # sample 3 times and take mean to smooth dependency by reducing variability
-        return self.rng.random(size=3).mean() < probability
+        return self.rng.random() < probability
 
     def sample_satiation(self, seed: int) -> np.ndarray:
         n_clusters = self.embeddings.n_item_clusters
