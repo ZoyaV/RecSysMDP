@@ -294,6 +294,7 @@ class NextItemExperiment:
             elif component == RATING_COL and self.discrete:
                 encoder = CategoricalEncoder(n_elements=self.env.n_ratings, n_dims=3)
 
+            encoder.to(device=self.cuda_device)
             result[component] = ObservationComponent(encoder=encoder, **params)
         return result
 

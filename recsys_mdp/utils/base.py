@@ -32,13 +32,16 @@ def update_exp_trace(traces, tr, decay, val=1., with_reset=False):
         traces[tr] += val
 
 
-def get_cuda_device(cuda_device: int | None) -> int | bool:
+def get_cuda_device(cuda_device: int | None) -> int | None:
     if cuda_device is not None:
         import torch.cuda
         cuda_available = torch.cuda.is_available()
         print(f'CUDA available: {cuda_available}; device: {cuda_device}')
         if not cuda_available:
-            cuda_device = False
+            cuda_device = None
+
+    if isinstance(cuda_device, bool):
+        cuda_device = 0
     return cuda_device
 
 
