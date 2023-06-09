@@ -207,6 +207,20 @@ embeddings:
     min_dim_delta: 0.25
     min_l2_dist: 0.3
 
+  20_clusters_for_12_dims:
+    _base_: clusters
+    n_clusters: 20
+    intra_cluster_noise_scale: 0.15
+    min_l2_dist: 0.3
+
+  50_clusters_for_12_dims:
+    _base_: clusters
+    n_clusters: 50
+    intra_cluster_noise_scale: 0.15
+    n_dissimilar_dims_required: 2
+    min_dim_delta: 0.25
+    min_l2_dist: 0.3
+
 # additional params for wandb.init
 wandb_init:
   log: ???

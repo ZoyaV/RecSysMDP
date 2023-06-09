@@ -31,14 +31,14 @@ env:
   max_rating: 5
   max_episode_len: [120, 50]
   embeddings:
-    n_dims: 8
-    users: $_base.embeddings.10_clusters_for_8_dims
-    items: $_base.embeddings.20_clusters_for_8_dims
+    n_dims: 12
+    users: $_base.embeddings.20_clusters_for_12_dims
+    items: $_base.embeddings.50_clusters_for_12_dims
   user_state:
     _base_: $_base.user_states.default
-    base_satiation_speed: [0.1, .4]
+    base_satiation_speed: [0.05, .25]
     satiation_drift: 1.0
-    relevance_boosting: [0.2, 4.0]
+    relevance_boosting: [0.4, 4.0]
     discrete_actions:
       - [0.2, 0.08]
       - [0.37, 0.1]
