@@ -7,6 +7,87 @@ from recsys_mdp.experiments.utils.phases import LearningPhaseParameters
 from recsys_mdp.metrics.logger import log_satiation
 from recsys_mdp.simulator.user_state import USER_RESET_MODE_DISCONTINUE, USER_RESET_MODE_INIT
 
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+import matplotlib
+import numpy as np
+import os
+import cv2
+import wandb
+def generate_item_colors(trajectory):
+    item_colors = []  # Пустой словарь для хранения цветов айтемов
+
+    for i, entry in enumerate(trajectory):
+        items_top = list(entry[6] ) # Получаем items_top для текущего шага траектории
+
+        # Определяем позицию порекомендованного айтема в топе
+        recommended_item = entry[2]  # item_id, который мы порекомендовали
+        position = items_top.index(recommended_item)
+
+        # Вычисляем пропорцию позиции в топе
+        proportion = position / (len(items_top) - 1)
+
+        # Создаем градиентный переход от голубого к красному
+        cmap = LinearSegmentedColormap.from_list("custom_colormap", ["#00BFFF", "#FF0000"], N=len(items_top))
+
+        # Получаем цвет для порекомендованного айтема
+        color = cmap(proportion)
+
+        # Преобразуем цвет к трехкомпонентному формату RGB
+        color_rgb = np.array(color)[:3]  # Оставляем только первые три компонента RGB
+        # print(color_rgb)
+        # Обновляем словарь item_colors для каждого item_id в items_top
+        item_colors.append({item_id: color_rgb for item_id in items_top})
+        # print(item_colors)
+    return item_colors
+
+
+def generate_image(trajectory, item_colors):
+    # Определите размеры изображения на основе длины траектории
+    width = len(trajectory)
+    height = 1
+
+    # Создайте пустой массив numpy для хранения цветов пикселей
+    image = np.zeros((height, width, 3), dtype=np.uint8)
+
+    for i, entry in enumerate(trajectory):
+        item_id = entry[2]  # Получите item_id из элемента trajectory
+        color = item_colors[i][item_id] * 255  # Получите цвет по item_id
+        # print(color)
+        # Задайте цвет пикселя в массиве изображения
+        image[0, i] = color
+
+    return image
+
+
+def save_trajectory(trajectory, save_path):
+    # Генерируем словарь item_colors на основе массива trajectory
+    item_colors = generate_item_colors(trajectory)
+    # Создаем массив numpy-изображение
+    image = generate_image(trajectory, item_colors)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    matplotlib.use('Agg')
+    num_items = len(set(item_id for _, _, item_id, _, _, _, _ in trajectory))
+
+    N = 500
+    image = cv2.resize(image, (N, N), interpolation=cv2.INTER_NEAREST)
+
+    if 'run' not in save_path:
+        images = wandb.Image(
+            image,
+            caption="action accuracy"
+        )
+
+        wandb.log({"episode-progress": images})
+
+    #  image_resized = Image.fromarray((image * 255).astype(np.uint8)).resize((N, N))
+    # print(image)
+    # Отображаем изображение
+    plt.imshow(image)
+    plt.title(f"Number of items: {len(trajectory)}, \n set items {num_items}", fontsize=14)
+    # Save the plot
+    plt.savefig(save_path)
+
 
 def generate_episode(
         env, model, framestack, rng, logger, cold_start=False, user_id=None,
@@ -15,7 +96,7 @@ def generate_episode(
     orig_user_id = user_id
     trajectory = []
     N_BEST_ITEMS = 10
-    RANGE_SIZE= 15
+    RANGE_SIZE= np.random.choice([15, 25, -10])
 
     user_id = env.reset(user_id=user_id)
     # FIXME: obs keys
@@ -26,7 +107,10 @@ def generate_episode(
     while True:
         items_top = env.state.ranked_items(with_satiation=True, discrete=True)
         if use_env_actions:
-            item_id = rng.choice(items_top[:RANGE_SIZE])
+            if RANGE_SIZE < 0:
+                item_id = rng.choice(items_top[RANGE_SIZE:])
+            else:
+                item_id = rng.choice(items_top[:RANGE_SIZE])
         else:
             item_id = model.predict(obs.reshape(1, -1))[0]
 
@@ -41,13 +125,22 @@ def generate_episode(
             user_id, item_id,
             continuous_relevance, discrete_relevance,
             terminated,
-            items_top[:N_BEST_ITEMS]
+            items_top
         ))
         if terminated:
             break
 
+
+
         if env.timestep % 4 == 0 and log_sat:
             log_satiation(logger, env.state.satiation, orig_user_id)
+
+    if env.timestep % 4 == 0:
+        if use_env_actions:
+            save_trajectory(trajectory, f"trajectory_log/env_best_100/{user_id}_{env.timestamp}.png")
+        else:
+
+            save_trajectory(trajectory, f"trajectory_log/run/{user_id}_{env.timestamp}.png")
     return trajectory
 
 
@@ -179,7 +272,7 @@ def generate_episode_old(
         items_top = env.state.ranked_items(with_satiation=True, discrete=True)
 
         if use_best:
-            item_id = rng.choice(items_top[:10])
+            item_id = rng.choice(items_top[:60])
 
         trajectory.append(
             (
@@ -207,7 +300,7 @@ def _generate_episode(
     user_id = env.reset(user_id=user_id)
     trajectory = []
     N_BEST_ITEMS = 10
-    RANGE_SIZE= 15
+    RANGE_SIZE= 500
     # Get random items from best for framestack
     # TODO: How it will affect to episode lenghts?
     # TODO: Make framestack making as function
