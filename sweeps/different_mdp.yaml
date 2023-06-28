@@ -1,0 +1,59 @@
+program: run.py
+
+# wandb project: for a sweep it will be used instead of the project
+# specified in run config
+project: algorithm_experiment
+method: grid
+parameters:
+  # Keep seeds presented every time and keep them on top
+  # I recommend just uncommenting the needed number of seeds to use
+  seed.:
+    values: [40, 41, 42] #, 45, 46] #, 47, 48, 49] #, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
+
+  # Then you can optionally overwrite some attributes with
+  # non-usual values or instead to "freeze" frequently changed
+  # config attributes to prevent unexpected behavior and mistakes
+  # NB: "value" means that only one value is specified, i.e. it isn't
+  # used for "sweeping"
+  #cuda_device.:
+   # value: True
+ # generation..samples:
+   # value: 4000
+
+  # path.to.config.attribute and its values for "sweeping"
+  # NB: It's better to use "path..to.attribute" or "attribute.", i.e. +additional "." after first
+  # part of a path to attribute
+  mdp..reward:
+    values: 
+        - one
+        - relevant
+
+  mdp..episode:
+    values: 
+        - pause
+        - user
+
+  eval_model.._base_: 
+    values: 
+        - $_base.models.discrete_cql
+        - $_base.models.discrete_bc
+        - $_base.models.discrete_sac
+        
+  env.user_state.base_satiation_speed:
+    values: 
+        - [0.1, .4]
+        - [0.0001, .0004]
+        - [0.00001, .00004]
+
+cache.keep_last_n_experiments:
+    value: 3
+    
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
+
+    # REQUIRED. Usually it is in {path_to_sweep_config}/../configs/{config}
+  - --config
+  - ../configs/next_item.yaml

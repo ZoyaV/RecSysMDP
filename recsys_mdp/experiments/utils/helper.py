@@ -72,7 +72,7 @@ def save_trajectory(trajectory, save_path):
     N = 500
     image = cv2.resize(image, (N, N), interpolation=cv2.INTER_NEAREST)
 
-    if 'run' not in save_path:
+    if 'run' in save_path:
         images = wandb.Image(
             image,
             caption="action accuracy"
@@ -96,7 +96,7 @@ def generate_episode(
     orig_user_id = user_id
     trajectory = []
     N_BEST_ITEMS = 10
-    RANGE_SIZE= np.random.choice([15, 25, -10])
+    RANGE_SIZE= np.random.choice([150, 250, -100])
 
     user_id = env.reset(user_id=user_id)
     # FIXME: obs keys
