@@ -21,13 +21,12 @@ from recsys_mdp.experiments.utils.mdp_constructor import (
 )
 from recsys_mdp.experiments.utils.phases import (
     GenerationPhaseParameters,
-    LearningPhaseParameters
+    LearningPhaseParameters, EvaluationPhaseParameters, ExperimentPipeline
 )
 from recsys_mdp.experiments.utils.scorers_constructor import init_logger
 from recsys_mdp.experiments.utils.type_resolver import TypesResolver
 from recsys_mdp.mdp.base import (
-    RELEVANCE_CONT_COL,
-    RELEVANCE_INT_COL, USER_ID_COL, ITEM_ID_COL, RATING_COL
+    USER_ID_COL, ITEM_ID_COL, RATING_COL
 )
 from recsys_mdp.mdp.utils import isnone
 from recsys_mdp.models.models import ActorEncoderFactory
@@ -55,8 +54,10 @@ class NextItemExperiment:
     rng: Generator
     cuda_device: int | bool
 
-    generation_phase: GenerationPhaseParameters
-    learning_phase: LearningPhaseParameters
+    pipeline: ExperimentPipeline
+    generation: GenerationPhaseParameters
+    learning: LearningPhaseParameters
+    evaluation: EvaluationPhaseParameters
     cache: ExperimentCache | None
 
     env: NextItemEnvironment
@@ -78,7 +79,7 @@ class NextItemExperiment:
     def __init__(
             self,
             config: TConfig, config_path: Path, seed: int,
-            generation_phase: TConfig, learning_phase: TConfig,
+            pipeline: TConfig, phases: TConfig,
             env: TConfig, framestack: TConfig,
             embeddings: TConfig, state_encoder: TConfig,
             generation_model: TConfig, eval_model: TConfig,
@@ -111,9 +112,12 @@ class NextItemExperiment:
         d3rlpy.seed(seed)
         self.cuda_device = get_cuda_device(cuda_device)
 
-        # PHASES
-        self.generation_phase = GenerationPhaseParameters(**generation_phase)
-        self.learning_phase = LearningPhaseParameters(**learning_phase)
+        # PIPELINE + PHASES
+        self.pipeline = self.config.resolve_object(
+            pipeline, object_type_or_factory=ExperimentPipeline
+        )
+        phases = self.config.resolve_object(phases, object_type_or_factory=dict)
+        self.init_phase_settings(**phases)
 
         self.env = self.config.resolve_object(env)
         self.generation_model = self.config.resolve_object(
@@ -142,13 +146,16 @@ class NextItemExperiment:
         self.mdp_preparator = None
 
         # CACHING
-        generation_minimal_config = self.generation_minimal_config(**self.config.config)
-        self.cache = self.config.resolve_object(
-            cache, object_type_or_factory=ExperimentCache,
-            enable=self.generation_phase.use_cache, experiment_config=generation_minimal_config
-        )
-        if self.cache.enabled:
-            self.print_with_timestamp(f'Initialized cache in {self.cache.root}')
+        self.cache = ExperimentCache(enable=False)
+        assert not self.generation.use_cache, f"Disable caching. It's malfunctioning!"
+        if self.generation.use_cache:
+            generation_minimal_config = self.generation_minimal_config(**self.config.config)
+            self.cache = self.config.resolve_object(
+                cache, object_type_or_factory=ExperimentCache,
+                enable=self.generation.use_cache, experiment_config=generation_minimal_config
+            )
+            if self.cache.enabled:
+                self.print_with_timestamp(f'Initialized cache in {self.cache.root}')
 
     def run(self):
         self.print_with_timestamp('==> Run')
@@ -157,24 +164,19 @@ class NextItemExperiment:
         # noinspection PyTypeChecker
         log_df: pd.DataFrame = None
 
-        for generation_epoch in range(1, self.generation_phase.epochs+1):
-            self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> generating')
-            _log_df = self.generate_dataset(generation_epoch)
-            if log_df is not None and self.generation_phase.accumulate_datasets:
+        for meta_epoch in range(1, self.pipeline.meta_epochs + 1):
+            self.print_with_timestamp(f'Meta-Epoch: {meta_epoch} ==> generating')
+            _log_df = self.generate_dataset(meta_epoch)
+            if log_df is not None and self.pipeline.accumulate_data:
                 log_df = pd.concat([log_df, _log_df], ignore_index=True)
             else:
                 log_df = _log_df
 
-            dataset_info = None
-            # dataset_info = _get_df_info(log_df)
-
-            self.print_with_timestamp(f'Meta-Epoch: {generation_epoch} ==> learning')
+            self.print_with_timestamp(f'Meta-Epoch: {meta_epoch} ==> learning')
             fitter = self.init_rl_setting(log_df)
-            total_epoch = self.learn_on_dataset(
-                total_epoch, fitter, dataset_info
-            )
+            total_epoch = self.learn_on_dataset(total_epoch, fitter, None)
 
-            if generation_epoch == 1 and self.generation_phase.switch_to_eval_model:
+            if meta_epoch == 1 and not self.pipeline.fix_generator:
                 self.generation_model = self.eval_model
 
         self.print_with_timestamp('<==')
@@ -186,8 +188,8 @@ class NextItemExperiment:
 
         if log_df is None:
             self.print_with_timestamp("Generating dataset...")
-            max_episodes = self.generation_phase.episodes_per_epoch
-            max_samples = self.generation_phase.samples_per_epoch
+            max_episodes = self.generation.episodes
+            max_samples = self.generation.samples
             samples = []
 
             for episode in count():
@@ -207,7 +209,7 @@ class NextItemExperiment:
         return log_df
 
     def init_rl_setting(self, log_df: pd.DataFrame):
-        if self.eval_model is None or self.learning_phase.reinitialize:
+        if self.eval_model is None or self.pipeline.retrain:
             self.initialize_eval_model(log_df)
 
         train_log, test_log = split_dataframe(log_df, time_sorted=True)
@@ -223,7 +225,7 @@ class NextItemExperiment:
         self.algo_test_logger = algo_test_logger
 
         # Run experiment
-        config = self.learning_phase
+        config = self.learning
         fitter = self.eval_model.fitter(
             dataset=train_mdp, n_epochs=config.epochs,
             verbose=False, save_metrics=False, show_progress=False,
@@ -232,11 +234,11 @@ class NextItemExperiment:
 
     def learn_on_dataset(self, total_epoch, fitter, dataset_info=None):
         for epoch, metrics in fitter:
-            if epoch == 1 or epoch % self.learning_phase.eval_schedule == 0:
+            if epoch == 1 or epoch % self.evaluation.schedule == 0:
                 self.print_with_timestamp(f'Epoch: {epoch} | Total epoch: {total_epoch} => eval...')
                 eval_algo(
                     self.eval_model, self.algo_test_logger,
-                    eval_phase=self.learning_phase,
+                    eval_phase=self.evaluation,
                     train_logger=self.algo_logger,
                     env=self.env, framestack=self.framestack,
                     dataset_info=dataset_info,
@@ -247,7 +249,7 @@ class NextItemExperiment:
         return total_epoch
 
     def data2mdp(self, log_df, mdp_settings, scorer):
-        # TODO: one preparator shuld transform different datasets?
+        # TODO: one preparator should transform different datasets?
         preparator = get_mdp_former(**mdp_settings)
         mdp = preparator.make_mdp(log_df, discrete_action=self.discrete)
         algo_logger = init_logger(
@@ -301,6 +303,17 @@ class NextItemExperiment:
             result[component] = ObservationComponent(encoder=encoder, **params)
         return result
 
+    def init_phase_settings(self, generation: TConfig, learning: TConfig, evaluation: TConfig):
+        self.generation = self.config.resolve_object(
+            generation, object_type_or_factory=GenerationPhaseParameters
+        )
+        self.learning = self.config.resolve_object(
+            learning, object_type_or_factory=LearningPhaseParameters
+        )
+        self.evaluation = self.config.resolve_object(
+            evaluation, object_type_or_factory=EvaluationPhaseParameters
+        )
+
     def generation_minimal_config(self, seed, env, generation_phase, framestack, **_):
         env_config, _ = self.config.resolve_object_requirements(
             env, object_type_or_factory=NextItemEnvironment
@@ -321,33 +334,3 @@ class NextItemExperiment:
 
     def print_with_timestamp(self, *args):
         print_with_timestamp(self.init_time, *args)
-
-
-def _get_df_info(log_df):
-    mean_dreturn = np.mean(log_df[RELEVANCE_INT_COL])
-    median_dreturn = np.median(log_df[RELEVANCE_INT_COL])
-    std_dreturn = np.std(log_df[RELEVANCE_INT_COL])
-
-    mean_return = np.mean(log_df[RELEVANCE_CONT_COL])
-    median_return = np.median(log_df[RELEVANCE_CONT_COL])
-    std_return = np.std(log_df[RELEVANCE_CONT_COL])
-
-    dataset_info = [
-        {
-            "discrete_return": mean_dreturn,
-            "continuous_return": mean_return,
-        },
-        {
-            "discrete_return": mean_dreturn + std_dreturn,
-            "continuous_return": mean_return + std_return,
-        },
-        {
-            "discrete_return": mean_dreturn - std_dreturn,
-            "continuous_return": mean_return - std_return,
-        },
-        {
-            "discrete_return": median_dreturn,
-            "continuous_return": median_return
-        }
-    ]
-    return dataset_info

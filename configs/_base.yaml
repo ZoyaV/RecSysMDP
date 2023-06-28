@@ -221,6 +221,78 @@ embeddings:
     min_dim_delta: 0.25
     min_l2_dist: 0.3
 
+pipeline_setups:
+  single_epoch:
+    meta_epochs: 1
+    fix_generator: true
+    accumulate_data: false
+    retrain: true
+
+  data_hungry:
+    meta_epochs: 4
+    fix_generator: true
+    accumulate_data: true
+    retrain: true
+
+  hard_incremental_learning:
+    meta_epochs: 4
+    fix_generator: false
+    accumulate_data: false
+    retrain: false
+
+  hard_exploration:
+    meta_epochs: 4
+    fix_generator: false
+    accumulate_data: false
+    retrain: true
+
+  accumulative_retraining:
+    meta_epochs: 4
+    fix_generator: false
+    accumulate_data: true
+    retrain: true
+
+  soft_incremental_learning:
+    meta_epochs: 4
+    fix_generator: false
+    accumulate_data: true
+    retrain: false
+
+generation_phase_setups:
+  default:
+    episodes: ...
+    use_cache: false
+  small:
+    _base_: default
+    samples: 4000
+  half:
+    _base_: default
+    samples: 10000
+  full:
+    _base_: default
+    samples: 25000
+
+learning_phase_setups:
+  small:
+    epochs: 40
+  full:
+    epochs: 100
+
+evaluation_phase_setups:
+  default:
+    track_users: [0, 1, 2]
+  small:
+    _base_: default
+    schedule: 10
+    episodes: 40
+    user_episodes: 10
+  full:
+    _base_: default
+    schedule: 20
+    episodes: 100
+    user_episodes: 20
+
+
 # additional params for wandb.init
 wandb_init:
   log: ???

@@ -8,21 +8,8 @@ log: True
 seed: 42
 cuda_device: ...
 
-generation_phase:
-  epochs: 2
-  episodes_per_epoch:
-  samples_per_epoch: 10000
-  use_cache: false
-  switch_to_eval_model: true
-  accumulate_datasets: false
-
-learning_phase:
-  epochs: 100
-  eval_schedule: 20
-  eval_episodes: 20
-  eval_episodes_all: 100
-  eval_users: [0, 1, 2]
-  reinitialize: true
+pipeline: $_base.pipeline_setups.single_epoch
+phases: phase_setups.full
 
 env:
   _base_: $_base.env
@@ -111,3 +98,16 @@ models:
   sdac:
     _base_: $_base.models.sdac
 
+phase_setups:
+  small:
+    generation: $_base.generation_phase_setups.small
+    learning: $_base.learning_phase_setups.small
+    evaluation: $_base.evaluation_phase_setups.small
+  full:
+    generation: $_base.generation_phase_setups.full
+    learning: $_base.learning_phase_setups.full
+    evaluation: $_base.evaluation_phase_setups.full
+  half:
+    generation: $_base.generation_phase_setups.half
+    learning: $_base.learning_phase_setups.full
+    evaluation: $_base.evaluation_phase_setups.full

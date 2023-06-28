@@ -9,7 +9,7 @@ class ExperimentCache:
     cache: CacheDirectory | None
 
     def __init__(
-            self, *, enable: bool, cache_root: str, experiment_config: TConfig,
+            self, *, enable: bool, cache_root: str = None, experiment_config: TConfig = None,
             keep_last_n_experiments: int = None
     ):
         self.cache = None

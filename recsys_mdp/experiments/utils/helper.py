@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from numpy.random import Generator
 
-from recsys_mdp.experiments.utils.phases import LearningPhaseParameters
+from recsys_mdp.experiments.utils.phases import EvaluationPhaseParameters
 from recsys_mdp.mdp.base import (
     OBSERVATION_COL, RELEVANCE_CONT_COL, RELEVANCE_INT_COL, RATING_COL,
     ITEM_ID_COL
@@ -29,10 +29,10 @@ def generate_episode(env, model, framestack, user_id=None, log_sat=False,):
 
 
 def eval_returns(
-        env, model, framestack, eval_phase: LearningPhaseParameters,
+        env, model, framestack, eval_phase: EvaluationPhaseParameters,
         user_id=None, logger=None, rng: Generator = None
 ):
-    n_episodes = eval_phase.eval_episodes if user_id is not None else eval_phase.eval_episodes_all
+    n_episodes = eval_phase.user_episodes if user_id is not None else eval_phase.episodes
     interactions = []
     for ep in range(n_episodes):
         trajectory = generate_episode(
@@ -64,7 +64,7 @@ def eval_returns(
 
 
 def eval_algo(
-        algo, logger, train_logger, eval_phase: LearningPhaseParameters,
+        algo, logger, train_logger, eval_phase: EvaluationPhaseParameters,
         env=None, framestack=None, dataset_info=None, rng=None,
 ):
     if env:
@@ -72,7 +72,7 @@ def eval_algo(
 
         online_res = dict()
         # noinspection PyTypeChecker
-        looking_for = eval_phase.eval_users + [None]
+        looking_for = eval_phase.track_users + [None]
         for i in looking_for:
             online_res[f"user {i}"] = eval_returns(
                 env, algo, framestack=framestack, eval_phase=eval_phase,
@@ -176,6 +176,7 @@ def generate_episode_old(
         log_satiation(logger, env.state.satiation, orig_user_id)
 
     return trajectory
+
 
 def _generate_episode(
         self, cold_start=False, user_id=None,
