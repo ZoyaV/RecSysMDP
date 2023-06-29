@@ -122,7 +122,7 @@ class NextItemExperiment:
         self.env = self.config.resolve_object(env)
         self.generation_model = self.config.resolve_object(
             generation_model, use_gpu=self.cuda_device,
-            # for FastNN model
+            # for InformedRandom model
             env=self.env
         )
         self.discrete = (
@@ -146,16 +146,7 @@ class NextItemExperiment:
         self.mdp_preparator = None
 
         # CACHING
-        self.cache = ExperimentCache(enable=False)
-        assert not self.generation.use_cache, f"Disable caching. It's malfunctioning!"
-        if self.generation.use_cache:
-            generation_minimal_config = self.generation_minimal_config(**self.config.config)
-            self.cache = self.config.resolve_object(
-                cache, object_type_or_factory=ExperimentCache,
-                enable=self.generation.use_cache, experiment_config=generation_minimal_config
-            )
-            if self.cache.enabled:
-                self.print_with_timestamp(f'Initialized cache in {self.cache.root}')
+        self.cache = self.get_cache(cache)
 
     def run(self):
         self.print_with_timestamp('==> Run')
@@ -313,6 +304,20 @@ class NextItemExperiment:
         self.evaluation = self.config.resolve_object(
             evaluation, object_type_or_factory=EvaluationPhaseParameters
         )
+
+    def get_cache(self, cache: TConfig):
+        assert not self.generation.use_cache, f"Disable caching. It's malfunctioning!"
+        if self.generation.use_cache:
+            generation_minimal_config = self.generation_minimal_config(**self.config.config)
+            cache = self.config.resolve_object(
+                cache, object_type_or_factory=ExperimentCache,
+                enable=self.generation.use_cache, experiment_config=generation_minimal_config
+            )
+            if self.cache.enabled:
+                self.print_with_timestamp(f'Initialized cache in {self.cache.root}')
+        else:
+            cache = ExperimentCache(enable=False)
+        return cache
 
     def generation_minimal_config(self, seed, env, generation_phase, framestack, **_):
         env_config, _ = self.config.resolve_object_requirements(

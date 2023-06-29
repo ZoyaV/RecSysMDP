@@ -53,9 +53,9 @@ def _resolve_model(type_tag: str):
     prefix = 'model.'
     type_tag = type_tag[len(prefix):]
 
-    if type_tag == 'fast_nn':
-        from recsys_mdp.models.fast_nn import FastNearestNeighbor
-        return FastNearestNeighbor
+    if type_tag == 'informed_random':
+        from recsys_mdp.models.informed_random import InformedRandomPolicy
+        return InformedRandomPolicy
 
     discrete_prefix = 'discrete_'
     if type_tag.startswith(discrete_prefix):

@@ -44,7 +44,7 @@ def resolve_absolute_quantity(abs_or_relative: int | float, *, baseline: int) ->
 
     if isinstance(abs_or_relative, float):
         relative = abs_or_relative
-        return int(baseline * relative)
+        return round(baseline * relative)
     elif isinstance(abs_or_relative, int):
         absolute = abs_or_relative
         return absolute

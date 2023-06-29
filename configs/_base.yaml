@@ -38,7 +38,12 @@ models:
   # DISCRETE
   discrete_random:
     _type_: model.discrete_random
-
+  informed_random:
+    _type_: model.informed_random
+    env: ???
+    seed: ???
+    n_samples: ...
+    kth_best: ???
   discrete_bc:
     _base_: discrete_bc_default
 #    learning_rate: 5e-4

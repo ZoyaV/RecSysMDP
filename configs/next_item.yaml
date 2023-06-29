@@ -81,14 +81,10 @@ cache:
   keep_last_n_experiments: 10
 
 models:
-  fast_nn:
-    _type_: model.fast_nn
-    env: ???
-    seed: ???
-    n_samples: .2
-    kth_best: 1
   discrete_random:
     _base_: $_base.models.discrete_random
+  informed_random:
+    _base_: $_base.models.informed_random
   discrete_bc:
     _base_: $_base.models.discrete_bc
   discrete_cql:
@@ -97,6 +93,23 @@ models:
     _base_: $_base.models.discrete_sac
   sdac:
     _base_: $_base.models.sdac
+
+  # ORACLES
+  oracle_best:
+    _base_: informed_random
+    kth_best: 1
+  oracle_25:
+    _base_: informed_random
+    kth_best: .25
+  oracle_50:
+    _base_: informed_random
+    kth_best: .5
+  oracle_75:
+    _base_: informed_random
+    kth_best: .75
+  oracle_100:
+    _base_: informed_random
+    kth_best: .100
 
 phase_setups:
   small:
