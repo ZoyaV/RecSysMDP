@@ -18,6 +18,7 @@ env:
   max_rating: 5
   max_episode_len: [120, 50]
   embeddings:
+    _base_: $_base.env_embedding_pair
     n_dims: 12
     users: $_base.embeddings.20_clusters_for_12_dims
     items: $_base.embeddings.50_clusters_for_12_dims
@@ -95,9 +96,16 @@ models:
     _base_: $_base.models.sdac
 
   # ORACLES
+  oracle_confident_best:
+    _base_: informed_random
+    n_samples: 0.25
+    kth_best: 1
   oracle_best:
     _base_: informed_random
     kth_best: 1
+  oracle_10:
+    _base_: informed_random
+    kth_best: .1
   oracle_25:
     _base_: informed_random
     kth_best: .25

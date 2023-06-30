@@ -39,8 +39,8 @@ def _resolve_env_related_types(type_tag: str):
         from recsys_mdp.simulator.env import NextItemEnvironment
         return NextItemEnvironment
     if type_tag == 'env.user_state':
-        from recsys_mdp.simulator.user_state import UserState
-        return UserState
+        from recsys_mdp.simulator.user_state import SharedUserState
+        return SharedUserState
     if type_tag == 'env.embeddings.random':
         from recsys_mdp.simulator.embeddings import RandomEmbeddings
         return RandomEmbeddings

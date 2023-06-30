@@ -26,15 +26,15 @@ class InformedRandomPolicy(DiscreteRandomPolicy):
 
         assert 0 < abs(kth_best)
         kth_best_sign = kth_best // abs(kth_best)
-        if isinstance(kth_best, int) and kth_best > 0:
-            kth_best -= 1
-
-        kth_best = resolve_absolute_quantity(kth_best, baseline=n_samples)
-        if kth_best == 0 and kth_best_sign < 0:
-            kth_best = -1
-
-        if kth_best < 0:
-            kth_best += self.n_samples
+        if isinstance(kth_best, int):
+            if kth_best > 0:
+                kth_best -= 1
+            else:
+                kth_best += self.n_samples
+        else:
+            kth_best = resolve_absolute_quantity(kth_best, baseline=n_samples)
+            if kth_best == 0 and kth_best_sign < 0:
+                kth_best = -1
 
         self.kth_best = kth_best
         assert self.kth_best < self.n_samples

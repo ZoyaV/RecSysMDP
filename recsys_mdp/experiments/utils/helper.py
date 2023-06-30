@@ -10,7 +10,6 @@ from recsys_mdp.mdp.base import (
     ITEM_ID_COL
 )
 from recsys_mdp.metrics.logger import log_satiation
-from recsys_mdp.simulator.user_state import USER_RESET_MODE_DISCONTINUE, USER_RESET_MODE_INIT
 
 
 def generate_episode(env, model, framestack, user_id=None, log_sat=False,):
@@ -32,6 +31,8 @@ def eval_returns(
         env, model, framestack, eval_phase: EvaluationPhaseParameters,
         user_id=None, logger=None, rng: Generator = None
 ):
+    checkpoint = env.make_checkpoint()
+
     n_episodes = eval_phase.user_episodes if user_id is not None else eval_phase.episodes
     interactions = []
     for ep in range(n_episodes):
@@ -49,6 +50,8 @@ def eval_returns(
     avg_episode_len = n_samples / n_episodes
     avg_reward = avg_return / avg_episode_len
     avg_coverage = log_df[ITEM_ID_COL].unique().shape[0]
+
+    env.restore_checkpoint(checkpoint)
 
     return {
         'cont_relevance': avg_cont_relevance,
@@ -68,8 +71,6 @@ def eval_algo(
         env=None, framestack=None, dataset_info=None, rng=None,
 ):
     if env:
-        env.hard_reset(mode=USER_RESET_MODE_INIT)
-
         online_res = dict()
         # noinspection PyTypeChecker
         looking_for = eval_phase.track_users + [None]

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from typing import Callable
+
 import numpy as np
 from numpy.random import Generator
 
 from recsys_mdp.simulator.clusters import generate_clusters
+from recsys_mdp.simulator.relevance import resolve_similarity_metric
+from recsys_mdp.simulator.utils import softmax, normalize
 from recsys_mdp.utils.base import sample_int
 from recsys_mdp.utils.run.config import GlobalConfig, TConfig
 
@@ -27,10 +31,16 @@ class Embeddings:
     item_clusters: np.ndarray
     n_item_clusters: int
 
+    similarity_metric: str
+    similarity: Callable
+    # (n_items, n_item_clusters)
+    item_cluster_relevance: np.ndarray
+
     def __init__(
             self, global_config: GlobalConfig, seed: int,
-            n_users: int, n_items: int,
-            n_dims: int, users: TConfig, items: TConfig
+            n_users: int, n_items: int, n_dims: int,
+            users: TConfig, items: TConfig,
+            similarity: str, item_cluster_classifier: str
     ):
         self.n_dims = n_dims
 
@@ -50,6 +60,30 @@ class Embeddings:
         self.item_cluster_ind, self.items = self.item_embeddings_generator.generate(n_items)
         self.item_clusters = self.item_embeddings_generator.clusters
         self.n_item_clusters = self.item_embeddings_generator.n_clusters
+
+        self.similarity_metric = similarity
+        self.similarity = resolve_similarity_metric(similarity)
+        self.item_cluster_relevance = self._item_cluster_relevance(
+            classifier=item_cluster_classifier
+        )
+
+    def _item_cluster_relevance(
+            self, classifier: str | Callable, item_id: int = None
+    ) -> np.ndarray:
+        if isinstance(classifier, str):
+            # how to normalize item-to-item_clusters similarity to attention/probability
+            classifier = dict(softmax=softmax, normalize=normalize)[classifier]
+
+        if item_id is not None:
+            raw_relevance = self.similarity(self.items[item_id], self.item_clusters)
+            # normalize relevance to [0, 1]
+            return classifier(raw_relevance)
+
+        # return the whole matrix of items x clusters relevance
+        return np.stack([
+            self._item_cluster_relevance(item_id=item_id, classifier=classifier)
+            for item_id in range(self.n_items)
+        ])
 
 
 class RandomEmbeddings:

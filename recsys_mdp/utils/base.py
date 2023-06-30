@@ -5,12 +5,16 @@ import torch.cuda
 from numpy.random import Generator
 
 
-def sample_int(rng: Generator):
+def sample_int(rng: Generator) -> int:
     return rng.integers(100_000_000)
 
 
-def sample_rng(rng: Generator):
-    return np.random.default_rng(sample_int(rng))
+def make_rng(seed: int) -> Generator:
+    return np.random.default_rng(seed)
+
+
+def sample_rng(rng: Generator) -> Generator:
+    return make_rng(sample_int(rng))
 
 
 def exp_sum(ema, decay, val):
@@ -23,9 +27,12 @@ def lin_sum(x, lr, y):
     return x + lr * (y - x)
 
 
-def update_exp_trace(traces, tr, decay, val=1., with_reset=False):
+def update_exp_trace(traces, decay, tr=None, val=1., with_reset=False):
     """Updates exponential trace."""
     traces *= decay
+    if tr is None:
+        return
+
     if with_reset:
         traces[tr] = val
     else:

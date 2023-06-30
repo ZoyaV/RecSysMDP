@@ -11,19 +11,18 @@ env:
 user_states:
   default:
     _type_: env.user_state
-    # NB: these params are too complicated to auto-resolve
-    # user_id: ???
-    # embeddings: ???
-    # rng: ???
+    embeddings: ???
     base_satiation: 0.15
     base_satiation_speed: [0.04, .4]
     satiation_drift: .2
     item_listening_trace_decay: .9
+    item_listening_trace_reset_power: 6
+    base_satisfaction: 4
+    satisfaction_speed: .1
+    satisfaction_reset_power: 6
     item_repeat_penalty_power: .15
     early_stop_min_prob: 0.008
     early_stop_delta: 0.008
-    similarity_metric: l2
-    item_to_cluster_classification: softmax
     relevance_boosting: [0.2, 4.0]
     boosting_softness: [2.0, 3.0]
     discrete_actions:
@@ -176,6 +175,17 @@ models:
     tau: 0.005
     n_critics: 2
     initial_temperature: 1.0
+
+env_embedding_pair:
+  global_config: ???
+  seed: ???
+  n_users: ???
+  n_items: ???
+  n_dims: ???
+  users: ???
+  items: ???
+  similarity: l2
+  item_cluster_classifier: softmax
 
 embeddings:
   random:
