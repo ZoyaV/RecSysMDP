@@ -14,7 +14,8 @@ from recsys_mdp.simulator.embeddings import Embeddings
 from recsys_mdp.simulator.user_state import (
     USER_RESET_MODE_CONTINUE, User, VolatileUserState
 )
-from recsys_mdp.utils.base import make_rng, sample_rng
+from recsys_mdp.simulator.utils import EpisodicRandomGenerator
+from recsys_mdp.utils.base import sample_rng
 from recsys_mdp.utils.run.config import GlobalConfig, TConfig
 
 
@@ -40,6 +41,8 @@ class EnvCheckpoint:
 
 
 class NextItemEnvironment:
+    episodic_rng: EpisodicRandomGenerator
+
     discrete: bool
     n_users: int
     n_items: int
@@ -66,31 +69,28 @@ class NextItemEnvironment:
             user_state: TConfig,
             dummy: dict[str, Any]
     ):
+        self.episodic_rng = EpisodicRandomGenerator(seed)
         self.global_config = global_config
 
         self.n_users = n_users
         self.n_items = n_items
         self.n_ratings = max_rating + 1
+        self.max_episode_len = parse_max_episode_len(max_episode_len)
 
         self.embeddings = global_config.resolve_object(
             embeddings, object_type_or_factory=Embeddings, n_users=n_users, n_items=n_items
         )
 
-        rng = make_rng(seed)
         shared_user_state = self.global_config.resolve_object(
             user_state, embeddings=self.embeddings
         )
         self.states = [
-            User(user_id=user_id, rng=sample_rng(rng), shared_state=shared_user_state)
+            User(user_id=user_id, rng=sample_rng(self.rng), shared_state=shared_user_state)
             for user_id in range(self.n_users)
         ]
-        # NB: mandatory to set user in init — to get rng available
-        self.state = self.states[rng.integers(self.n_users)]
-
-        self.max_episode_len = parse_max_episode_len(max_episode_len)
 
         self.global_timestep = self.timestep = 0
-        self.timestamp = random_datetime(rng, end_year=2019)
+        self.timestamp = random_datetime(self.rng, end_year=2019)
         self.dummy = dummy
         self.extend_dummy()
 
@@ -102,6 +102,7 @@ class NextItemEnvironment:
             self, user_id: int = None, mode: str = USER_RESET_MODE_CONTINUE,
             supply_info: set[str] = None
     ):
+        self.episodic_rng.transit_to_next_episode()
         if user_id is None:
             user_id = self.rng.integers(self.n_users)
 
@@ -110,7 +111,7 @@ class NextItemEnvironment:
 
         self.timestep = 0
         self.timestamp += pause_random_duration(self.rng)
-        self.current_max_episode_len = self.rng.integers(*self.max_episode_len)
+        self.current_max_episode_len = self.user_rng.integers(*self.max_episode_len)
 
         info = self.compiled_dummies | {
             TIMESTAMP_COL: self.timestamp,
@@ -129,7 +130,7 @@ class NextItemEnvironment:
 
         self.timestep += 1
         self.global_timestep += 1
-        self.timestamp += track_random_duration(self.rng)
+        self.timestamp += track_random_duration(self.user_rng)
 
         # stop by time-limit (user state independent effect)
         truncated = self.timestep >= self.current_max_episode_len
@@ -168,7 +169,7 @@ class NextItemEnvironment:
             return self.timestep >= max_time_steps
 
         # sample 3 times and take mean to smooth dependency by reducing variability
-        return self.rng.random() < probability
+        return self.user_rng.random() < probability
 
     def make_checkpoint(self):
         # save checkpoint only after episode termination, but before reset!
@@ -191,6 +192,10 @@ class NextItemEnvironment:
 
     @property
     def rng(self):
+        return self.episodic_rng.rng
+
+    @property
+    def user_rng(self):
         return self.state.rng
 
     def extend_dummy(self):

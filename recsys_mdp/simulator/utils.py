@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import numpy as np
+from numpy.random import Generator
+
+from recsys_mdp.utils.base import make_rng, sample_int
 
 
 # noinspection PyPep8Naming
@@ -43,3 +46,20 @@ def softmax(x: np.ndarray, temp=.06) -> np.ndarray:
     temp = np.clip(temp, 1e-5, 1e+3)
     e_x = np.exp((x - np.max(x, axis=-1)) / temp)
     return e_x / e_x.sum(axis=-1)
+
+
+class EpisodicRandomGenerator:
+    """
+    Seed and rng "live" only a single episode, then they're switched to the next determined pair.
+    This class wraps this pair and is able to switch it to a new pair.
+    """
+    seed: int
+    rng: Generator
+
+    def __init__(self, seed: int):
+        self.seed = seed
+        self.rng = make_rng(self.seed)
+
+    def transit_to_next_episode(self):
+        self.seed = sample_int(make_rng(self.seed))
+        self.rng = make_rng(self.seed)

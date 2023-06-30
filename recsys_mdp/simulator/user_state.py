@@ -5,8 +5,8 @@ from numpy.random import Generator
 
 from recsys_mdp.mdp.utils import isnone
 from recsys_mdp.simulator.embeddings import Embeddings
-from recsys_mdp.simulator.utils import boosting
-from recsys_mdp.utils.base import sample_int, update_exp_trace, lin_sum, make_rng
+from recsys_mdp.simulator.utils import boosting, EpisodicRandomGenerator
+from recsys_mdp.utils.base import sample_int, update_exp_trace, lin_sum
 
 USER_RESET_MODE_CONTINUE = 'continue'
 USER_RESET_MODE_MEMORYLESS = 'memoryless'
@@ -88,8 +88,7 @@ class StaticUserState:
 
 
 class VolatileUserState:
-    seed: int
-    rng: Generator
+    episodic_rng: EpisodicRandomGenerator
     satiation: np.ndarray
     item_listening_trace: np.ndarray
     satisfaction: float
@@ -98,25 +97,21 @@ class VolatileUserState:
             self, *, seed: int,
             satiation: np.ndarray, item_listening_trace: np.ndarray, satisfaction: float
     ):
-        self.seed = seed
-        self.rng = make_rng(self.seed)
+        self.episodic_rng = EpisodicRandomGenerator(seed)
         self.satiation = satiation
         self.item_listening_trace = item_listening_trace
         self.satisfaction = satisfaction
 
     def transit_to_next_episode(self):
-        # NB: seed and rng "live" only a single episode, then they're switched to the next
-        # determined pair.
         # This ensures that nevertheless the successfulness of the intra-episode interaction
         # with the user, his random state is deterministically progressed over episodes.
-        self.seed = sample_int(make_rng(self.seed))
-        self.rng = make_rng(self.seed)
+        self.episodic_rng.transit_to_next_episode()
 
     def copy(self):
         # Make a copy before transitioning to the next episode and always reset after restore.
         # Well, it is aligned with the natural env flow and doesn't require additional actions.
         return VolatileUserState(
-            seed=self.seed,
+            seed=self.episodic_rng.seed,
             satiation=self.satiation.copy(),
             item_listening_trace=self.item_listening_trace.copy(),
             satisfaction=self.satisfaction
@@ -299,7 +294,7 @@ class User:
 
     @property
     def rng(self):
-        return self.volatile.rng
+        return self.volatile.episodic_rng.rng
 
 
 def sample_satiation_speed(rng: Generator, shared_state: SharedUserState) -> np.ndarray:
