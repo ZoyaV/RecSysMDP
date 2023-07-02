@@ -12,29 +12,7 @@ pipeline: $_base.pipeline_setups.single_epoch
 phases: phase_setups.full
 
 env:
-  _base_: $_base.env
-  n_users: 100
-  n_items: 200
-  max_rating: 5
-  max_episode_len: [120, 50]
-  embeddings:
-    _base_: $_base.env_embedding_pair
-    n_dims: 12
-    users: $_base.embeddings.20_clusters_for_12_dims
-    items: $_base.embeddings.50_clusters_for_12_dims
-  user_state:
-    _base_: $_base.user_states.default
-    base_satiation_speed: [0.05, .25]
-    satiation_drift: 1.0
-    relevance_boosting: [0.4, 4.0]
-    discrete_actions:
-      - [0.2, 0.08]
-      - [0.37, 0.1]
-      - [0.58, 0.03]
-      - [0.75, 0.05]
-  dummy:
-    item_id: ???
-    rating: [.5, 6]
+  _base_: env_setups.small
 
 framestack:
   size: 10
@@ -44,10 +22,8 @@ framestack:
     - ratings
 
 embeddings:
-  _type_: data.embeddings
+  _base_: $_base.learned_data_embeddings
   n_dims: 16
-  n_users: ???
-  n_items: ???
   init_with_als: False
   learn: True
 
@@ -72,14 +48,6 @@ scoring:
     - stat_hitrate
     - PC
     - ihitrate
-
-wandb_init:
-  _base_: $_base.wandb_init
-cache:
-  cache_root: cache
-  enable: ???
-  experiment_config: ???
-  keep_last_n_experiments: 10
 
 models:
   discrete_random:
@@ -119,6 +87,29 @@ models:
     _base_: informed_random
     kth_best: .100
 
+env_setups:
+  small:
+    _base_: $_base.envs.small
+    embeddings:
+      _base_: $_base.env_embeddings_pair
+      n_dims: 8
+      users: $_base.env_embeddings.10_clusters_for_8_dims
+      items: $_base.env_embeddings.20_clusters_for_8_dims
+    user_state:
+      _base_: user_state.current
+  full:
+    _base_: $_base.envs.full
+    embeddings:
+      _base_: $_base.env_embeddings_pair
+      n_dims: 12
+      users: $_base.env_embeddings.20_clusters_for_12_dims
+      items: $_base.env_embeddings.50_clusters_for_12_dims
+    user_state: user_state.current
+
+user_state:
+  current:
+    _base_: $_base.user_states.static
+
 phase_setups:
   small:
     generation: $_base.generation_phase_setups.small
@@ -132,3 +123,12 @@ phase_setups:
     generation: $_base.generation_phase_setups.half
     learning: $_base.learning_phase_setups.full
     evaluation: $_base.evaluation_phase_setups.full
+
+wandb_init:
+  _base_: $_base.wandb_init
+
+cache:
+  cache_root: cache
+  enable: ???
+  experiment_config: ???
+  keep_last_n_experiments: 10

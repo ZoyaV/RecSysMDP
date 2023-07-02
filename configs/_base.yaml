@@ -1,29 +1,45 @@
-env:
-  _type_: env
-  global_config: ???
-  seed: ???
-  n_users: ???
-  n_items: ???
-  max_episode_len: [50, 10]
-  embeddings: ???
-  user_state: ???
+envs:
+  default:
+    _type_: env
+    global_config: ???
+    seed: ???
+    n_users: ???
+    n_items: ???
+    max_rating: 5
+    max_episode_len: [120, 50]
+    embeddings: ???
+    user_state: ???
+    dummy:
+      item_id: ???
+      rating: [.5, 6]
+
+  small:
+    _base_: default
+    n_users: 20
+    n_items: 100
+
+  full:
+    _base_: default
+    n_users: 100
+    n_items: 500
+
 
 user_states:
   default:
     _type_: env.user_state
     embeddings: ???
     base_satiation: 0.15
-    base_satiation_speed: [0.04, .4]
+    base_satiation_speed: [0.05, .25]
     satiation_drift: .2
     item_listening_trace_decay: .9
     item_listening_trace_reset_power: 6
+    item_repeat_penalty_power: .15
     base_satisfaction: 4
     satisfaction_speed: .1
     satisfaction_reset_power: 6
-    item_repeat_penalty_power: .15
     early_stop_min_prob: 0.008
     early_stop_delta: 0.008
-    relevance_boosting: [0.2, 4.0]
+    relevance_boosting: [0.4, 4.0]
     boosting_softness: [2.0, 3.0]
     discrete_actions:
       - [0.2, 0.08]
@@ -32,6 +48,159 @@ user_states:
       - [0.75, 0.05]
     deterministic_actions: False
     deterministic_early_stop: False
+
+  static:
+    _base_: default
+    base_satiation: 1.0
+    base_satiation_speed: [0.0, .0]
+    satiation_drift: 0.
+    item_listening_trace_decay: .0
+    deterministic_actions: True
+
+  no_drift:
+    _base_: default
+    satiation_drift: 0.
+    item_listening_trace_decay: .0
+    deterministic_actions: True
+
+env_embeddings_pair:
+  global_config: ???
+  seed: ???
+  n_users: ???
+  n_items: ???
+  n_dims: ???
+  users: ???
+  items: ???
+  similarity: l2
+  item_cluster_classifier: softmax
+
+env_embeddings:
+  random:
+    _type_: env.embeddings.random
+    seed: ???
+    n_dims: ???
+
+  clusters:
+    _type_: env.embeddings.clusters
+    seed: ???
+    n_dims: ???
+    n_clusters: 4
+    # all clusters have equal weight == 1 by default;
+    # increasing cluster's weight linearly increases probability to sample element from it
+    cluster_sampling_weight:
+      0: 1
+    intra_cluster_noise_scale: 0.05
+    n_dissimilar_dims_required: 3
+    min_dim_delta: 0.3
+    min_l2_dist: 0.1
+    max_generation_tries: 20000
+
+  10_clusters_for_8_dims:
+    _base_: clusters
+    n_clusters: 10
+    intra_cluster_noise_scale: 0.15
+    min_l2_dist: 0.3
+
+  20_clusters_for_8_dims:
+    _base_: clusters
+    n_clusters: 20
+    intra_cluster_noise_scale: 0.15
+    n_dissimilar_dims_required: 2
+    min_dim_delta: 0.25
+    min_l2_dist: 0.3
+
+  20_clusters_for_12_dims:
+    _base_: clusters
+    n_clusters: 20
+    intra_cluster_noise_scale: 0.15
+    min_l2_dist: 0.3
+
+  50_clusters_for_12_dims:
+    _base_: clusters
+    n_clusters: 50
+    intra_cluster_noise_scale: 0.15
+    n_dissimilar_dims_required: 2
+    min_dim_delta: 0.25
+    min_l2_dist: 0.3
+
+pipeline_setups:
+  single_epoch:
+    meta_epochs: 1
+    fix_generator: true
+    accumulate_data: false
+    retrain: true
+
+  data_hungry:
+    meta_epochs: 4
+    fix_generator: true
+    accumulate_data: true
+    retrain: true
+
+  hard_incremental_learning:
+    meta_epochs: 4
+    fix_generator: false
+    accumulate_data: false
+    retrain: false
+
+  hard_exploration:
+    meta_epochs: 4
+    fix_generator: false
+    accumulate_data: false
+    retrain: true
+
+  accumulative_retraining:
+    meta_epochs: 4
+    fix_generator: false
+    accumulate_data: true
+    retrain: true
+
+  soft_incremental_learning:
+    meta_epochs: 4
+    fix_generator: false
+    accumulate_data: true
+    retrain: false
+
+generation_phase_setups:
+  default:
+    episodes: ...
+    use_cache: false
+  small:
+    _base_: default
+    samples: 4000
+  half:
+    _base_: default
+    samples: 10000
+  full:
+    _base_: default
+    samples: 25000
+
+learning_phase_setups:
+  small:
+    epochs: 40
+  full:
+    epochs: 100
+
+evaluation_phase_setups:
+  default:
+    track_users: [0, 1, 2]
+  small:
+    _base_: default
+    schedule: 10
+    episodes: 40
+    user_episodes: 10
+  full:
+    _base_: default
+    schedule: 20
+    episodes: 100
+    user_episodes: 20
+
+learned_data_embeddings:
+  _type_: data.embeddings
+  n_dims: ???
+  n_users: ???
+  n_items: ???
+  init_with_als: ???
+  learn: ???
 
 models:
   # DISCRETE
@@ -175,137 +344,6 @@ models:
     tau: 0.005
     n_critics: 2
     initial_temperature: 1.0
-
-env_embedding_pair:
-  global_config: ???
-  seed: ???
-  n_users: ???
-  n_items: ???
-  n_dims: ???
-  users: ???
-  items: ???
-  similarity: l2
-  item_cluster_classifier: softmax
-
-embeddings:
-  random:
-    _type_: env.embeddings.random
-    seed: ???
-    n_dims: ???
-
-  clusters:
-    _type_: env.embeddings.clusters
-    seed: ???
-    n_dims: ???
-    n_clusters: 4
-    # all clusters have equal weight == 1 by default;
-    # increasing cluster's weight linearly increases probability to sample element from it
-    cluster_sampling_weight:
-      0: 1
-    intra_cluster_noise_scale: 0.05
-    n_dissimilar_dims_required: 3
-    min_dim_delta: 0.3
-    min_l2_dist: 0.1
-    max_generation_tries: 20000
-
-  10_clusters_for_8_dims:
-    _base_: clusters
-    n_clusters: 10
-    intra_cluster_noise_scale: 0.15
-    min_l2_dist: 0.3
-
-  20_clusters_for_8_dims:
-    _base_: clusters
-    n_clusters: 20
-    intra_cluster_noise_scale: 0.15
-    n_dissimilar_dims_required: 2
-    min_dim_delta: 0.25
-    min_l2_dist: 0.3
-
-  20_clusters_for_12_dims:
-    _base_: clusters
-    n_clusters: 20
-    intra_cluster_noise_scale: 0.15
-    min_l2_dist: 0.3
-
-  50_clusters_for_12_dims:
-    _base_: clusters
-    n_clusters: 50
-    intra_cluster_noise_scale: 0.15
-    n_dissimilar_dims_required: 2
-    min_dim_delta: 0.25
-    min_l2_dist: 0.3
-
-pipeline_setups:
-  single_epoch:
-    meta_epochs: 1
-    fix_generator: true
-    accumulate_data: false
-    retrain: true
-
-  data_hungry:
-    meta_epochs: 4
-    fix_generator: true
-    accumulate_data: true
-    retrain: true
-
-  hard_incremental_learning:
-    meta_epochs: 4
-    fix_generator: false
-    accumulate_data: false
-    retrain: false
-
-  hard_exploration:
-    meta_epochs: 4
-    fix_generator: false
-    accumulate_data: false
-    retrain: true
-
-  accumulative_retraining:
-    meta_epochs: 4
-    fix_generator: false
-    accumulate_data: true
-    retrain: true
-
-  soft_incremental_learning:
-    meta_epochs: 4
-    fix_generator: false
-    accumulate_data: true
-    retrain: false
-
-generation_phase_setups:
-  default:
-    episodes: ...
-    use_cache: false
-  small:
-    _base_: default
-    samples: 4000
-  half:
-    _base_: default
-    samples: 10000
-  full:
-    _base_: default
-    samples: 25000
-
-learning_phase_setups:
-  small:
-    epochs: 40
-  full:
-    epochs: 100
-
-evaluation_phase_setups:
-  default:
-    track_users: [0, 1, 2]
-  small:
-    _base_: default
-    schedule: 10
-    episodes: 40
-    user_episodes: 10
-  full:
-    _base_: default
-    schedule: 20
-    episodes: 100
-    user_episodes: 20
 
 
 # additional params for wandb.init
