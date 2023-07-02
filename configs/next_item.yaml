@@ -66,7 +66,7 @@ models:
   # ORACLES
   oracle_confident_best:
     _base_: informed_random
-    n_samples: 2.5
+    n_samples: 2.2
     kth_best: 1
   oracle_best:
     _base_: informed_random
@@ -117,7 +117,7 @@ env_setups:
       items: $_base.env_embeddings.50_clusters_for_12_dims
     user_state: user_state.current
   big_12:
-    _base_: $_base.envs.mid
+    _base_: $_base.envs.big
     embeddings:
       _base_: $_base.env_embeddings_pair
       n_dims: 12

@@ -50,15 +50,15 @@ user_states:
     discrete_actions:
       - [0.48, 0.03]
       - [0.58, 0.02]
-      - [0.64, 0.01]
-      - [0.68, 0.01]
+      - [0.66, 0.01]
+      - [0.7, 0.01]
     deterministic_actions: False
     deterministic_early_stop: False
 
   static:
     # non-mdp: the best results, we should penalize satiation distr to normalize discr rating
     _base_: default
-    satiation_distribution: [2.0, 4.0]
+    satiation_distribution: [15.0, 20.0]
     base_satiation_speed: [0.0, .0]
     satiation_drift: 0.
     item_listening_trace_decay: .0
