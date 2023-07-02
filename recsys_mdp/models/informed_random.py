@@ -47,7 +47,7 @@ class InformedRandomPolicy(DiscreteRandomPolicy):
 
 
 def resolve_n_samples(n_samples: int | float | None, n_items) -> int:
-    c = 1.4 if n_items < 100 else 1.2
+    c = 1.4 if n_items < 100 else 2.5
     n_samples_auto = c / np.sqrt(n_items)
 
     # None ==> auto induced

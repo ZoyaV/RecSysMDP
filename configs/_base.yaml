@@ -6,7 +6,8 @@ envs:
     n_users: ???
     n_items: ???
     max_rating: 5
-    max_episode_len: [120, 50]
+    # ep len is sampled from satisfaction [min, max]
+    episode_max_len: [2.8, 5.8]
     embeddings: ???
     user_state: ???
     dummy:
@@ -16,52 +17,69 @@ envs:
   small:
     _base_: default
     n_users: 20
-    n_items: 100
+    n_items: 200
 
-  full:
+  mid:
     _base_: default
     n_users: 100
-    n_items: 500
+    n_items: 1000
+
+  big:
+    _base_: default
+    n_users: 500
+    n_items: 5000
 
 
 user_states:
   default:
     _type_: env.user_state
     embeddings: ???
-    base_satiation: 0.15
-    base_satiation_speed: [0.05, .25]
-    satiation_drift: .2
+    # [min, mean] sampled initial satiation
+    satiation_distribution: [0.25, 1.0]
+    base_satiation_speed: [0.05, .2]
+    satiation_drift: .25
     item_listening_trace_decay: .9
     item_listening_trace_reset_power: 6
     item_repeat_penalty_power: .15
-    base_satisfaction: 4
-    satisfaction_speed: .1
+    base_satisfaction: 3.8
+    satisfaction_speed: .25
     satisfaction_reset_power: 6
-    early_stop_min_prob: 0.008
-    early_stop_delta: 0.008
+    early_stop_probs: [0.048, 0.041, 5]
     relevance_boosting: [0.4, 4.0]
     boosting_softness: [2.0, 3.0]
     discrete_actions:
-      - [0.2, 0.08]
-      - [0.37, 0.1]
-      - [0.58, 0.03]
-      - [0.75, 0.05]
+      - [0.48, 0.03]
+      - [0.58, 0.02]
+      - [0.64, 0.01]
+      - [0.68, 0.01]
     deterministic_actions: False
     deterministic_early_stop: False
 
   static:
+    # non-mdp: the best results, we should penalize satiation distr to normalize discr rating
     _base_: default
-    base_satiation: 1.0
+    satiation_distribution: [2.0, 4.0]
     base_satiation_speed: [0.0, .0]
     satiation_drift: 0.
     item_listening_trace_decay: .0
     deterministic_actions: True
 
   no_drift:
+    # learn satiation progression: should see the worst results as no way to reset satiation
     _base_: default
     satiation_drift: 0.
     item_listening_trace_decay: .0
-    deterministic_actions: True
+
+  memoryless:
+    # 2nd easiest: no repeat penalty, satiation is reset every episode. What we test?
+    _base_: default
+    satiation_drift: 1.0
+    item_listening_trace_decay: .0
+
+  no_repeat_penalty:
+    # a bit easier than default as there's no repeat penalty
+    _base_: default
+    item_listening_trace_decay: .0
 
 env_embeddings_pair:
   global_config: ???
@@ -109,6 +127,12 @@ env_embeddings:
     min_dim_delta: 0.25
     min_l2_dist: 0.3
 
+  10_clusters_for_12_dims:
+    _base_: clusters
+    n_clusters: 20
+    intra_cluster_noise_scale: 0.15
+    min_l2_dist: 0.3
+
   20_clusters_for_12_dims:
     _base_: clusters
     n_clusters: 20
@@ -118,6 +142,14 @@ env_embeddings:
   50_clusters_for_12_dims:
     _base_: clusters
     n_clusters: 50
+    intra_cluster_noise_scale: 0.15
+    n_dissimilar_dims_required: 2
+    min_dim_delta: 0.25
+    min_l2_dist: 0.3
+
+  100_clusters_for_12_dims:
+    _base_: clusters
+    n_clusters: 100
     intra_cluster_noise_scale: 0.15
     n_dissimilar_dims_required: 2
     min_dim_delta: 0.25

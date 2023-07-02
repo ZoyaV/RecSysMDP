@@ -13,7 +13,8 @@ USER_RESET_MODE_MEMORYLESS = 'memoryless'
 
 
 class SharedUserState:
-    base_satiation: float
+    # [min, mean]
+    satiation_distribution: tuple[float, float]
     base_satiation_speed: float | tuple[float, float]
     satiation_drift: float
 
@@ -25,8 +26,7 @@ class SharedUserState:
     satisfaction_speed: float
     satisfaction_reset_power: float
 
-    early_stop_min_prob: float
-    early_stop_delta: float
+    early_stop_probs: tuple[float, float, int]
     deterministic_early_stop: bool = False
 
     discrete_actions_distr: list[tuple[float, float]]
@@ -39,7 +39,7 @@ class SharedUserState:
     def __init__(
             self, *,
             embeddings: Embeddings,
-            base_satiation: float,
+            satiation_distribution: float | tuple[float, float],
             base_satiation_speed: float | tuple[float, float],
             satiation_drift: float,
             item_listening_trace_decay: float,
@@ -48,15 +48,14 @@ class SharedUserState:
             base_satisfaction: float,
             satisfaction_speed: float,
             satisfaction_reset_power: float,
-            early_stop_min_prob: float,
-            early_stop_delta: float,
+            early_stop_probs: tuple[float, float, int],
             relevance_boosting: tuple[float, float],
             boosting_softness: tuple[float, float],
             discrete_actions: list[tuple[float, float]],
             deterministic_actions: bool = False,
             deterministic_early_stop: bool = False,
     ):
-        self.base_satiation = base_satiation
+        self.satiation_distribution = parse_satiation_distribution(satiation_distribution)
         self.base_satiation_speed = base_satiation_speed
         self.satiation_drift = satiation_drift
 
@@ -68,8 +67,7 @@ class SharedUserState:
         self.satisfaction_speed = satisfaction_speed
         self.satisfaction_reset_power = satisfaction_reset_power
 
-        self.early_stop_min_prob = early_stop_min_prob
-        self.early_stop_delta = early_stop_delta
+        self.early_stop_probs = early_stop_probs
         self.deterministic_early_stop = deterministic_early_stop
         self.discrete_actions_distr = discrete_actions
         self.deterministic_actions = deterministic_actions
@@ -203,7 +201,8 @@ class User:
 
         # continue based on previous mood, but slightly drift to another mood;
         # in average, it directs to the expected mean satiation
-        mood = normalize_mood(self.volatile.satiation)
+        _, mean = self.shared.satiation_distribution
+        mood = normalize_mood(self.volatile.satiation, mean=mean)
         new_mood = self.sample_satiation()
 
         # calculate new satiation vector
@@ -234,12 +233,13 @@ class User:
 
     def sample_satiation(self) -> np.ndarray:
         n_clusters = self.shared.embeddings.n_item_clusters
-        base_satiation = self.shared.base_satiation
+        min_satiation, mean = self.shared.satiation_distribution
 
         # we want E[satiation] = 1 => E[U[0, 2]] = 1
-        # => shifting both sides towards `1` keeps mean unchanged
-        mood = self.rng.uniform(base_satiation, 2 - base_satiation, size=n_clusters)
-        return normalize_mood(mood)
+        # or more general E[satiation] = mean ==> E[U[0, 2*mean]] = mean
+        # => shifting both sides towards `mean` keeps mean unchanged
+        mood = self.rng.uniform(min_satiation, 2 * mean - min_satiation, size=n_clusters)
+        return normalize_mood(mood, mean=mean)
 
     def sample_discrete_response(self, relevance) -> int:
         mark_distributions = self.shared.discrete_actions_distr
@@ -266,7 +266,7 @@ class User:
         return repeat_trace ** (-self.shared.item_repeat_penalty_power)
 
     def sample_initial_satisfaction(self):
-        return self.rng.normal(self.shared.base_satisfaction, 0.15)
+        return self.rng.normal(self.shared.base_satisfaction, 0.25)
 
     @staticmethod
     def create_static_state(*, user_id: int, rng: Generator, shared_state: SharedUserState):
@@ -314,6 +314,13 @@ def sample_satiation_speed(rng: Generator, shared_state: SharedUserState) -> np.
     )
 
 
-def normalize_mood(satiation: np.ndarray):
+def normalize_mood(satiation: np.ndarray, mean: float):
     # makes satiation.sum() equal to the number of clusters (=shape[0])
-    return satiation / satiation.mean()
+    return satiation * (mean / satiation.mean())
+
+
+def parse_satiation_distribution(distribution) -> tuple[float, float]:
+    if isinstance(distribution, float):
+        min_value, mean_value = distribution, 1.0
+        return min_value, mean_value
+    return distribution

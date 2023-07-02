@@ -66,14 +66,16 @@ models:
   # ORACLES
   oracle_confident_best:
     _base_: informed_random
-    n_samples: 0.25
+    n_samples: 2.5
     kth_best: 1
   oracle_best:
     _base_: informed_random
     kth_best: 1
+    n_samples: 1.4
   oracle_10:
     _base_: informed_random
     kth_best: .1
+    n_samples: 1.2
   oracle_25:
     _base_: informed_random
     kth_best: .25
@@ -83,12 +85,13 @@ models:
   oracle_75:
     _base_: informed_random
     kth_best: .75
-  oracle_100:
+  oracle_90:
     _base_: informed_random
-    kth_best: .100
+    kth_best: .9
+    n_samples: 1.2
 
 env_setups:
-  small:
+  small_8:
     _base_: $_base.envs.small
     embeddings:
       _base_: $_base.env_embeddings_pair
@@ -97,13 +100,29 @@ env_setups:
       items: $_base.env_embeddings.20_clusters_for_8_dims
     user_state:
       _base_: user_state.current
-  full:
-    _base_: $_base.envs.full
+  small_12:
+    _base_: $_base.envs.small
+    embeddings:
+      n_dims: 12
+      users: $_base.env_embeddings.10_clusters_for_12_dims
+      items: $_base.env_embeddings.50_clusters_for_12_dims
+    user_state:
+      _base_: user_state.current
+  mid_12:
+    _base_: $_base.envs.mid
     embeddings:
       _base_: $_base.env_embeddings_pair
       n_dims: 12
       users: $_base.env_embeddings.20_clusters_for_12_dims
       items: $_base.env_embeddings.50_clusters_for_12_dims
+    user_state: user_state.current
+  big_12:
+    _base_: $_base.envs.mid
+    embeddings:
+      _base_: $_base.env_embeddings_pair
+      n_dims: 12
+      users: $_base.env_embeddings.50_clusters_for_12_dims
+      items: $_base.env_embeddings.100_clusters_for_12_dims
     user_state: user_state.current
 
 user_state:
