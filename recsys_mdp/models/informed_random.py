@@ -19,24 +19,9 @@ class InformedRandomPolicy(DiscreteRandomPolicy):
         self.env = env
         self.rng = np.random.default_rng(seed)
 
-        c = 1.4 if self.env.n_items < 100 else 1.2
-        n_samples = isnone(n_samples, c / np.sqrt(self.env.n_items))
-        n_samples = resolve_absolute_quantity(n_samples, baseline=self.env.n_items)
-        self.n_samples = max(1, n_samples)
+        self.n_samples = resolve_n_samples(n_samples, self.env.n_items)
+        self.kth_best = resolve_kth_best(kth_best, self.n_samples)
 
-        assert 0 < abs(kth_best)
-        kth_best_sign = kth_best // abs(kth_best)
-        if isinstance(kth_best, int):
-            if kth_best > 0:
-                kth_best -= 1
-            else:
-                kth_best += self.n_samples
-        else:
-            kth_best = resolve_absolute_quantity(kth_best, baseline=n_samples)
-            if kth_best == 0 and kth_best_sign < 0:
-                kth_best = -1
-
-        self.kth_best = kth_best
         assert self.kth_best < self.n_samples
         print(f'Oracle policy: {self.kth_best} of {self.n_samples} | {self.env.n_items}')
 
@@ -59,3 +44,38 @@ class InformedRandomPolicy(DiscreteRandomPolicy):
         assert n_epochs is not None
         for epoch in range(1, n_epochs+1):
             yield epoch, 0.
+
+
+def resolve_n_samples(n_samples: int | float | None, n_items) -> int:
+    c = 1.4 if n_items < 100 else 1.2
+    n_samples_auto = c / np.sqrt(n_items)
+
+    # None ==> auto induced
+    n_samples = isnone(n_samples, n_samples_auto)
+
+    if isinstance(n_samples, float) and n_samples > 1:
+        # float > 1 ==> auto induced & boosted
+        n_samples *= n_samples_auto
+
+    # float -> int
+    n_samples = resolve_absolute_quantity(n_samples, baseline=n_items)
+    # clip
+    # noinspection PyTypeChecker
+    return np.clip(n_samples, 1, n_items)
+
+
+def resolve_kth_best(kth_best, n_samples):
+    assert abs(kth_best) > 0
+
+    kth_best_sign = kth_best // abs(kth_best)
+    if isinstance(kth_best, int):
+        if kth_best > 0:
+            kth_best -= 1
+        else:
+            kth_best += n_samples
+    else:
+        kth_best = resolve_absolute_quantity(kth_best, baseline=n_samples)
+        if kth_best == 0 and kth_best_sign < 0:
+            kth_best = -1
+
+    return kth_best

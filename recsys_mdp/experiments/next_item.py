@@ -157,11 +157,8 @@ class NextItemExperiment:
 
         for meta_epoch in range(1, self.pipeline.meta_epochs + 1):
             self.print_with_timestamp(f'Meta-Epoch: {meta_epoch} ==> generating')
-            _log_df = self.generate_dataset(meta_epoch)
-            if log_df is not None and self.pipeline.accumulate_data:
-                log_df = pd.concat([log_df, _log_df], ignore_index=True)
-            else:
-                log_df = _log_df
+            new_log_df = self.generate_dataset(meta_epoch)
+            log_df = self.aggregate_log(old_log=log_df, new_log=new_log_df)
 
             self.print_with_timestamp(f'Meta-Epoch: {meta_epoch} ==> learning')
             fitter = self.init_rl_setting(log_df)
@@ -293,6 +290,11 @@ class NextItemExperiment:
 
             result[component] = ObservationComponent(encoder=encoder, **params)
         return result
+
+    def aggregate_log(self, old_log: pd.DataFrame, new_log: pd.DataFrame):
+        if old_log is not None and self.pipeline.accumulate_data:
+            return pd.concat([old_log, new_log], ignore_index=True)
+        return new_log
 
     def init_phase_settings(self, generation: TConfig, learning: TConfig, evaluation: TConfig):
         self.generation = self.config.resolve_object(
