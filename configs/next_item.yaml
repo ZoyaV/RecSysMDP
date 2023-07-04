@@ -38,7 +38,7 @@ mdp:
   action: item
   episode: pause
 
-generation_model: models.oracle_1of2
+generation_model: models.oracle_1of3
 eval_model: models.discrete_cql
 
 scoring:

@@ -36,11 +36,6 @@ def sparse_return(episode):
 
 
 def sparse_episode_length(episode):
-    dense_rewards = relevant(episode)
-
     sparse_rewards = np.zeros(episode.shape[0])
-    sparse_rewards[-1] = np.sum(dense_rewards)
+    sparse_rewards[-1] = episode.shape[0]
     return sparse_rewards
-
-# добавить загрузку ембедингов
-# поставить экспериментов
