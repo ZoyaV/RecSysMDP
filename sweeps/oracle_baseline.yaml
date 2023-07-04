@@ -1,0 +1,61 @@
+program: run.py
+
+# wandb project: for a sweep it will be used instead of the project
+# specified in run config
+project: recsys.static
+method: grid
+parameters:
+  # Keep seeds presented every time and keep them on top
+  # I recommend just uncommenting the needed number of seeds to use
+  seed.:
+    values: [110, 111, 112, 113, 114] #, 40, 41] #, 42] #43, 44, 45, 46] #, 47, 48, 49] #, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
+
+  cuda_device.:
+   value: false
+  pipeline.:
+    value: $_base.pipeline_setups.single_epoch
+  phases.:
+    value: phase_setups.full
+  env.._base_:
+    value: env_setups.small_8
+  user_state..current._base_:
+    value: $_base.user_states.static
+
+  eval_model.:
+    values:
+      - models.oracle_best
+      - models.oracle_10
+      - models.oracle_25
+      - models.oracle_50
+
+  framestack..size:
+    value: 1
+  embeddings..n_dims:
+    value: 8
+  state_encoder..hidden_dim:
+    value: 64
+  state_encoder..output_dim:
+    value: 32
+
+  framestack..keys:
+    values:
+       - ['user_id', 'item_ids']
+#      - ['user_id', 'item_ids', 'ratings']
+
+  mdp..episode:
+    value: pause
+  mdp..reward:
+    values:
+      - one
+      # - sparse_length
+      # - sparse_return
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
+
+    # REQUIRED. Usually it is in {path_to_sweep_config}/../configs/{config}
+  - --config
+  - ../configs/next_item.yaml
