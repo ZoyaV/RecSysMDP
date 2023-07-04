@@ -27,6 +27,9 @@ parameters:
       - models.oracle_10
       - models.oracle_25
       - models.oracle_50
+      - models.oracle_1of2
+      - models.oracle_1of3
+      - models.oracle_1of4
 
   framestack..size:
     value: 1
