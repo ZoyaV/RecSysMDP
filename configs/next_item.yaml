@@ -28,8 +28,8 @@ embeddings:
   learn: True
 
 state_encoder:
-  output_dim: 512
   hidden_dim: 256
+  output_dim: 512
   state_encoding_method: concat
   attention_hidden_dim: 32
 

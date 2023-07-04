@@ -1,0 +1,83 @@
+program: run.py
+
+# wandb project: for a sweep it will be used instead of the project
+# specified in run config
+project: recsys.static
+method: grid
+parameters:
+  # Keep seeds presented every time and keep them on top
+  # I recommend just uncommenting the needed number of seeds to use
+  seed.:
+    values: [110, 111, 112, 113, 114] #, 40, 41] #, 42] #43, 44, 45, 46] #, 47, 48, 49] #, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
+
+  cuda_device.:
+   value: false
+  pipeline.:
+    value: $_base.pipeline_setups.single_epoch
+  phases.:
+    value: phase_setups.full
+  env.._base_:
+    value: env_setups.small_8
+  user_state..current._base_:
+    value: $_base.user_states.static
+
+  eval_model.:
+    value: models.discrete_bc
+
+  models..discrete_bc.learning_rate:
+    values:
+      - 3.3e-4
+      - 1.0e-3
+      - 3.3e-3
+  models..discrete_bc.batch_size:
+    values:
+      - 32
+      - 128
+      - 512
+  models..discrete_bc.beta:
+    beta:
+#      - 0.4
+      - 0.5
+#      - 0.6
+
+  framestack..size:
+    values:
+      - 1
+#      - 4
+#      - 10
+  embeddings..n_dims:
+    values:
+      - 8
+#      - 12
+#      - 16
+  state_encoder..hidden_dim:
+    values:
+       - 64
+#      - 256
+  state_encoder..output_dim:
+    values:
+      - 8
+#      - 128
+
+  framestack..keys:
+    values:
+      - ['user_id', 'item_ids']
+      - ['user_id', 'item_ids', 'ratings']
+
+  mdp..episode:
+    value: pause
+  mdp..reward:
+    values:
+      - one
+      # - sparse_length
+      # - sparse_return
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
+
+    # REQUIRED. Usually it is in {path_to_sweep_config}/../configs/{config}
+  - --config
+  - ../configs/next_item.yaml
