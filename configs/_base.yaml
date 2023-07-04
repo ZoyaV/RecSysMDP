@@ -201,10 +201,10 @@ generation_phase_setups:
     samples: 4000
   half:
     _base_: default
-    samples: 10000
+    samples: 20000
   full:
     _base_: default
-    samples: 25000
+    samples: 50000
 
 learning_phase_setups:
   small:
@@ -223,8 +223,8 @@ evaluation_phase_setups:
   full:
     _base_: default
     schedule: 20
-    episodes: 100
-    user_episodes: 20
+    episodes: 200
+    user_episodes: 25
 
 learned_data_embeddings:
   _type_: data.embeddings
@@ -246,7 +246,9 @@ models:
     kth_best: ???
   discrete_bc:
     _base_: discrete_bc_default
-#    learning_rate: 5e-4
+    learning_rate: 7.5e-5
+    batch_size: 256
+    beta: 0.7
     encoder_factory: ???
     use_gpu: ???
   discrete_bc_default:

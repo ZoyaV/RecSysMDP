@@ -28,8 +28,8 @@ embeddings:
   learn: True
 
 state_encoder:
-  hidden_dim: 256
-  output_dim: 512
+  hidden_dim: 128
+  output_dim: 8
   state_encoding_method: concat
   attention_hidden_dim: 32
 
@@ -38,7 +38,7 @@ mdp:
   action: item
   episode: pause
 
-generation_model: models.discrete_random
+generation_model: models.oracle_1of2
 eval_model: models.discrete_cql
 
 scoring:
@@ -89,6 +89,18 @@ models:
     _base_: informed_random
     kth_best: .9
     n_samples: 1.2
+  oracle_1of2:
+    _base_: informed_random
+    kth_best: 1
+    n_samples: 2
+  oracle_1of3:
+    _base_: informed_random
+    kth_best: 1
+    n_samples: 3
+  oracle_1of4:
+    _base_: informed_random
+    kth_best: 1
+    n_samples: 4
 
 env_setups:
   small_8:
