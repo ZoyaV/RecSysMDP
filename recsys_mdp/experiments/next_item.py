@@ -34,7 +34,7 @@ from recsys_mdp.simulator.env import (
     NextItemEnvironment
 )
 from recsys_mdp.simulator.framestack import Framestack
-from recsys_mdp.utils.base import get_cuda_device
+from recsys_mdp.utils.base import get_cuda_device, sample_int, make_rng
 from recsys_mdp.utils.run.config import (
     TConfig, GlobalConfig, extracted
 )
@@ -50,7 +50,7 @@ class NextItemExperiment:
     logger: Run | None
 
     init_time: float
-    seed: int
+    seed: int | None
     rng: Generator
     cuda_device: int | bool
 
@@ -108,8 +108,8 @@ class NextItemExperiment:
 
         # MATH: RANDOM SEEDING, CUDA DEVICES
         self.seed = seed
-        self.rng = np.random.default_rng(seed)
-        d3rlpy.seed(seed)
+        self.rng = make_rng(seed)
+        d3rlpy.seed(sample_int(self.rng))
         self.cuda_device = get_cuda_device(cuda_device)
 
         # PIPELINE + PHASES
