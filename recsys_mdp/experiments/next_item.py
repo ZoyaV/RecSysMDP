@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import d3rlpy
-import numpy as np
 import pandas as pd
 import structlog
 from d3rlpy.algos import AlgoBase
@@ -36,7 +35,7 @@ from recsys_mdp.simulator.env import (
 from recsys_mdp.simulator.framestack import Framestack
 from recsys_mdp.utils.base import get_cuda_device, sample_int, make_rng
 from recsys_mdp.utils.run.config import (
-    TConfig, GlobalConfig, extracted
+    TConfig, GlobalConfig, extracted, is_resolved_value
 )
 from recsys_mdp.utils.run.timer import timer, print_with_timestamp
 from recsys_mdp.utils.run.wandb import get_logger
@@ -134,7 +133,9 @@ class NextItemExperiment:
         self.embeddings = self.config.resolve_object(
             embeddings, n_users=self.env.n_users, n_items=self.env.n_items
         )
-        self.state_encoder = state_encoder
+        self.state_encoder = resolve_state_encoder(
+            config=self.config, eval_model=eval_model, state_encoder=state_encoder
+        )
 
         self.generation_model.create_impl(self.framestack.shape, self.env.n_items)
 
@@ -341,3 +342,30 @@ class NextItemExperiment:
 
     def print_with_timestamp(self, *args):
         print_with_timestamp(self.init_time, *args)
+
+
+def resolve_state_encoder(config: GlobalConfig, eval_model: TConfig, state_encoder: TConfig):
+    # NB: a little bit of dirty hand waving
+    # if we can induce model name, we can match model-specific state encoder with tuned params
+
+    model_prefix = 'models.'
+    if isinstance(eval_model, str) and eval_model.startswith(model_prefix):
+        eval_model = eval_model[len(model_prefix):]
+    else:
+        # I'm lazy to induce model name from the type
+        eval_model = 'default'
+
+    state_encoders_registry = 'state_encoders'
+    state_encoders = config.config[state_encoders_registry]
+
+    model_specific_encoder = f'{state_encoders_registry}.{eval_model}'
+    if model_specific_encoder in state_encoders:
+        base = model_specific_encoder
+    else:
+        base = f'{state_encoders_registry}.default'
+
+    base_key = '_base_'
+    if base_key in state_encoder and not is_resolved_value(state_encoder[base_key]):
+        state_encoder[base_key] = base
+
+    return config.config_resolver.resolve(state_encoder, config_type=dict)

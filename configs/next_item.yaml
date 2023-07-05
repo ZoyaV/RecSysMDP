@@ -28,10 +28,8 @@ embeddings:
   learn: True
 
 state_encoder:
-  hidden_dim: 128
-  output_dim: 8
+  _base_: ???
   state_encoding_method: concat
-  attention_hidden_dim: 32
 
 mdp:
   reward: one
@@ -154,6 +152,25 @@ phase_setups:
     generation: $_base.generation_phase_setups.half
     learning: $_base.learning_phase_setups.full
     evaluation: $_base.evaluation_phase_setups.full
+
+state_encoders:
+  default:
+    state_encoding_method: ???
+    hidden_dim: 64
+    output_dim: 8
+    attention_hidden_dim: 32
+  discrete_bc:
+    _base_: default
+    hidden_dim: 64
+    output_dim: 8
+  discrete_cql:
+    _base_: default
+    hidden_dim: 64
+    output_dim: 8
+  discrete_sac:
+    _base_: default
+    hidden_dim: 128
+    output_dim: 16
 
 wandb_init:
   _base_: $_base.wandb_init
