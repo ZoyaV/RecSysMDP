@@ -261,6 +261,10 @@ models:
 
   discrete_cql:
     _base_: discrete_cql_default
+    learning_rate: 2e-4
+    batch_size: 256
+    n_critics: 2
+    target_update_interval: 4000
     encoder_factory: ???
     use_gpu: ???
   discrete_cql_default:
