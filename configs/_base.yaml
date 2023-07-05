@@ -246,8 +246,9 @@ models:
     kth_best: ???
   discrete_bc:
     _base_: discrete_bc_default
-    learning_rate: 7.5e-5
-    batch_size: 256
+    # 8| 64, 8
+    learning_rate: 1e-4
+    batch_size: 128
     beta: 0.7
     encoder_factory: ???
     use_gpu: ???
@@ -261,6 +262,7 @@ models:
 
   discrete_cql:
     _base_: discrete_cql_default
+    # 8| 64, 8
     learning_rate: 2e-4
     batch_size: 256
     n_critics: 2
@@ -281,6 +283,10 @@ models:
 
   discrete_sac:
     _base_: discrete_sac_default
+    # 8 | 128, 16
+    batch_size: 128
+    gamma: 0.4
+    n_critics: 3
     actor_encoder_factory: ???
     critic_encoder_factory: ???
     use_gpu: ???
