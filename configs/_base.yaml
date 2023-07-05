@@ -284,6 +284,9 @@ models:
   discrete_sac:
     _base_: discrete_sac_default
     # 8 | 128, 16
+    actor_learning_rate: 5e-4
+    critic_learning_rate: 4e-3
+    temp_learning_rate: 1e-3
     batch_size: 128
     gamma: 0.4
     n_critics: 3
